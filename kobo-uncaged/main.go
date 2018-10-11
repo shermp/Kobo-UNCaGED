@@ -15,6 +15,7 @@ import (
 
 	"github.com/kapmahc/epub"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/mitchellh/mapstructure"
 	"github.com/shermp/UNCaGED/uc"
 	"github.com/shermp/go-fbink-v2/gofbink"
 	"github.com/shermp/kobo-sim-usb/simusb"
@@ -367,6 +368,20 @@ func (ku *KoboUncaged) GetDeviceBookList() []uc.BookCountDetails {
 // all books on device if lpaths is empty
 func (ku *KoboUncaged) GetMetadataList(books []uc.BookID) []map[string]interface{} {
 	mdList := []map[string]interface{}{}
+	if len(books) > 0 {
+		for _, bk := range books {
+			cID := ku.lpathToContentID(bk.Lpath)
+			md := map[string]interface{}{}
+			mapstructure.Decode(ku.metadataMap[cID], &md)
+			mdList = append(mdList, md)
+		}
+	} else {
+		for _, kmd := range ku.metadataMap {
+			md := map[string]interface{}{}
+			mapstructure.Decode(kmd, &md)
+			mdList = append(mdList, md)
+		}
+	}
 	return mdList
 }
 
