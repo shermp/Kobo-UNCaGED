@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gofrs/uuid"
 	"github.com/kapmahc/epub"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/mitchellh/mapstructure"
@@ -50,6 +51,7 @@ type KoboUncaged struct {
 	fbCfg    *gofbink.FBInkConfig
 	koboInfo struct {
 		model        koboDeviceID
+		modelName    string
 		fw           [3]int
 		coverDetails map[koboCoverEnding]coverDims
 	}
@@ -57,6 +59,7 @@ type KoboUncaged struct {
 	bkRootDir       string
 	contentIDprefix string
 	metadataMap     map[string]KoboMetadata
+	driveInfo       uc.DeviceInfo
 	nickelDB        *sql.DB
 }
 
@@ -81,6 +84,14 @@ func (ku *KoboUncaged) contentIDtoLpath(contentID string) string {
 
 func (ku *KoboUncaged) contentIDisBkDir(contentID string) bool {
 	return strings.HasPrefix(contentID, ku.contentIDprefix)
+}
+
+func (ku *KoboUncaged) lpathIsKepub(lpath string) bool {
+	return strings.HasSuffix(lpath, ".kepub")
+}
+
+func (ku KoboUncaged) contentIDisKepub(contentID string) bool {
+	return strings.HasSuffix(contentID, ".kepub.epub")
 }
 
 func (ku *KoboUncaged) getKoboInfo() error {
@@ -121,6 +132,32 @@ func (ku *KoboUncaged) getKoboInfo() error {
 		ku.koboInfo.coverDetails[fullCover] = coverDims{width: 600, height: 800}
 		ku.koboInfo.coverDetails[libFull] = coverDims{width: 355, height: 473}
 		ku.koboInfo.coverDetails[libGrid] = coverDims{width: 149, height: 198}
+	}
+
+	// Populate model name
+	switch ku.koboInfo.model {
+	case touch2, touchAB, touchC:
+		ku.koboInfo.modelName = "Touch"
+	case mini:
+		ku.koboInfo.modelName = "Mini"
+	case glo:
+		ku.koboInfo.modelName = "Glo"
+	case gloHD:
+		ku.koboInfo.modelName = "Glo HD"
+	case aura:
+		ku.koboInfo.modelName = "Aura"
+	case auraH2O:
+		ku.koboInfo.modelName = "Aura H2O"
+	case auraH2Oed2r1, auraH2Oed2r2:
+		ku.koboInfo.modelName = "Aura H2O Ed. 2"
+	case auraEd2r1, auraEd2r2:
+		ku.koboInfo.modelName = "Aura Ed. 2"
+	case auraHD:
+		ku.koboInfo.modelName = "Aura HD"
+	case auraOne, auraOneLE:
+		ku.koboInfo.modelName = "Aura One"
+	case claraHD:
+		ku.koboInfo.modelName = "Clara HD"
 	}
 	return nil
 }
@@ -312,6 +349,35 @@ func (ku *KoboUncaged) writeMDfile() error {
 	return nil
 }
 
+func (ku *KoboUncaged) loadDeviceInfo() error {
+	diJSON, err := ioutil.ReadFile(filepath.Join(ku.bkRootDir, calibreDIfile))
+	if err != nil {
+		if os.IsNotExist(err) {
+			uuid4, _ := uuid.NewV4()
+			ku.driveInfo.DevInfo.LocationCode = "main"
+			ku.driveInfo.DevInfo.DeviceName = "Kobo " + ku.koboInfo.modelName
+			ku.driveInfo.DevInfo.DeviceStoreUUID = uuid4.String()
+			return nil
+		}
+		return err
+	}
+	if len(diJSON) > 0 {
+		err = json.Unmarshal(diJSON, &ku.driveInfo.DevInfo)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (ku *KoboUncaged) saveDeviceInfo() error {
+	diJSON, err := json.MarshalIndent(ku.driveInfo.DevInfo, "", "    ")
+	if err != nil {
+		return err
+	}
+	return ioutil.WriteFile(filepath.Join(ku.bkRootDir, calibreDIfile), diJSON, 0644)
+}
+
 // GetClientOptions returns all the client specific options required for UNCaGED
 func (ku *KoboUncaged) GetClientOptions() uc.ClientOptions {
 	opts := uc.ClientOptions{}
@@ -319,30 +385,7 @@ func (ku *KoboUncaged) GetClientOptions() uc.ClientOptions {
 	ext := []string{"kepub", "epub"}
 	opts.SupportedExt = append(opts.SupportedExt, ext...)
 	opts.DeviceName = "Kobo"
-	switch ku.koboInfo.model {
-	case touch2, touchAB, touchC:
-		opts.DeviceModel = "Touch"
-	case mini:
-		opts.DeviceModel = "Mini"
-	case glo:
-		opts.DeviceModel = "Glo"
-	case gloHD:
-		opts.DeviceModel = "Glo HD"
-	case aura:
-		opts.DeviceModel = "Aura"
-	case auraH2O:
-		opts.DeviceModel = "Aura H2O"
-	case auraH2Oed2r1, auraH2Oed2r2:
-		opts.DeviceModel = "Aura H2O Ed. 2"
-	case auraEd2r1, auraEd2r2:
-		opts.DeviceModel = "Aura Ed. 2"
-	case auraHD:
-		opts.DeviceModel = "Aura HD"
-	case auraOne, auraOneLE:
-		opts.DeviceModel = "Aura One"
-	case claraHD:
-		opts.DeviceModel = "Clara HD"
-	}
+	opts.DeviceModel = ku.koboInfo.modelName
 	opts.CoverDims.Height = ku.koboInfo.coverDetails[fullCover].height
 	opts.CoverDims.Width = ku.koboInfo.coverDetails[fullCover].width
 	return opts
@@ -387,13 +430,15 @@ func (ku *KoboUncaged) GetMetadataList(books []uc.BookID) []map[string]interface
 
 // GetDeviceInfo asks the client for information about the drive info to use
 func (ku *KoboUncaged) GetDeviceInfo() uc.DeviceInfo {
-	devInfo := uc.DeviceInfo{}
-	return devInfo
+	return ku.driveInfo
 }
 
 // SetDeviceInfo sets the new device info, as comes from calibre. Only the nested
 // struct DevInfo is modified.
-func (ku *KoboUncaged) SetDeviceInfo(uc.DeviceInfo) {}
+func (ku *KoboUncaged) SetDeviceInfo(devInfo uc.DeviceInfo) {
+	ku.driveInfo = devInfo
+	ku.saveDeviceInfo()
+}
 
 // UpdateMetadata instructs the client to update their metadata according to the
 // new slice of metadata maps
