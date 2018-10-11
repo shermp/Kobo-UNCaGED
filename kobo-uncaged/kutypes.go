@@ -3,6 +3,7 @@ package main
 import "time"
 
 type koboDeviceID string
+type koboCoverEnding string
 
 // Kobo model ID's from https://github.com/geek1011/KoboStuff/blob/gh-pages/kobofirmware.js#L11
 const (
@@ -22,6 +23,12 @@ const (
 	auraEd2r1    koboDeviceID = "00000000-0000-0000-0000-000000000375"
 	auraEd2r2    koboDeviceID = "00000000-0000-0000-0000-000000000379"
 	claraHD      koboDeviceID = "00000000-0000-0000-0000-000000000376"
+)
+
+const (
+	fullCover koboCoverEnding = " - N3_FULL.parsed"
+	libFull   koboCoverEnding = " - N3_LIBRARY_FULL.parsed"
+	libGrid   koboCoverEnding = " - N3_LIBRARY_GRID.parsed"
 )
 
 // KoboMetadata contains the metadata for ebooks on kobo devices.
@@ -58,4 +65,9 @@ type KoboMetadata struct {
 	AuthorLinkMap   map[string]string      `json:"author_link_map"`
 	Title           string                 `json:"title"`
 	Identifiers     map[string]string      `json:"identifiers"`
+}
+
+type coverDims struct {
+	width  int
+	height int
 }

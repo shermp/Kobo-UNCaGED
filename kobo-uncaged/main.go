@@ -48,8 +48,9 @@ type KoboUncaged struct {
 	fbI      *gofbink.FBInk
 	fbCfg    *gofbink.FBInkConfig
 	koboInfo struct {
-		model koboDeviceID
-		fw    [3]int
+		model        koboDeviceID
+		fw           [3]int
+		coverDetails map[koboCoverEnding]coverDims
 	}
 	dbRootDir       string
 	bkRootDir       string
@@ -81,7 +82,8 @@ func (ku *KoboUncaged) contentIDisBkDir(contentID string) bool {
 	return strings.HasPrefix(contentID, ku.contentIDprefix)
 }
 
-func (ku *KoboUncaged) getModelInfo() error {
+func (ku *KoboUncaged) getKoboInfo() error {
+	// Get the model ID and firmware version from the device
 	versInfo, err := ioutil.ReadFile(filepath.Join(ku.dbRootDir, koboVersPath))
 	if err != nil {
 		return err
@@ -94,6 +96,30 @@ func (ku *KoboUncaged) getModelInfo() error {
 			ku.koboInfo.fw[i], _ = strconv.Atoi(f)
 		}
 		ku.koboInfo.model = koboDeviceID(versFields[len(versFields)-1])
+	}
+	// Once we have the model number, we set the appropriate cover image dims
+	// These values come from https://github.com/kovidgoyal/calibre/blob/master/src/calibre/devices/kobo/driver.py
+	switch ku.koboInfo.model {
+	case glo, aura, auraEd2r1, auraEd2r2:
+		ku.koboInfo.coverDetails[fullCover] = coverDims{width: 758, height: 1024}
+		ku.koboInfo.coverDetails[libFull] = coverDims{width: 355, height: 479}
+		ku.koboInfo.coverDetails[libGrid] = coverDims{width: 149, height: 201}
+	case gloHD, claraHD:
+		ku.koboInfo.coverDetails[fullCover] = coverDims{width: 1072, height: 1448}
+		ku.koboInfo.coverDetails[libFull] = coverDims{width: 355, height: 479}
+		ku.koboInfo.coverDetails[libGrid] = coverDims{width: 149, height: 201}
+	case auraHD, auraH2O, auraH2Oed2r1, auraH2Oed2r2:
+		ku.koboInfo.coverDetails[fullCover] = coverDims{width: 1080, height: 1440}
+		ku.koboInfo.coverDetails[libFull] = coverDims{width: 355, height: 471}
+		ku.koboInfo.coverDetails[libGrid] = coverDims{width: 149, height: 198}
+	case auraOne, auraOneLE:
+		ku.koboInfo.coverDetails[fullCover] = coverDims{width: 1404, height: 1872}
+		ku.koboInfo.coverDetails[libFull] = coverDims{width: 355, height: 473}
+		ku.koboInfo.coverDetails[libGrid] = coverDims{width: 149, height: 198}
+	default:
+		ku.koboInfo.coverDetails[fullCover] = coverDims{width: 600, height: 800}
+		ku.koboInfo.coverDetails[libFull] = coverDims{width: 355, height: 473}
+		ku.koboInfo.coverDetails[libGrid] = coverDims{width: 149, height: 198}
 	}
 	return nil
 }
@@ -288,13 +314,52 @@ func (ku *KoboUncaged) writeMDfile() error {
 // GetClientOptions returns all the client specific options required for UNCaGED
 func (ku *KoboUncaged) GetClientOptions() uc.ClientOptions {
 	opts := uc.ClientOptions{}
+	opts.ClientName = "Kobo UNCaGED"
+	ext := []string{"kepub", "epub"}
+	opts.SupportedExt = append(opts.SupportedExt, ext...)
+	opts.DeviceName = "Kobo"
+	switch ku.koboInfo.model {
+	case touch2, touchAB, touchC:
+		opts.DeviceModel = "Touch"
+	case mini:
+		opts.DeviceModel = "Mini"
+	case glo:
+		opts.DeviceModel = "Glo"
+	case gloHD:
+		opts.DeviceModel = "Glo HD"
+	case aura:
+		opts.DeviceModel = "Aura"
+	case auraH2O:
+		opts.DeviceModel = "Aura H2O"
+	case auraH2Oed2r1, auraH2Oed2r2:
+		opts.DeviceModel = "Aura H2O Ed. 2"
+	case auraEd2r1, auraEd2r2:
+		opts.DeviceModel = "Aura Ed. 2"
+	case auraHD:
+		opts.DeviceModel = "Aura HD"
+	case auraOne, auraOneLE:
+		opts.DeviceModel = "Aura One"
+	case claraHD:
+		opts.DeviceModel = "Clara HD"
+	}
+	opts.CoverDims.Height = ku.koboInfo.coverDetails[fullCover].height
+	opts.CoverDims.Width = ku.koboInfo.coverDetails[fullCover].width
 	return opts
 }
 
 // GetDeviceBookList returns a slice of all the books currently on the device
 // A nil slice is interpreted has having no books on the device
 func (ku *KoboUncaged) GetDeviceBookList() []uc.BookCountDetails {
-	bc := []uc.BookCountDetails{}
+	bc := make([]uc.BookCountDetails, len(ku.metadataMap))
+	for _, md := range ku.metadataMap {
+		bcd := uc.BookCountDetails{
+			UUID:         md.UUID,
+			Lpath:        md.Lpath,
+			LastModified: md.LastModified,
+		}
+		bcd.Extension = filepath.Ext(md.Lpath)
+		bc = append(bc, bcd)
+	}
 	return bc
 }
 
