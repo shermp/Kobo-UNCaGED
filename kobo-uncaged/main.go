@@ -261,6 +261,11 @@ func (ku *KoboUncaged) readMDfile() error {
 	if err != nil {
 		return err
 	}
+	// Hopefully, our metadata is now up to date. Update the cache on disk
+	err = ku.writeMDfile()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
