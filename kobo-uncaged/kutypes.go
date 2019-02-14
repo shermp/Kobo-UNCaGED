@@ -2,6 +2,7 @@ package main
 
 import "time"
 
+type cidPrefix string
 type koboDeviceID string
 type koboCoverEnding string
 
@@ -35,36 +36,36 @@ const (
 // It replicates the metadata available in the Kobo USBMS driver.
 // Note, pointers are used where necessary to account for null JSON values
 type KoboMetadata struct {
-	Authors         []string               `json:"authors"`
-	Languages       []string               `json:"languages"`
-	UserMetadata    map[string]interface{} `json:"user_metadata"`
-	UserCategories  map[string]interface{} `json:"user_categories"`
-	Comments        *string                `json:"comments"`
-	Tags            []string               `json:"tags"`
-	Pubdate         *time.Time             `json:"pubdate"`
-	SeriesIndex     *float64               `json:"series_index"`
-	Thumbnail       interface{}            `json:"thumbnail"`
-	PublicationType *string                `json:"publication_type"`
-	Mime            *string                `json:"mime"`
-	AuthorSort      string                 `json:"author_sort"`
-	Series          *string                `json:"series"`
-	Rights          *string                `json:"rights"`
-	DbID            interface{}            `json:"db_id"`
-	Cover           *string                `json:"cover"`
-	ApplicationID   int                    `json:"application_id"`
-	BookProducer    *string                `json:"book_producer"`
-	Size            int                    `json:"size"`
-	AuthorSortMap   map[string]string      `json:"author_sort_map"`
-	Rating          *float64               `json:"rating"`
-	Lpath           string                 `json:"lpath"`
-	Publisher       *string                `json:"publisher"`
-	Timestamp       time.Time              `json:"timestamp"`
-	LastModified    time.Time              `json:"last_modified"`
-	UUID            string                 `json:"uuid"`
-	TitleSort       string                 `json:"title_sort"`
-	AuthorLinkMap   map[string]string      `json:"author_link_map"`
-	Title           string                 `json:"title"`
-	Identifiers     map[string]string      `json:"identifiers"`
+	Authors         []string               `json:"authors" mapstructure:"authors"`
+	Languages       []string               `json:"languages" mapstructure:"languages"`
+	UserMetadata    map[string]interface{} `json:"user_metadata" mapstructure:"user_metadata"`
+	UserCategories  map[string]interface{} `json:"user_categories" mapstructure:"user_categories"`
+	Comments        *string                `json:"comments" mapstructure:"comments"`
+	Tags            []string               `json:"tags" mapstructure:"tags"`
+	Pubdate         *time.Time             `json:"pubdate" mapstructure:"pubdate"`
+	SeriesIndex     *float64               `json:"series_index" mapstructure:"series_index"`
+	Thumbnail       interface{}            `json:"thumbnail" mapstructure:"thumbnail"`
+	PublicationType *string                `json:"publication_type" mapstructure:"publication_type"`
+	Mime            *string                `json:"mime" mapstructure:"mime"`
+	AuthorSort      string                 `json:"author_sort" mapstructure:"author_sort"`
+	Series          *string                `json:"series" mapstructure:"series"`
+	Rights          *string                `json:"rights" mapstructure:"rights"`
+	DbID            interface{}            `json:"db_id" mapstructure:"db_id"`
+	Cover           *string                `json:"cover" mapstructure:"cover"`
+	ApplicationID   int                    `json:"application_id" mapstructure:"application_id"`
+	BookProducer    *string                `json:"book_producer" mapstructure:"book_producer"`
+	Size            int                    `json:"size" mapstructure:"size"`
+	AuthorSortMap   map[string]string      `json:"author_sort_map" mapstructure:"author_sort_map"`
+	Rating          *float64               `json:"rating" mapstructure:"rating"`
+	Lpath           string                 `json:"lpath" mapstructure:"lpath"`
+	Publisher       *string                `json:"publisher" mapstructure:"publisher"`
+	Timestamp       time.Time              `json:"timestamp" mapstructure:"timestamp"`
+	LastModified    time.Time              `json:"last_modified" mapstructure:"last_modified"`
+	UUID            string                 `json:"uuid" mapstructure:"uuid"`
+	TitleSort       string                 `json:"title_sort" mapstructure:"title_sort"`
+	AuthorLinkMap   map[string]string      `json:"author_link_map" mapstructure:"author_link_map"`
+	Title           string                 `json:"title" mapstructure:"title"`
+	Identifiers     map[string]string      `json:"identifiers" mapstructure:"identifiers"`
 }
 
 type coverDims struct {
