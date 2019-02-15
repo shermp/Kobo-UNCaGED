@@ -3,10 +3,14 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"html"
+	"image"
+	"image/color"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -20,7 +24,6 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/shermp/UNCaGED/uc"
 	"github.com/shermp/go-fbink-v2/gofbink"
-	"github.com/shermp/kobo-sim-usb/simusb"
 )
 
 const koboDBpath = ".kobo/KoboReader.sqlite"
@@ -598,43 +601,71 @@ func (ku *KoboUncaged) DisplayProgress(percentage int) {
 	ku.fbI.PrintProgressBar(uint8(percentage), ku.fbCfg)
 }
 
-func main() {
-	fbiOpts := gofbink.FBInkConfig{
-		Row: 2,
+func createMessageBox(w, h int) []uint8 {
+	mb := image.NewRGBA(image.Rect(0, 0, w, h))
+	borderColor := color.RGBA{0, 0, 0, 255}
+	bgColor := color.RGBA{255, 255, 255, 255}
+	for x := 0; x < w; x++ {
+		mb.SetRGBA(x, 0, borderColor)
+		mb.SetRGBA(x, h-1, borderColor)
 	}
-	fbiRopts := gofbink.RestrictedConfig{
-		Fontmult:   3,
-		Fontname:   gofbink.IBM,
-		IsCentered: false,
-		NoViewport: true,
+	for y := 0; y < h; y++ {
+		mb.SetRGBA(0, y, borderColor)
+		mb.SetRGBA(w-1, y, borderColor)
 	}
-	fbi := gofbink.New(&fbiOpts, &fbiRopts)
-	fbi.Open()
-	fbi.Init(&fbiOpts)
-	defer fbi.Close()
-	usbms, err := simusb.New(fbi)
-	if err != nil {
-		fmt.Println(err)
-		return
+	for y := 1; y < h-1; y++ {
+		for x := 1; x < w-1; x++ {
+			mb.SetRGBA(x, y, bgColor)
+		}
 	}
-	err = usbms.Start(true, true)
-	defer usbms.End(true)
+	return mb.Pix
+}
 
-	ku, err := New(fbi, &fbiOpts, usbms.CurOnboardMnt, usbms.CurOnboardMnt, onboardPrefix)
+func mmToPx(mm, dpi int) int {
+	return int(float64(mm*dpi) / 25.4)
+}
+func main() {
+	// Setup the command line variables
+	printPtr := flag.Bool("print", false, "Enable print only mode.")
+	strPtr := flag.String("str", "", "Print a string to a message box. Use with 'print' option")
+	fontPtr := flag.String("font", "", "Path to OT/TT font to use for printing.")
+
+	flag.Parse()
+
+	// Setup FBInk
+	fbCfg := gofbink.FBInkConfig{}
+	rCfg := gofbink.RestrictedConfig{}
+	otCfg := gofbink.FBInkOTConfig{}
+	otCfg.SizePt = 12
+	fbink := gofbink.New(&fbCfg, &rCfg)
+	fbink.Init(&fbCfg)
+
+	err := fbink.AddOTfont(*fontPtr, gofbink.FntRegular)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 		return
 	}
-	//spew.Dump(ku.metadataMap)
-	defer ku.nickelDB.Close()
-	unc, err := uc.New(ku)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	err = unc.Start()
-	if err != nil {
-		fmt.Println(err)
-		return
+	defer fbink.FreeOTfonts()
+	fbiState := gofbink.FBInkState{}
+	fbink.GetState(&fbCfg, &fbiState)
+	dpi := int(fbiState.ScreenDPI)
+	mbWidth := int16(float64(fbiState.ViewWidth) * 0.667)
+	mbHeight := int16(float64(fbiState.ViewHeight) * 0.333)
+	mbX := (int16(fbiState.ViewWidth) - mbWidth) / 2
+	mbY := int16(float64(fbiState.ViewHeight) * 0.15)
+	otCfg.Margins.Top = mbY + int16(mmToPx(2, dpi))
+	otCfg.Margins.Left = mbX + int16(mmToPx(2, dpi))
+	otCfg.Margins.Bottom = int16(fbiState.ViewHeight) - (mbY + mbHeight) + int16(mmToPx(2, dpi))
+	otCfg.Margins.Right = int16(fbiState.ViewWidth) - (mbX + mbWidth) + int16(mmToPx(2, dpi))
+
+	// Create a dialog box
+	msgBox := createMessageBox(int(mbWidth), int(mbHeight))
+	// Now we decide if we are merely printing, or connecting to Calibre
+	if *printPtr {
+		fbCfg.NoRefresh = true
+		fbCfg.IgnoreAlpha = true
+		fbink.PrintRawData(msgBox, int(mbWidth), int(mbHeight), uint16(mbX), uint16(mbY), &fbCfg)
+		fbink.PrintOT(*strPtr, &otCfg, &fbCfg)
+		fbink.Refresh(uint32(mbY), uint32(mbX), uint32(mbWidth), uint32(mbHeight), "AUTO", "PASSTHROUGH", false)
 	}
 }
