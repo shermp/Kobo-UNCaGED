@@ -6,11 +6,8 @@ import (
 	"flag"
 	"fmt"
 	"html"
-	"image"
-	"image/color"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -23,7 +20,14 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/mitchellh/mapstructure"
 	"github.com/shermp/UNCaGED/uc"
-	"github.com/shermp/go-fbink-v2/gofbink"
+)
+
+type returnCode int
+
+const (
+	kuError           returnCode = -1
+	kuSuccessNoAction returnCode = 0
+	kuSuccessRerun    returnCode = 1
 )
 
 const koboDBpath = ".kobo/KoboReader.sqlite"
@@ -54,8 +58,7 @@ func genImagePath(imageID string) string {
 // KoboUncaged contains the variables and methods required to use
 // the UNCaGED library
 type KoboUncaged struct {
-	fbI      *gofbink.FBInk
-	fbCfg    *gofbink.FBInkConfig
+	kup      kuPrinter
 	koboInfo struct {
 		model        koboDeviceID
 		modelName    string
@@ -84,10 +87,13 @@ func createKoboMetadata() KoboMetadata {
 }
 
 // New creates a KoboUncaged object, ready for use
-func New(fbInk *gofbink.FBInk, fbCfg *gofbink.FBInkConfig, dbRootDir, bkRootDir string, contentIDprefix cidPrefix) (*KoboUncaged, error) {
+func New(dbRootDir, bkRootDir string, contentIDprefix cidPrefix) (*KoboUncaged, error) {
+	var err error
 	ku := &KoboUncaged{}
-	ku.fbI = fbInk
-	ku.fbCfg = fbCfg
+	ku.kup, err = newKuPrint()
+	if err != nil {
+		return nil, err
+	}
 	ku.dbRootDir = dbRootDir
 	ku.bkRootDir = bkRootDir
 	ku.contentIDprefix = contentIDprefix
@@ -95,7 +101,7 @@ func New(fbInk *gofbink.FBInk, fbCfg *gofbink.FBInkConfig, dbRootDir, bkRootDir 
 	ku.metadataMap = make(map[string]KoboMetadata)
 	ku.updatedMetadata = make(map[string]bool)
 	fmt.Println("Opening NickelDB")
-	err := ku.openNickelDB()
+	err = ku.openNickelDB()
 	if err != nil {
 		return nil, err
 	}
@@ -592,80 +598,28 @@ func (ku *KoboUncaged) DeleteBook(book uc.BookID) error {
 // Println is used to print messages to the users display. Usage is identical to
 // that of fmt.Println()
 func (ku *KoboUncaged) Println(a ...interface{}) (n int, err error) {
-	return ku.fbI.Println(a...)
+	return ku.kup.kuPrintln(a...)
 }
 
 // DisplayProgress Instructs the client to display the current progress to the user.
 // percentage will be an integer between 0 and 100 inclusive
 func (ku *KoboUncaged) DisplayProgress(percentage int) {
-	ku.fbI.PrintProgressBar(uint8(percentage), ku.fbCfg)
 }
 
-func createMessageBox(w, h int) []uint8 {
-	mb := image.NewRGBA(image.Rect(0, 0, w, h))
-	borderColor := color.RGBA{0, 0, 0, 255}
-	bgColor := color.RGBA{255, 255, 255, 255}
-	for x := 0; x < w; x++ {
-		mb.SetRGBA(x, 0, borderColor)
-		mb.SetRGBA(x, h-1, borderColor)
-	}
-	for y := 0; y < h; y++ {
-		mb.SetRGBA(0, y, borderColor)
-		mb.SetRGBA(w-1, y, borderColor)
-	}
-	for y := 1; y < h-1; y++ {
-		for x := 1; x < w-1; x++ {
-			mb.SetRGBA(x, y, bgColor)
-		}
-	}
-	return mb.Pix
-}
-
-func mmToPx(mm, dpi int) int {
-	return int(float64(mm*dpi) / 25.4)
-}
-func main() {
-	// Setup the command line variables
-	printPtr := flag.Bool("print", false, "Enable print only mode.")
-	strPtr := flag.String("str", "", "Print a string to a message box. Use with 'print' option")
-	fontPtr := flag.String("font", "", "Path to OT/TT font to use for printing.")
+func mainWithErrCode() int {
+	calPtr := flag.Bool("connect", false, "Connect to calibre.")
+	mdPtr := flag.Bool("metadata", false, "Updates the Kobo DB with new metadata")
 
 	flag.Parse()
 
-	// Setup FBInk
-	fbCfg := gofbink.FBInkConfig{}
-	rCfg := gofbink.RestrictedConfig{}
-	otCfg := gofbink.FBInkOTConfig{}
-	otCfg.SizePt = 12
-	fbink := gofbink.New(&fbCfg, &rCfg)
-	fbink.Init(&fbCfg)
-
-	err := fbink.AddOTfont(*fontPtr, gofbink.FntRegular)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	defer fbink.FreeOTfonts()
-	fbiState := gofbink.FBInkState{}
-	fbink.GetState(&fbCfg, &fbiState)
-	dpi := int(fbiState.ScreenDPI)
-	mbWidth := int16(float64(fbiState.ViewWidth) * 0.667)
-	mbHeight := int16(float64(fbiState.ViewHeight) * 0.333)
-	mbX := (int16(fbiState.ViewWidth) - mbWidth) / 2
-	mbY := int16(float64(fbiState.ViewHeight) * 0.15)
-	otCfg.Margins.Top = mbY + int16(mmToPx(2, dpi))
-	otCfg.Margins.Left = mbX + int16(mmToPx(2, dpi))
-	otCfg.Margins.Bottom = int16(fbiState.ViewHeight) - (mbY + mbHeight) + int16(mmToPx(2, dpi))
-	otCfg.Margins.Right = int16(fbiState.ViewWidth) - (mbX + mbWidth) + int16(mmToPx(2, dpi))
-
-	// Create a dialog box
-	msgBox := createMessageBox(int(mbWidth), int(mbHeight))
 	// Now we decide if we are merely printing, or connecting to Calibre
-	if *printPtr {
-		fbCfg.NoRefresh = true
-		fbCfg.IgnoreAlpha = true
-		fbink.PrintRawData(msgBox, int(mbWidth), int(mbHeight), uint16(mbX), uint16(mbY), &fbCfg)
-		fbink.PrintOT(*strPtr, &otCfg, &fbCfg)
-		fbink.Refresh(uint32(mbY), uint32(mbX), uint32(mbWidth), uint32(mbHeight), "AUTO", "PASSTHROUGH", false)
+	if *calPtr {
+
+	} else if *mdPtr {
+
 	}
+	return 0
+}
+func main() {
+	os.Exit(mainWithErrCode())
 }

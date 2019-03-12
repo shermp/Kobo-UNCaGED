@@ -6,6 +6,11 @@ type cidPrefix string
 type koboDeviceID string
 type koboCoverEnding string
 
+type kuPrinter interface {
+	kuPrintln(a ...interface{}) (n int, err error)
+	kuClose()
+}
+
 // Kobo model ID's from https://github.com/geek1011/KoboStuff/blob/gh-pages/kobofirmware.js#L11
 const (
 	touchAB      koboDeviceID = "00000000-0000-0000-0000-000000000310"
