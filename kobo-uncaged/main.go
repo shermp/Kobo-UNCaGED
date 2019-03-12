@@ -32,8 +32,8 @@ const (
 
 const koboDBpath = ".kobo/KoboReader.sqlite"
 const koboVersPath = ".kobo/version"
-const calibreMDfile = ".metadata.calibre"
-const calibreDIfile = ".driveinfo.calibre"
+const calibreMDfile = "metadata.calibre"
+const calibreDIfile = "driveinfo.calibre"
 
 const onboardPrefix cidPrefix = "file:///mnt/onboard/"
 const sdPrefix cidPrefix = "file:///mnt/sd/"
