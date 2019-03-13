@@ -25,6 +25,8 @@ import (
 
 type returnCode int
 
+const kuVersion = "v0.1.0alpha"
+
 const (
 	kuError           returnCode = -1
 	kuSuccessNoAction returnCode = 0
@@ -484,7 +486,7 @@ func (ku *KoboUncaged) saveDeviceInfo() error {
 // GetClientOptions returns all the client specific options required for UNCaGED
 func (ku *KoboUncaged) GetClientOptions() uc.ClientOptions {
 	opts := uc.ClientOptions{}
-	opts.ClientName = "Kobo UNCaGED"
+	opts.ClientName = "Kobo UNCaGED " + kuVersion
 	ext := []string{"kepub", "epub"}
 	opts.SupportedExt = append(opts.SupportedExt, ext...)
 	opts.DeviceName = "Kobo"
