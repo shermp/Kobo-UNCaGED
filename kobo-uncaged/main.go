@@ -35,6 +35,7 @@ const koboDBpath = ".kobo/KoboReader.sqlite"
 const koboVersPath = ".kobo/version"
 const calibreMDfile = "metadata.calibre"
 const calibreDIfile = "driveinfo.calibre"
+const kuUpdatedMDfile = "metadata_update.kobouc"
 
 const onboardPrefix cidPrefix = "file:///mnt/onboard/"
 const sdPrefix cidPrefix = "file:///mnt/sd/"
@@ -70,8 +71,7 @@ type KoboUncaged struct {
 	bkRootDir       string
 	contentIDprefix cidPrefix
 	metadataMap     map[string]KoboMetadata
-	updatedMetadata map[string]bool
-	updateMeta      bool
+	updatedMetadata map[string]KoboMetadata
 	driveInfo       uc.DeviceInfo
 	nickelDB        *sql.DB
 }
@@ -100,7 +100,7 @@ func New(dbRootDir, bkRootDir string, contentIDprefix cidPrefix) (*KoboUncaged, 
 	ku.contentIDprefix = contentIDprefix
 	ku.koboInfo.coverDetails = make(map[koboCoverEnding]coverDims)
 	ku.metadataMap = make(map[string]KoboMetadata)
-	ku.updatedMetadata = make(map[string]bool)
+	ku.updatedMetadata = make(map[string]KoboMetadata)
 	fmt.Println("Opening NickelDB")
 	err = ku.openNickelDB()
 	if err != nil {
@@ -320,7 +320,7 @@ func (ku *KoboUncaged) readEpubMeta(contentID string) (KoboMetadata, error) {
 	return md, nil
 }
 
-// readMDfile loads cached metadata from the ".metadata.calibre" JSON file
+// readMDfile loads cached metadata from the "metadata.calibre" JSON file
 // and unmarshals (eventially) to a map of KoboMetadata structs, converting
 // "lpath" to Kobo's "ContentID", and using that as the map keys
 func (ku *KoboUncaged) readMDfile() error {
@@ -360,7 +360,6 @@ func (ku *KoboUncaged) readMDfile() error {
 			}
 		}
 		ku.metadataMap[contentID] = md
-		ku.updatedMetadata[md.Lpath] = false
 	}
 	spew.Dump(ku.metadataMap)
 	// Now that we have our map, we need to check for any books in the DB not in our
@@ -406,7 +405,6 @@ func (ku *KoboUncaged) readMDfile() error {
 			}
 			//spew.Dump(bkMD)
 			ku.metadataMap[dbCID] = bkMD
-			ku.updatedMetadata[bkMD.Lpath] = false
 		}
 	}
 	err = bkRows.Err()
@@ -433,6 +431,23 @@ func (ku *KoboUncaged) writeMDfile() error {
 	err := ioutil.WriteFile(filepath.Join(ku.bkRootDir, calibreMDfile), mdJSON, 0644)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func (ku *KoboUncaged) writeUpdateMDfile() error {
+	// We only write the file if there is new or updated metadata to write
+	if len(ku.updatedMetadata) > 0 {
+		updatedMeta := make([]KoboMetadata, len(ku.updatedMetadata))
+		for _, md := range ku.updatedMetadata {
+			updatedMeta = append(updatedMeta, md)
+		}
+		// Convert it to JSON, prettifying it in the process
+		mdJSON, _ := json.MarshalIndent(updatedMeta, "", "    ")
+		err := ioutil.WriteFile(filepath.Join(ku.bkRootDir, kuUpdatedMDfile), mdJSON, 0644)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -537,16 +552,16 @@ func (ku *KoboUncaged) SetDeviceInfo(devInfo uc.DeviceInfo) {
 // UpdateMetadata instructs the client to update their metadata according to the
 // new slice of metadata maps
 func (ku *KoboUncaged) UpdateMetadata(mdList []map[string]interface{}) {
-	ku.updateMeta = true
 	for _, md := range mdList {
 		koboMD := createKoboMetadata()
 		mapstructure.Decode(md, &koboMD)
 		koboMD.Thumbnail = nil
 		cID := ku.lpathToContentID(koboMD.Lpath)
 		ku.metadataMap[cID] = koboMD
-		ku.updatedMetadata[koboMD.Lpath] = true
+		ku.updatedMetadata[cID] = koboMD
 	}
 	ku.writeMDfile()
+	ku.writeUpdateMDfile()
 }
 
 // GetPassword gets a password from the user.
@@ -577,8 +592,10 @@ func (ku *KoboUncaged) SaveBook(md map[string]interface{}, lastBook bool) (io.Wr
 		return nil, err
 	}
 	ku.metadataMap[cID] = koboMD
+	ku.updatedMetadata[cID] = koboMD
 	if lastBook {
 		ku.writeMDfile()
+		ku.writeUpdateMDfile()
 	}
 	return book, nil
 }
@@ -655,7 +672,11 @@ func mainWithErrCode() returnCode {
 		if err != nil {
 			return kuError
 		}
+		if len(ku.updatedMetadata) > 0 {
+			return kuSuccessRerun
+		}
 	}
+
 	return kuSuccessNoAction
 }
 func main() {
