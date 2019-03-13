@@ -8,6 +8,7 @@ import (
 	"html"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -606,20 +607,49 @@ func (ku *KoboUncaged) Println(a ...interface{}) (n int, err error) {
 func (ku *KoboUncaged) DisplayProgress(percentage int) {
 }
 
-func mainWithErrCode() int {
-	calPtr := flag.Bool("connect", false, "Connect to calibre.")
+func mainWithErrCode() returnCode {
+	onboardMntPtr := flag.String("onboardmount", "/mnt/onboard", "If changed, specify the new new mountpoint of '/mnt/onboard'")
+	sdMntPtr := flag.String("sdmount", "/mnt/sd", "If changed, specify the new new mountpoint of '/mnt/sd'")
+	contentLocPtr := flag.String("location", "onboard", "Choose location to save to. Choices are 'onboard' (default) and 'sd'.")
 	mdPtr := flag.Bool("metadata", false, "Updates the Kobo DB with new metadata")
 
 	flag.Parse()
 
 	// Now we decide if we are merely printing, or connecting to Calibre
-	if *calPtr {
-
-	} else if *mdPtr {
-
+	if *mdPtr {
+	} else {
+		useOnboard := true
+		bkRootDir := *onboardMntPtr
+		dbRootDir := *onboardMntPtr
+		cidPrefix := onboardPrefix
+		if *contentLocPtr == "onboard" {
+			useOnboard = true
+		} else if *contentLocPtr == "sd" {
+			useOnboard = false
+		} else {
+			log.Println("Unrecognized location string. Defaulting to 'onboard'")
+			useOnboard = true
+		}
+		if !useOnboard {
+			bkRootDir = *sdMntPtr
+			cidPrefix = sdPrefix
+		}
+		ku, err := New(dbRootDir, bkRootDir, cidPrefix)
+		defer ku.kup.kuClose()
+		if err != nil {
+			return kuError
+		}
+		cc, err := uc.New(ku)
+		if err != nil {
+			return kuError
+		}
+		err = cc.Start()
+		if err != nil {
+			return kuError
+		}
 	}
-	return 0
+	return kuSuccessNoAction
 }
 func main() {
-	os.Exit(mainWithErrCode())
+	os.Exit(int(mainWithErrCode()))
 }
