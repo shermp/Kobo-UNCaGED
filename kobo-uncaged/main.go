@@ -237,6 +237,10 @@ func (ku *KoboUncaged) getKoboInfo() error {
 		ku.koboInfo.modelName = "Aura One"
 	case claraHD:
 		ku.koboInfo.modelName = "Clara HD"
+	case forma:
+		ku.koboInfo.modelName = "Forma"
+	default:
+		ku.koboInfo.modelName = "Unknown Kobo"
 	}
 	return nil
 }
