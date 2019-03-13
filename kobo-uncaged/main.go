@@ -203,6 +203,10 @@ func (ku *KoboUncaged) getKoboInfo() error {
 		ku.koboInfo.coverDetails[fullCover] = coverDims{width: 1404, height: 1872}
 		ku.koboInfo.coverDetails[libFull] = coverDims{width: 355, height: 473}
 		ku.koboInfo.coverDetails[libGrid] = coverDims{width: 149, height: 198}
+	case forma:
+		ku.koboInfo.coverDetails[fullCover] = coverDims{width: 1440, height: 1920}
+		ku.koboInfo.coverDetails[libFull] = coverDims{width: 355, height: 473}
+		ku.koboInfo.coverDetails[libGrid] = coverDims{width: 149, height: 198}
 	default:
 		ku.koboInfo.coverDetails[fullCover] = coverDims{width: 600, height: 800}
 		ku.koboInfo.coverDetails[libFull] = coverDims{width: 355, height: 473}

@@ -29,6 +29,7 @@ const (
 	auraEd2r1    koboDeviceID = "00000000-0000-0000-0000-000000000375"
 	auraEd2r2    koboDeviceID = "00000000-0000-0000-0000-000000000379"
 	claraHD      koboDeviceID = "00000000-0000-0000-0000-000000000376"
+	forma        koboDeviceID = "00000000-0000-0000-0000-000000000380"
 )
 
 const (
