@@ -15,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gofrs/uuid"
 	"github.com/kapmahc/epub"
 	_ "github.com/mattn/go-sqlite3"
@@ -363,7 +362,7 @@ func (ku *KoboUncaged) readMDfile() error {
 		}
 		ku.metadataMap[contentID] = md
 	}
-	spew.Dump(ku.metadataMap)
+	//spew.Dump(ku.metadataMap)
 	// Now that we have our map, we need to check for any books in the DB not in our
 	// metadata cache
 	var (
@@ -517,7 +516,7 @@ func (ku *KoboUncaged) GetDeviceBookList() []uc.BookCountDetails {
 // all books on device if lpaths is empty
 func (ku *KoboUncaged) GetMetadataList(books []uc.BookID) []map[string]interface{} {
 	//spew.Dump(ku.metadataMap)
-	spew.Dump(books)
+	//spew.Dump(books)
 	mdList := []map[string]interface{}{}
 	if len(books) > 0 {
 		for _, bk := range books {
