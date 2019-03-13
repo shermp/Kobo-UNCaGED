@@ -1,0 +1,38 @@
+Kobo UNCaGED is made possible with the help of the following third-party libraries:
+    
+    FBInk (via go-fbink-v2)
+    Description:    FrameBuffer eInker, a small tool & library to print text & images to an eInk Linux framebuffer
+    Licence:        AGPL-3
+    Homepage:       https://www.mobileread.com/forums/showthread.php?t=299110
+    Source:         https://github.com/NiLuJe/FBInk
+
+    UUID
+    Description:    A UUID package originally forked from github.com/satori/go.uuid
+    Licence:        MIT
+    Homepage:       https://gof.rs/projects/uuid/
+    Source:         https://github.com/gofrs/uuid
+
+    epub
+    Description:    Epub parser library for golang
+    Licence:        MIT
+    Source:         https://github.com/kapmahc/epub
+
+    go-sqlite3
+    Description:    sqlite3 driver for go using database/sql
+    Licence:        MIT
+    Homepage:       http://mattn.github.io/go-sqlite3/
+    Source:         https://github.com/mattn/go-sqlite3
+
+    mapstructure
+    Description:    Go library for decoding generic map values into native Go structures
+    Licence:        MIT
+    Source:         https://github.com/mitchellh/mapstructure
+
+Additionally, the following code and resources have been adapted or used:
+
+    KOReader (Kobo specific shell scripts)
+    Description:    An ebook reader application supporting PDF, DjVu, EPUB, FB2 and many more formats, 
+                    running on Kindle, Kobo, PocketBook, Ubuntu Touch and Android devices
+    Licence:        AGPL-3
+    Homepage:       http://koreader.rocks/
+    Source:         https://github.com/koreader/koreader/tree/master/platform/kobo
