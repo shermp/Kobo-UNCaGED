@@ -55,6 +55,10 @@ const (
 	libGrid   koboCoverEnding = " - N3_LIBRARY_GRID.parsed"
 )
 
+type Time struct {
+	Timestamp time.Time
+}
+
 // KoboMetadata contains the metadata for ebooks on kobo devices.
 // It replicates the metadata available in the Kobo USBMS driver.
 // Note, pointers are used where necessary to account for null JSON values
@@ -65,7 +69,7 @@ type KoboMetadata struct {
 	UserCategories  map[string]interface{} `json:"user_categories" mapstructure:"user_categories"`
 	Comments        *string                `json:"comments" mapstructure:"comments"`
 	Tags            []string               `json:"tags" mapstructure:"tags"`
-	Pubdate         *time.Time             `json:"pubdate" mapstructure:"pubdate"`
+	Pubdate         *string                `json:"pubdate" mapstructure:"pubdate"`
 	SeriesIndex     *float64               `json:"series_index" mapstructure:"series_index"`
 	Thumbnail       interface{}            `json:"thumbnail" mapstructure:"thumbnail"`
 	PublicationType *string                `json:"publication_type" mapstructure:"publication_type"`
@@ -82,8 +86,8 @@ type KoboMetadata struct {
 	Rating          *float64               `json:"rating" mapstructure:"rating"`
 	Lpath           string                 `json:"lpath" mapstructure:"lpath"`
 	Publisher       *string                `json:"publisher" mapstructure:"publisher"`
-	Timestamp       time.Time              `json:"timestamp" mapstructure:"timestamp"`
-	LastModified    time.Time              `json:"last_modified" mapstructure:"last_modified"`
+	Timestamp       *string                `json:"timestamp" mapstructure:"timestamp"`
+	LastModified    *string                `json:"last_modified" mapstructure:"last_modified"`
 	UUID            string                 `json:"uuid" mapstructure:"uuid"`
 	TitleSort       string                 `json:"title_sort" mapstructure:"title_sort"`
 	AuthorLinkMap   map[string]string      `json:"author_link_map" mapstructure:"author_link_map"`

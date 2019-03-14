@@ -310,13 +310,14 @@ func (ku *KoboUncaged) readEpubMeta(contentID string) (KoboMetadata, error) {
 		md.Publisher = &pub
 	}
 	if len(bk.Opf.Metadata.Date) > 0 {
-		pubDate, _ := time.Parse(time.RFC3339, bk.Opf.Metadata.Date[0].Data)
+		pubDate := bk.Opf.Metadata.Date[0].Data
 		md.Pubdate = &pubDate
 	}
 	for _, m := range bk.Opf.Metadata.Meta {
 		switch m.Name {
 		case "calibre:timestamp":
-			md.Timestamp, _ = time.Parse(time.RFC3339, m.Content)
+			timeStamp := m.Content
+			md.Timestamp = &timeStamp
 		case "calibre:series":
 			series := m.Content
 			md.Series = &series
@@ -418,7 +419,8 @@ func (ku *KoboUncaged) readMDfile() error {
 			fi, err := os.Stat(filepath.Join(ku.bkRootDir, bkMD.Lpath))
 			if err == nil {
 				bkSz := fi.Size()
-				bkMD.LastModified = fi.ModTime()
+				lastMod := fi.ModTime().Format(time.RFC3339)
+				bkMD.LastModified = &lastMod
 				bkMD.Size = int(bkSz)
 			}
 			//spew.Dump(bkMD)
@@ -517,10 +519,11 @@ func (ku *KoboUncaged) GetClientOptions() uc.ClientOptions {
 func (ku *KoboUncaged) GetDeviceBookList() []uc.BookCountDetails {
 	bc := []uc.BookCountDetails{}
 	for _, md := range ku.metadataMap {
+		lastMod, _ := time.Parse(time.RFC3339, *md.LastModified)
 		bcd := uc.BookCountDetails{
 			UUID:         md.UUID,
 			Lpath:        md.Lpath,
-			LastModified: md.LastModified,
+			LastModified: lastMod,
 		}
 		bcd.Extension = filepath.Ext(md.Lpath)
 		bc = append(bc, bcd)
@@ -678,16 +681,19 @@ func mainWithErrCode() returnCode {
 			cidPrefix = sdPrefix
 		}
 		ku, err := New(dbRootDir, bkRootDir, cidPrefix)
-		defer ku.kup.kuClose()
 		if err != nil {
+			log.Print(err)
 			return kuError
 		}
+		defer ku.kup.kuClose()
 		cc, err := uc.New(ku)
 		if err != nil {
+			log.Print(err)
 			return kuError
 		}
 		err = cc.Start()
 		if err != nil {
+			log.Print(err)
 			return kuError
 		}
 		if len(ku.updatedMetadata) > 0 {
