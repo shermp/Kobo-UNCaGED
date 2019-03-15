@@ -677,11 +677,13 @@ func (ku *KoboUncaged) UpdateMetadata(mdList []map[string]interface{}) {
 
 // GetPassword gets a password from the user.
 func (ku *KoboUncaged) GetPassword() string {
+	// TODO obtain password for user. Using on-screen-keyboard? Config file?
 	return ""
 }
 
 // GetFreeSpace reports the amount of free storage space to Calibre
 func (ku *KoboUncaged) GetFreeSpace() uint64 {
+	// TODO obtain the actual free space on device
 	return 1024 * 1024 * 1024
 }
 
@@ -734,6 +736,7 @@ func (ku *KoboUncaged) GetBook(book uc.BookID, filePos int64) (io.ReadCloser, in
 // DeleteBook instructs the client to delete the specified book on the device
 // Error is returned if the book was unable to be deleted
 func (ku *KoboUncaged) DeleteBook(book uc.BookID) error {
+	// TODO implement this
 	return nil
 }
 
@@ -746,6 +749,7 @@ func (ku *KoboUncaged) Println(a ...interface{}) (n int, err error) {
 // DisplayProgress Instructs the client to display the current progress to the user.
 // percentage will be an integer between 0 and 100 inclusive
 func (ku *KoboUncaged) DisplayProgress(percentage int) {
+	// TODO implement display progress
 }
 
 func mainWithErrCode() returnCode {
