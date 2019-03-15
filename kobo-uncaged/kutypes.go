@@ -71,7 +71,7 @@ type KoboMetadata struct {
 	Tags            []string               `json:"tags" mapstructure:"tags"`
 	Pubdate         *string                `json:"pubdate" mapstructure:"pubdate"`
 	SeriesIndex     *float64               `json:"series_index" mapstructure:"series_index"`
-	Thumbnail       interface{}            `json:"thumbnail" mapstructure:"thumbnail"`
+	Thumbnail       []interface{}          `json:"thumbnail" mapstructure:"thumbnail"`
 	PublicationType *string                `json:"publication_type" mapstructure:"publication_type"`
 	Mime            *string                `json:"mime" mapstructure:"mime"`
 	AuthorSort      string                 `json:"author_sort" mapstructure:"author_sort"`

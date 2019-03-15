@@ -18,7 +18,9 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -27,11 +29,14 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/disintegration/imaging"
 	"github.com/gofrs/uuid"
 	"github.com/kapmahc/epub"
 	_ "github.com/mattn/go-sqlite3"
@@ -62,7 +67,7 @@ const sdPrefix cidPrefix = "file:///mnt/sd/"
 // kobo to store the cover image files.
 // It has been ported from the implementation in the KoboTouch
 // driver in Calibre
-func genImagePath(imageID string) string {
+func genImageDirPath(imageID string) string {
 	imgID := []byte(imageID)
 	h := uint32(0x00000000)
 	for _, x := range imgID {
@@ -73,6 +78,13 @@ func genImagePath(imageID string) string {
 	dir1 := h & (0xff * 1)
 	dir2 := (h & (0xff00 * 1)) >> 8
 	return fmt.Sprintf("./kobo-images/%d/%d", dir1, dir2)
+}
+
+// imgIDFromContentID generates an imageID from a contentID, using the
+// the replacement values as found in the Calibre Kobo driver
+func imgIDFromContentID(contentID string) string {
+	r := strings.NewReplacer("/", "_", " ", "_", ":", "_", ".", "_")
+	return r.Replace(contentID)
 }
 
 // KoboUncaged contains the variables and methods required to use
@@ -92,6 +104,7 @@ type KoboUncaged struct {
 	updatedMetadata map[string]KoboMetadata
 	driveInfo       uc.DeviceInfo
 	nickelDB        *sql.DB
+	wg              *sync.WaitGroup
 }
 
 // We use a constructor, because nested maps
@@ -113,6 +126,7 @@ func New(dbRootDir, bkRootDir string, contentIDprefix cidPrefix) (*KoboUncaged, 
 	if err != nil {
 		return nil, err
 	}
+	ku.wg = &sync.WaitGroup{}
 	ku.dbRootDir = dbRootDir
 	ku.bkRootDir = bkRootDir
 	ku.contentIDprefix = contentIDprefix
@@ -501,6 +515,82 @@ func (ku *KoboUncaged) saveDeviceInfo() error {
 	return ioutil.WriteFile(filepath.Join(ku.bkRootDir, calibreDIfile), diJSON, 0644)
 }
 
+func (ku *KoboUncaged) saveCoverImage(contentID string, thumb []interface{}) {
+	thumbW := int(thumb[0].(float64))
+	thumbH := int(thumb[1].(float64))
+	koMaxW := ku.koboInfo.coverDetails[fullCover].width
+	koMaxH := ku.koboInfo.coverDetails[fullCover].height
+	imgB64 := thumb[2].(string)
+	imgID := imgIDFromContentID(contentID)
+	imgDir := path.Join(ku.bkRootDir, genImageDirPath(imgID))
+	err := os.MkdirAll(imgDir, 0644)
+	if err == nil {
+		imgBin, err := base64.StdEncoding.DecodeString(imgB64)
+		if err == nil {
+			// No need to perform any image processing for the full cover if it meets all our requirements
+			fullCoverSaved := false
+			if (thumbW <= koMaxW && thumbH <= koMaxH) && (thumbW == koMaxW || thumbH == koMaxH) {
+				fullCoverSaved = true
+				err = ioutil.WriteFile(path.Join(imgDir, (imgID+string(fullCover))), imgBin, 0644)
+				if err != nil {
+					log.Println(err)
+				}
+			} else {
+				// Now we do our resizing
+				origCover, err := imaging.Decode(bytes.NewReader(imgBin))
+				if err == nil {
+					koAspectRatio := float64(koMaxW) / float64(koMaxH)
+					coverAspectRatio := float64(thumbW) / float64(thumbH)
+					var covFW, covFH, libFW, libFH, gridFW, gridFH int
+					if coverAspectRatio < koAspectRatio {
+						covFH = ku.koboInfo.coverDetails[fullCover].height
+						libFH = ku.koboInfo.coverDetails[libFull].height
+						gridFH = ku.koboInfo.coverDetails[libGrid].height
+					} else {
+						covFW = ku.koboInfo.coverDetails[fullCover].width
+						libFW = ku.koboInfo.coverDetails[libFull].width
+						gridFW = ku.koboInfo.coverDetails[libGrid].width
+					}
+					// We resize the full cover image if we haven't already saved it.
+					if !fullCoverSaved {
+						fullCovImg := imaging.Resize(origCover, covFW, covFH, imaging.Lanczos)
+						fc, err := os.OpenFile(path.Join(imgDir, (imgID+string(fullCover))), os.O_WRONLY|os.O_CREATE, 0644)
+						if err == nil {
+							defer fc.Close()
+							imaging.Encode(fc, fullCovImg, imaging.JPEG)
+						} else {
+							log.Println(err)
+						}
+					}
+					// Followed by the "library fill" image
+					libImg := imaging.Resize(origCover, libFW, libFH, imaging.Lanczos)
+					lc, err := os.OpenFile(path.Join(imgDir, (imgID+string(libFull))), os.O_WRONLY|os.O_CREATE, 0644)
+					if err == nil {
+						defer lc.Close()
+						imaging.Encode(lc, libImg, imaging.JPEG)
+					} else {
+						log.Println(err)
+					}
+					// And finally, the "library grid" image
+					gridImg := imaging.Resize(origCover, gridFW, gridFH, imaging.Lanczos)
+					gc, err := os.OpenFile(path.Join(imgDir, (imgID+string(libGrid))), os.O_WRONLY|os.O_CREATE, 0644)
+					if err == nil {
+						defer gc.Close()
+						imaging.Encode(gc, gridImg, imaging.JPEG)
+					} else {
+						log.Println(err)
+					}
+				}
+			}
+		} else {
+			log.Println(err)
+		}
+	} else {
+		log.Println(err)
+	}
+	ku.wg.Done()
+}
+
 // GetClientOptions returns all the client specific options required for UNCaGED
 func (ku *KoboUncaged) GetClientOptions() uc.ClientOptions {
 	opts := uc.ClientOptions{}
@@ -614,6 +704,11 @@ func (ku *KoboUncaged) SaveBook(md map[string]interface{}, lastBook bool) (io.Wr
 	}
 	ku.metadataMap[cID] = koboMD
 	ku.updatedMetadata[cID] = koboMD
+	// Note, the JSON format for covers should be in the form 'thumbnail: [w, h, "base64string"]'
+	if koboMD.Thumbnail != nil {
+		ku.wg.Add(1)
+		go ku.saveCoverImage(cID, koboMD.Thumbnail)
+	}
 	if lastBook {
 		ku.writeMDfile()
 		ku.writeUpdateMDfile()
