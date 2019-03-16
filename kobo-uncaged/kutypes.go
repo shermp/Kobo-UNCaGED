@@ -17,8 +17,6 @@
 
 package main
 
-import "time"
-
 type cidPrefix string
 type koboDeviceID string
 type koboCoverEnding string
@@ -54,10 +52,6 @@ const (
 	libFull   koboCoverEnding = " - N3_LIBRARY_FULL.parsed"
 	libGrid   koboCoverEnding = " - N3_LIBRARY_GRID.parsed"
 )
-
-type Time struct {
-	Timestamp time.Time
-}
 
 // KoboMetadata contains the metadata for ebooks on kobo devices.
 // It replicates the metadata available in the Kobo USBMS driver.
