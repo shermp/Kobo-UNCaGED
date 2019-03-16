@@ -77,7 +77,7 @@ func genImageDirPath(imageID string) string {
 	}
 	dir1 := h & (0xff * 1)
 	dir2 := (h & (0xff00 * 1)) >> 8
-	return fmt.Sprintf("./kobo-images/%d/%d", dir1, dir2)
+	return fmt.Sprintf(".kobo-images/%d/%d", dir1, dir2)
 }
 
 // imgIDFromContentID generates an imageID from a contentID, using the
@@ -523,7 +523,7 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, thumb []interface{}) {
 	imgB64 := thumb[2].(string)
 	imgID := imgIDFromContentID(contentID)
 	imgDir := path.Join(ku.bkRootDir, genImageDirPath(imgID))
-	err := os.MkdirAll(imgDir, 0644)
+	err := os.MkdirAll(imgDir, 0744)
 	if err == nil {
 		imgBin, err := base64.StdEncoding.DecodeString(imgB64)
 		if err == nil {
@@ -535,51 +535,50 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, thumb []interface{}) {
 				if err != nil {
 					log.Println(err)
 				}
-			} else {
-				// Now we do our resizing
-				origCover, err := imaging.Decode(bytes.NewReader(imgBin))
+			}
+			// Now we do our resizing
+			origCover, err := imaging.Decode(bytes.NewReader(imgBin))
+			if err == nil {
+				koAspectRatio := float64(koMaxW) / float64(koMaxH)
+				coverAspectRatio := float64(thumbW) / float64(thumbH)
+				var covFW, covFH, libFW, libFH, gridFW, gridFH int
+				if coverAspectRatio < koAspectRatio {
+					covFH = ku.koboInfo.coverDetails[fullCover].height
+					libFH = ku.koboInfo.coverDetails[libFull].height
+					gridFH = ku.koboInfo.coverDetails[libGrid].height
+				} else {
+					covFW = ku.koboInfo.coverDetails[fullCover].width
+					libFW = ku.koboInfo.coverDetails[libFull].width
+					gridFW = ku.koboInfo.coverDetails[libGrid].width
+				}
+				// We resize the full cover image if we haven't already saved it.
+				if !fullCoverSaved {
+					fullCovImg := imaging.Resize(origCover, covFW, covFH, imaging.Lanczos)
+					fc, err := os.OpenFile(path.Join(imgDir, (imgID+string(fullCover))), os.O_WRONLY|os.O_CREATE, 0644)
+					if err == nil {
+						defer fc.Close()
+						imaging.Encode(fc, fullCovImg, imaging.JPEG)
+					} else {
+						log.Println(err)
+					}
+				}
+				// Followed by the "library fill" image
+				libImg := imaging.Resize(origCover, libFW, libFH, imaging.Lanczos)
+				lc, err := os.OpenFile(path.Join(imgDir, (imgID+string(libFull))), os.O_WRONLY|os.O_CREATE, 0644)
 				if err == nil {
-					koAspectRatio := float64(koMaxW) / float64(koMaxH)
-					coverAspectRatio := float64(thumbW) / float64(thumbH)
-					var covFW, covFH, libFW, libFH, gridFW, gridFH int
-					if coverAspectRatio < koAspectRatio {
-						covFH = ku.koboInfo.coverDetails[fullCover].height
-						libFH = ku.koboInfo.coverDetails[libFull].height
-						gridFH = ku.koboInfo.coverDetails[libGrid].height
-					} else {
-						covFW = ku.koboInfo.coverDetails[fullCover].width
-						libFW = ku.koboInfo.coverDetails[libFull].width
-						gridFW = ku.koboInfo.coverDetails[libGrid].width
-					}
-					// We resize the full cover image if we haven't already saved it.
-					if !fullCoverSaved {
-						fullCovImg := imaging.Resize(origCover, covFW, covFH, imaging.Lanczos)
-						fc, err := os.OpenFile(path.Join(imgDir, (imgID+string(fullCover))), os.O_WRONLY|os.O_CREATE, 0644)
-						if err == nil {
-							defer fc.Close()
-							imaging.Encode(fc, fullCovImg, imaging.JPEG)
-						} else {
-							log.Println(err)
-						}
-					}
-					// Followed by the "library fill" image
-					libImg := imaging.Resize(origCover, libFW, libFH, imaging.Lanczos)
-					lc, err := os.OpenFile(path.Join(imgDir, (imgID+string(libFull))), os.O_WRONLY|os.O_CREATE, 0644)
-					if err == nil {
-						defer lc.Close()
-						imaging.Encode(lc, libImg, imaging.JPEG)
-					} else {
-						log.Println(err)
-					}
-					// And finally, the "library grid" image
-					gridImg := imaging.Resize(origCover, gridFW, gridFH, imaging.Lanczos)
-					gc, err := os.OpenFile(path.Join(imgDir, (imgID+string(libGrid))), os.O_WRONLY|os.O_CREATE, 0644)
-					if err == nil {
-						defer gc.Close()
-						imaging.Encode(gc, gridImg, imaging.JPEG)
-					} else {
-						log.Println(err)
-					}
+					defer lc.Close()
+					imaging.Encode(lc, libImg, imaging.JPEG)
+				} else {
+					log.Println(err)
+				}
+				// And finally, the "library grid" image
+				gridImg := imaging.Resize(origCover, gridFW, gridFH, imaging.Lanczos)
+				gc, err := os.OpenFile(path.Join(imgDir, (imgID+string(libGrid))), os.O_WRONLY|os.O_CREATE, 0644)
+				if err == nil {
+					defer gc.Close()
+					imaging.Encode(gc, gridImg, imaging.JPEG)
+				} else {
+					log.Println(err)
 				}
 			}
 		} else {
@@ -791,6 +790,7 @@ func mainWithErrCode() returnCode {
 			return kuError
 		}
 		err = cc.Start()
+		ku.wg.Done()
 		if err != nil {
 			log.Print(err)
 			return kuError
