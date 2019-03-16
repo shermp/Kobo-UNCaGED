@@ -461,8 +461,10 @@ func (ku *KoboUncaged) readMDfile() error {
 func (ku *KoboUncaged) writeMDfile() error {
 	// First, convert our metadata map to a slice
 	metadata := make([]KoboMetadata, len(ku.metadataMap))
+	n := 0
 	for _, md := range ku.metadataMap {
-		metadata = append(metadata, md)
+		metadata[n] = md
+		n++
 	}
 	// Convert it to JSON, prettifying it in the process
 	mdJSON, _ := json.MarshalIndent(metadata, "", "    ")
@@ -477,12 +479,7 @@ func (ku *KoboUncaged) writeMDfile() error {
 func (ku *KoboUncaged) writeUpdateMDfile() error {
 	// We only write the file if there is new or updated metadata to write
 	if len(ku.updatedMetadata) > 0 {
-		updatedMeta := make([]KoboMetadata, len(ku.updatedMetadata))
-		for _, cid := range ku.updatedMetadata {
-			updatedMeta = append(updatedMeta, ku.metadataMap[cid])
-		}
-		// Convert it to JSON, prettifying it in the process
-		mdJSON, _ := json.MarshalIndent(updatedMeta, "", "    ")
+		mdJSON, _ := json.MarshalIndent(ku.updatedMetadata, "", "    ")
 		err := ioutil.WriteFile(filepath.Join(ku.bkRootDir, kuUpdatedMDfile), mdJSON, 0644)
 		if err != nil {
 			return err
