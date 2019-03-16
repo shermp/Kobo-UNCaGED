@@ -408,6 +408,7 @@ func (ku *KoboUncaged) readMDfile() error {
 	FROM content
 	WHERE ContentType=6 
 	AND (MimeType='application/epub+zip' OR MimeType='application/x-kobo-epub+zip')
+	AND MimeType NOT LIKE 'image%' 
 	AND ContentID LIKE ?`
 	bkStmt, err := ku.nickelDB.Prepare(query)
 	if err != nil {
