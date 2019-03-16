@@ -120,7 +120,7 @@ func createKoboMetadata() KoboMetadata {
 }
 
 // New creates a KoboUncaged object, ready for use
-func New(dbRootDir, bkRootDir string, contentIDprefix cidPrefix) (*KoboUncaged, error) {
+func New(dbRootDir, bkRootDir string, contentIDprefix cidPrefix, updatingMD bool) (*KoboUncaged, error) {
 	var err error
 	ku := &KoboUncaged{}
 	ku.kup, err = newKuPrint()
@@ -153,6 +153,12 @@ func New(dbRootDir, bkRootDir string, contentIDprefix cidPrefix) (*KoboUncaged, 
 	err = ku.readMDfile()
 	if err != nil {
 		return nil, err
+	}
+	if updatingMD {
+		err = ku.readUpdateMDfile()
+		if err != nil {
+			return nil, err
+		}
 	}
 	return ku, nil
 }
@@ -477,6 +483,26 @@ func (ku *KoboUncaged) writeMDfile() error {
 	return nil
 }
 
+func (ku *KoboUncaged) readUpdateMDfile() error {
+	mdJSONarr, err := ioutil.ReadFile(filepath.Join(ku.bkRootDir, kuUpdatedMDfile))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		} else {
+			log.Print(err)
+			return err
+		}
+	}
+	if len(mdJSONarr) > 0 {
+		err = json.Unmarshal(mdJSONarr, &ku.updatedMetadata)
+		if err != nil {
+			log.Print(err)
+			return err
+		}
+	}
+	return nil
+}
+
 func (ku *KoboUncaged) writeUpdateMDfile() error {
 	// We only write the file if there is new or updated metadata to write
 	if len(ku.updatedMetadata) > 0 {
@@ -591,6 +617,48 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, thumb []interface{}) {
 		log.Println(err)
 	}
 	ku.wg.Done()
+}
+
+// updateNickelDB updates the Nickel database with updated metadata obtained from a previous run
+func (ku *KoboUncaged) updateNickelDB() error {
+	// No matter what happens, we remove the 'metadata_update.kobouc' file when we're done
+	defer os.Remove(filepath.Join(ku.bkRootDir, kuUpdatedMDfile))
+	query := `UPDATE content SET 
+	Description=?,
+	Series=?,
+	SeriesNumber=?,
+	SeriesNumberFloat=? 
+	WHERE ContentID=?`
+	stmt, err := ku.nickelDB.Prepare(query)
+	if err != nil {
+		return err
+	}
+	var desc, series, seriesNum, seriesNumFloat string
+	for _, cID := range ku.updatedMetadata {
+		if ku.metadataMap[cID].Comments != nil && *ku.metadataMap[cID].Comments != "" {
+			desc = *ku.metadataMap[cID].Comments
+		} else {
+			desc = "NULL"
+		}
+		if ku.metadataMap[cID].Series != nil && *ku.metadataMap[cID].Series != "" {
+			series = *ku.metadataMap[cID].Series
+		} else {
+			series = "NULL"
+		}
+		if ku.metadataMap[cID].SeriesIndex != nil && *ku.metadataMap[cID].SeriesIndex != 0.0 {
+			seriesNum = strconv.FormatFloat(*ku.metadataMap[cID].SeriesIndex, 'f', -1, 64)
+			seriesNumFloat = seriesNum
+
+		} else {
+			seriesNum = "NULL"
+			seriesNumFloat = "0.0"
+		}
+		_, err = stmt.Exec(desc, series, seriesNum, seriesNumFloat, cID)
+		if err != nil {
+			log.Print(err)
+		}
+	}
+	return nil
 }
 
 // GetClientOptions returns all the client specific options required for UNCaGED
@@ -825,7 +893,7 @@ func mainWithErrCode() returnCode {
 			bkRootDir = *sdMntPtr
 			cidPrefix = sdPrefix
 		}
-		ku, err := New(dbRootDir, bkRootDir, cidPrefix)
+		ku, err := New(dbRootDir, bkRootDir, cidPrefix, *mdPtr)
 		if err != nil {
 			log.Print(err)
 			return kuError
