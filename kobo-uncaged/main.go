@@ -101,7 +101,7 @@ type KoboUncaged struct {
 	bkRootDir       string
 	contentIDprefix cidPrefix
 	metadataMap     map[string]KoboMetadata
-	updatedMetadata map[string]KoboMetadata
+	updatedMetadata []string
 	driveInfo       uc.DeviceInfo
 	nickelDB        *sql.DB
 	wg              *sync.WaitGroup
@@ -131,8 +131,8 @@ func New(dbRootDir, bkRootDir string, contentIDprefix cidPrefix) (*KoboUncaged, 
 	ku.bkRootDir = bkRootDir
 	ku.contentIDprefix = contentIDprefix
 	ku.koboInfo.coverDetails = make(map[koboCoverEnding]coverDims)
-	ku.metadataMap = make(map[string]KoboMetadata)
-	ku.updatedMetadata = make(map[string]KoboMetadata)
+	ku.metadataMap = make(map[string]KoboMetadata, 0)
+	ku.updatedMetadata = make([]string, 0)
 	fmt.Println("Opening NickelDB")
 	err = ku.openNickelDB()
 	if err != nil {
@@ -372,7 +372,11 @@ func (ku *KoboUncaged) readMDfile() error {
 	}
 	// Check the Nickel DB to see if the book still exists. We perform the check before
 	// adding the book to the metadata map below
-	rowStmt, err := ku.nickelDB.Prepare("SELECT ContentID FROM content WHERE ContentID=? AND ContentType=6")
+	query := `SELECT ContentID FROM content 
+	WHERE ContentType=6 
+	AND (MimeType='application/epub+zip' OR MimeType='application/x-kobo-epub+zip') 
+	AND ContentID LIKE ?`
+	rowStmt, err := ku.nickelDB.Prepare(query)
 	if err != nil {
 		return err
 	}
@@ -404,7 +408,7 @@ func (ku *KoboUncaged) readMDfile() error {
 		dbContentType int
 		dbMimeType    string
 	)
-	query := `SELECT ContentID, Title, Attribution, ContentType, MimeType
+	query = `SELECT ContentID, Title, Attribution, ContentType, MimeType
 	FROM content
 	WHERE ContentType=6 
 	AND (MimeType='application/epub+zip' OR MimeType='application/x-kobo-epub+zip')
@@ -474,8 +478,8 @@ func (ku *KoboUncaged) writeUpdateMDfile() error {
 	// We only write the file if there is new or updated metadata to write
 	if len(ku.updatedMetadata) > 0 {
 		updatedMeta := make([]KoboMetadata, len(ku.updatedMetadata))
-		for _, md := range ku.updatedMetadata {
-			updatedMeta = append(updatedMeta, md)
+		for _, cid := range ku.updatedMetadata {
+			updatedMeta = append(updatedMeta, ku.metadataMap[cid])
 		}
 		// Convert it to JSON, prettifying it in the process
 		mdJSON, _ := json.MarshalIndent(updatedMeta, "", "    ")
@@ -669,7 +673,7 @@ func (ku *KoboUncaged) UpdateMetadata(mdList []map[string]interface{}) {
 		koboMD.Thumbnail = nil
 		cID := ku.lpathToContentID(koboMD.Lpath)
 		ku.metadataMap[cID] = koboMD
-		ku.updatedMetadata[cID] = koboMD
+		ku.updatedMetadata = append(ku.updatedMetadata, cID)
 	}
 	ku.writeMDfile()
 	ku.writeUpdateMDfile()
@@ -705,7 +709,7 @@ func (ku *KoboUncaged) SaveBook(md map[string]interface{}, lastBook bool) (io.Wr
 		return nil, err
 	}
 	ku.metadataMap[cID] = koboMD
-	ku.updatedMetadata[cID] = koboMD
+	ku.updatedMetadata = append(ku.updatedMetadata, cID)
 	// Note, the JSON format for covers should be in the form 'thumbnail: [w, h, "base64string"]'
 	if koboMD.Thumbnail != nil {
 		ku.wg.Add(1)
@@ -791,7 +795,7 @@ func mainWithErrCode() returnCode {
 			return kuError
 		}
 		err = cc.Start()
-		ku.wg.Done()
+		ku.wg.Wait()
 		if err != nil {
 			log.Print(err)
 			return kuError
