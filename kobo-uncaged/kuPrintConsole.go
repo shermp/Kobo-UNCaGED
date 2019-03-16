@@ -30,7 +30,7 @@ func newKuPrint() (*kuUserPrint, error) {
 }
 
 func (kup *kuUserPrint) kuPrintln(a ...interface{}) (n int, err error) {
-	fmt.Println(a...)
+	return fmt.Println(a...)
 }
 
 func (kup *kuUserPrint) kuClose() {
