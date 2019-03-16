@@ -685,6 +685,8 @@ func (ku *KoboUncaged) GetPassword() string {
 
 // GetFreeSpace reports the amount of free storage space to Calibre
 func (ku *KoboUncaged) GetFreeSpace() uint64 {
+	// Note, this method of getting available disk space is Linux specific...
+	// Don't try to run this code on Windows. It will probably fall over
 	fs := syscall.Statfs_t{}
 	err := syscall.Statfs(ku.bkRootDir, &fs)
 	if err != nil {
