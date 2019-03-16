@@ -34,6 +34,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/disintegration/imaging"
@@ -684,8 +685,14 @@ func (ku *KoboUncaged) GetPassword() string {
 
 // GetFreeSpace reports the amount of free storage space to Calibre
 func (ku *KoboUncaged) GetFreeSpace() uint64 {
-	// TODO obtain the actual free space on device
-	return 1024 * 1024 * 1024
+	fs := syscall.Statfs_t{}
+	err := syscall.Statfs(ku.bkRootDir, &fs)
+	if err != nil {
+		log.Println(err)
+		// Despite the error, we return an arbitrary amount. Thoughts on this?
+		return 1024 * 1024 * 1024
+	}
+	return fs.Bavail * uint64(fs.Bsize)
 }
 
 // SaveBook saves a book with the provided metadata to the disk.
