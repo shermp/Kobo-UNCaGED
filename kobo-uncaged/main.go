@@ -488,10 +488,9 @@ func (ku *KoboUncaged) readUpdateMDfile() error {
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
-		} else {
-			log.Print(err)
-			return err
 		}
+		log.Print(err)
+		return err
 	}
 	if len(mdJSONarr) > 0 {
 		err = json.Unmarshal(mdJSONarr, &ku.updatedMetadata)
@@ -899,19 +898,30 @@ func mainWithErrCode() returnCode {
 			return kuError
 		}
 		defer ku.kup.kuClose()
-		cc, err := uc.New(ku)
-		if err != nil {
-			log.Print(err)
-			return kuError
-		}
-		err = cc.Start()
-		ku.wg.Wait()
-		if err != nil {
-			log.Print(err)
-			return kuError
-		}
-		if len(ku.updatedMetadata) > 0 {
-			return kuSuccessRerun
+		if *mdPtr {
+			ku.kup.kuPrintln("Updading Metadata!")
+			err = ku.updateNickelDB()
+			if err != nil {
+				log.Print(err)
+				return kuError
+			}
+		} else {
+			ku.kup.kuPrintln("Connecting to Calibre!")
+			cc, err := uc.New(ku)
+			if err != nil {
+				log.Print(err)
+				return kuError
+			}
+			err = cc.Start()
+			ku.wg.Wait()
+			if err != nil {
+				log.Print(err)
+				return kuError
+			}
+			if len(ku.updatedMetadata) > 0 {
+				ku.kup.kuPrintln("Kobo-UNCaGED will restart automatically to update metadata")
+				return kuSuccessRerun
+			}
 		}
 	}
 
