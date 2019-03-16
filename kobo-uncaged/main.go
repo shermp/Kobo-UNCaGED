@@ -746,7 +746,43 @@ func (ku *KoboUncaged) GetBook(book uc.BookID, filePos int64) (io.ReadCloser, in
 // DeleteBook instructs the client to delete the specified book on the device
 // Error is returned if the book was unable to be deleted
 func (ku *KoboUncaged) DeleteBook(book uc.BookID) error {
-	// TODO implement this
+	// Start with basic book deletion. A more fancy implementation can come later
+	// (eg: removing cover image remnants etc)
+	cID := ku.lpathToContentID(book.Lpath)
+	bkPath := ku.contentIDtoBkPath(cID)
+	dir, _ := filepath.Split(bkPath)
+	dirPath := filepath.Clean(dir)
+	err := os.Remove(bkPath)
+	if err != nil {
+		log.Print(err)
+		return err
+	}
+	for dirPath != filepath.Clean(ku.bkRootDir) {
+		// Note, os.Remove only removes empty directories, so it should be safe to call
+		err := os.Remove(dirPath)
+		if err != nil {
+			log.Print(err)
+			// We don't consider failure to remove parent directories an error, so
+			// long as the book file itself was deleted.
+			break
+		}
+		// Walk 'up' the path
+		dirPath = filepath.Clean(filepath.Join(dirPath, "../"))
+	}
+	// Now we remove the book from the metadata map
+	delete(ku.metadataMap, cID)
+	// As well as the updated metadata list, if it was added to the list this session
+	l := len(ku.updatedMetadata)
+	for n := 0; n < l; n++ {
+		if ku.updatedMetadata[n] == cID {
+			ku.updatedMetadata[n] = ku.updatedMetadata[len(ku.updatedMetadata)-1]
+			ku.updatedMetadata = ku.updatedMetadata[:len(ku.updatedMetadata)-1]
+			break
+		}
+	}
+	// Finally, write the new metadata files
+	ku.writeMDfile()
+	ku.writeUpdateMDfile()
 	return nil
 }
 
