@@ -123,11 +123,6 @@ func createKoboMetadata() KoboMetadata {
 func New(dbRootDir, bkRootDir string, contentIDprefix cidPrefix, updatingMD bool) (*KoboUncaged, error) {
 	var err error
 	ku := &KoboUncaged{}
-	fntPath := filepath.Join(ku.dbRootDir, ".adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf")
-	ku.kup, err = newKuPrint(fntPath)
-	if err != nil {
-		return nil, err
-	}
 	ku.wg = &sync.WaitGroup{}
 	ku.dbRootDir = dbRootDir
 	ku.bkRootDir = bkRootDir
@@ -135,6 +130,11 @@ func New(dbRootDir, bkRootDir string, contentIDprefix cidPrefix, updatingMD bool
 	ku.koboInfo.coverDetails = make(map[koboCoverEnding]coverDims)
 	ku.metadataMap = make(map[string]KoboMetadata, 0)
 	ku.updatedMetadata = make([]string, 0)
+	fntPath := filepath.Join(ku.dbRootDir, ".adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf")
+	ku.kup, err = newKuPrint(fntPath)
+	if err != nil {
+		return nil, err
+	}
 	fmt.Println("Opening NickelDB")
 	err = ku.openNickelDB()
 	if err != nil {
@@ -873,56 +873,57 @@ func mainWithErrCode() returnCode {
 	mdPtr := flag.Bool("metadata", false, "Updates the Kobo DB with new metadata")
 
 	flag.Parse()
-
-	// Now we decide if we are merely printing, or connecting to Calibre
-	if *mdPtr {
+	log.Println("Started Kobo-UNCaGED")
+	useOnboard := true
+	bkRootDir := *onboardMntPtr
+	dbRootDir := *onboardMntPtr
+	cidPrefix := onboardPrefix
+	if *contentLocPtr == "onboard" {
+		useOnboard = true
+	} else if *contentLocPtr == "sd" {
+		useOnboard = false
 	} else {
-		useOnboard := true
-		bkRootDir := *onboardMntPtr
-		dbRootDir := *onboardMntPtr
-		cidPrefix := onboardPrefix
-		if *contentLocPtr == "onboard" {
-			useOnboard = true
-		} else if *contentLocPtr == "sd" {
-			useOnboard = false
-		} else {
-			log.Println("Unrecognized location string. Defaulting to 'onboard'")
-			useOnboard = true
-		}
-		if !useOnboard {
-			bkRootDir = *sdMntPtr
-			cidPrefix = sdPrefix
-		}
-		ku, err := New(dbRootDir, bkRootDir, cidPrefix, *mdPtr)
+		log.Println("Unrecognized location string. Defaulting to 'onboard'")
+		useOnboard = true
+	}
+	if !useOnboard {
+		bkRootDir = *sdMntPtr
+		cidPrefix = sdPrefix
+	}
+	log.Println(dbRootDir)
+	log.Println("Creating KU object")
+	ku, err := New(dbRootDir, bkRootDir, cidPrefix, *mdPtr)
+	if err != nil {
+		log.Print(err)
+		return kuError
+	}
+	defer ku.kup.kuClose()
+	if *mdPtr {
+		log.Println("Updating Metadata")
+		ku.kup.kuPrintln("Updading Metadata!")
+		err = ku.updateNickelDB()
 		if err != nil {
 			log.Print(err)
 			return kuError
 		}
-		defer ku.kup.kuClose()
-		if *mdPtr {
-			ku.kup.kuPrintln("Updading Metadata!")
-			err = ku.updateNickelDB()
-			if err != nil {
-				log.Print(err)
-				return kuError
-			}
-		} else {
-			ku.kup.kuPrintln("Connecting to Calibre!")
-			cc, err := uc.New(ku)
-			if err != nil {
-				log.Print(err)
-				return kuError
-			}
-			err = cc.Start()
-			ku.wg.Wait()
-			if err != nil {
-				log.Print(err)
-				return kuError
-			}
-			if len(ku.updatedMetadata) > 0 {
-				ku.kup.kuPrintln("Kobo-UNCaGED will restart automatically to update metadata")
-				return kuSuccessRerun
-			}
+	} else {
+		log.Println("Connecting to Calibre")
+		ku.kup.kuPrintln("Connecting to Calibre!")
+		cc, err := uc.New(ku)
+		if err != nil {
+			log.Print(err)
+			return kuError
+		}
+		log.Println("Starting Calibre Connection")
+		err = cc.Start()
+		ku.wg.Wait()
+		if err != nil {
+			log.Print(err)
+			return kuError
+		}
+		if len(ku.updatedMetadata) > 0 {
+			ku.kup.kuPrintln("Kobo-UNCaGED will restart automatically to update metadata")
+			return kuSuccessRerun
 		}
 	}
 
