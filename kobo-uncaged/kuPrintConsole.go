@@ -24,7 +24,7 @@ import "fmt"
 type kuUserPrint struct {
 }
 
-func newKuPrint() (*kuUserPrint, error) {
+func newKuPrint(fontPath string) (*kuUserPrint, error) {
 	kup := &kuUserPrint{}
 	return kup, nil
 }

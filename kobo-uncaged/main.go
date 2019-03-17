@@ -123,7 +123,8 @@ func createKoboMetadata() KoboMetadata {
 func New(dbRootDir, bkRootDir string, contentIDprefix cidPrefix, updatingMD bool) (*KoboUncaged, error) {
 	var err error
 	ku := &KoboUncaged{}
-	ku.kup, err = newKuPrint()
+	fntPath := filepath.Join(ku.dbRootDir, ".adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf")
+	ku.kup, err = newKuPrint(fntPath)
 	if err != nil {
 		return nil, err
 	}

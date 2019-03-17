@@ -50,7 +50,7 @@ type kuUserPrint struct {
 	}
 }
 
-func newKuPrint() (*kuUserPrint, error) {
+func newKuPrint(fontPath string) (*kuUserPrint, error) {
 	kup := &kuUserPrint{}
 	kup.fbCfg = &gofbink.FBInkConfig{}
 	kup.rCfg = &gofbink.RestrictedConfig{}
@@ -62,8 +62,7 @@ func newKuPrint() (*kuUserPrint, error) {
 	kup.mboxPort.otCfg.IsCentred = true
 	kup.fbink = gofbink.New(kup.fbCfg, kup.rCfg)
 	kup.fbink.Init(kup.fbCfg)
-	fntPath := "../fonts/LiberationSans-Regular.ttf"
-	err := kup.fbink.AddOTfont(fntPath, gofbink.FntRegular)
+	err := kup.fbink.AddOTfont(fontPath, gofbink.FntRegular)
 	if err != nil {
 		return nil, err
 	}
