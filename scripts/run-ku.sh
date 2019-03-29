@@ -84,7 +84,7 @@ if [ $KU_RES -eq 1 ] && $BS_RES; then
         remove_usb
         exit 1
     fi
-    $KU_BIN "-onboardmount=${MNT_ONBOARD_NEW} -metadata"
+    $KU_BIN "-onboardmount=${MNT_ONBOARD_NEW}" "-metadata"
     unmount_onboard
     ./fbink -y 0 -Y 100 -m -p -r -q "Onboard Unmounted..."
     remove_usb
