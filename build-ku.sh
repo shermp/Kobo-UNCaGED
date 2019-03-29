@@ -40,7 +40,7 @@ cd ./Build || exit 1
 if [ ! -f ./onboard/.adds/kobo-uncaged/bin/fbink ] && [ ! -f ./onboard/.adds/kobo-uncaged/bin/button_scan ]; then
     printf "%bFBInk binaries not found. Building from source%b\n" "${YELLOW}" "${END}"
     if [ ! -d ./FBInk ]; then
-        git clone --recursive --branch v1.12.1 https://github.com/NiLuJe/FBInk.git
+        git clone --recursive --branch v1.13.0 https://github.com/NiLuJe/FBInk.git
     fi
     cd ./FBInk || exit 1
     make clean
