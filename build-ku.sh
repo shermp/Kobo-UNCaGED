@@ -63,8 +63,7 @@ fi
 
 # Get Go-FBInk-v2
 printf "%bGetting Go-FBInk-v2%b\n" "${YELLOW}" "${END}"
-# FIXME: Back to upstream when it's merged ;).
-if ! go get github.com/NiLuJe/go-fbink-v2/gofbink; then
+if ! go get github.com/shermp/go-fbink-v2/gofbink; then
     printf "%bGo failed to get go-fbink-v2. Aborting%b\n" "${RED}" "${END}"
     exit 1
 fi
