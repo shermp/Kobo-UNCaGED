@@ -101,7 +101,7 @@ mount_onboard() {
     MNT_ONBOARD_NEW=/mnt/newonboard
     # Make sure to create the new mountpoint directory, if it doesn't already exist
     mkdir -p "$MNT_ONBOARD_NEW"
-    # First check to make sure onboard isn't already, if so, we keep trying for up to 5 seconds
+    # First check to make sure onboard isn't already mounted, if so, we keep trying for up to 5 seconds
     # before aborting
     MOUNT_TIMEOUT=0
     while grep -qs "/dev/mmcblk0p3" "/proc/mounts"
@@ -110,7 +110,7 @@ mount_onboard() {
         if [ $MOUNT_TIMEOUT -ge 20 ]; then
             return 255
         fi
-        # Nickel hasn't unmounted /dev/mmcblk0p3" yet. We sleep for a bit (250ms), then try again
+        # Nickel hasn't unmounted /dev/mmcblk0p3 yet. We sleep for a bit (250ms), then try again
         usleep 250000
         MOUNT_TIMEOUT=$(( MOUNT_TIMEOUT + 1 ))
     done
