@@ -91,7 +91,7 @@ fi
 # Now that we have everything, time to build Kobo-UNCaGED
 printf "%bBuilding Kobo-UNCaGED%b\n" "${YELLOW}" "${END}"
 cd ./onboard/.adds/kobo-uncaged/bin || exit 1
-if ! go build github.com/$(git remote get-url origin | awk '{print $2}' FS=':' | awk '{print $1}' FS='.')/kobo-uncaged; then
+if ! go build github.com/$(git remote get-url origin | awk '{print $2}' FS='github.com/')/kobo-uncaged; then
     printf "%bGo failed to build kobo-uncaged. Aborting%b\n" "${RED}" "${END}"
     exit 1
 fi
