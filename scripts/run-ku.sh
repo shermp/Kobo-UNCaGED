@@ -17,10 +17,10 @@ YELLOW="\033[33;1m"
 GREEN="\033[32;1m"
 
 ./fbink -y 0 -Y 100 -m -p -r -q "Entering USBMS mode..."
-printf "${GREEN}Inserting USB${END}\n"
+printf "%bInserting USB%b\n" "${GREEN}" "${END}"
 insert_usb
 
-printf "${GREEN}Scanning for Button${END}\n"
+printf "%bScanning for Button%b\n" "${GREEN}" "${END}"
 BS_TIMEOUT=0
 while ! ./button_scan -p
 do
@@ -32,16 +32,16 @@ do
     usleep 250000
     BS_TIMEOUT=$(( BS_TIMEOUT + 1 ))
 done
-printf "${GREEN}(Re)mounting onboard${END}\n"
+printf "%b(Re)mounting onboard%b\n" "${GREEN}" "${END}"
 if ! mount_onboard; then
-    printf "${RED}Onboard did not remount${END}\n"
+    printf "%bOnboard did not remount%b\n" "${RED}" "${END}"
     remove_usb
     exit 1
 
 fi
-printf "${GREEN}Enabling WiFi${END}\n"
+printf "%bEnabling WiFi%b\n" "${GREEN}" "${END}"
 if ! enable_wifi; then
-    printf "${RED}WiFi did not enable. Aborting!${END}\n"
+    printf "%bWiFi did not enable. Aborting!%b\n" "${RED}" "${END}"
     unmount_onboard
     remove_usb
     exit 1
@@ -49,23 +49,23 @@ fi
 
 ./fbink -y 0 -Y 100 -m -p -r -q "USBMS mode entered..."
 
-printf "${GREEN}Running Kobo-UNCaGED${END}\n"
+printf "%bRunning Kobo-UNCaGED%b\n" "${GREEN}" "${END}"
 KU_BIN="${MNT_ONBOARD_NEW}/${KU_DIR}/bin/kobo-uncaged"
 $KU_BIN "-onboardmount=${MNT_ONBOARD_NEW}"
 KU_RES=$?
-printf "${GREEN}Leaving USBMS${END}\n"
+printf "%bLeaving USBMS%b\n" "${GREEN}" "${END}"
 ./fbink -y 0 -Y 100 -m -p -r "Leaving USBMS..."
-printf "${GREEN}Disabling WiFi${END}\n"
+printf "%bDisabling WiFi%b\n" "${GREEN}" "${END}"
 disable_wifi
 ./fbink -y 0 -Y 100 -m -p -r "Wifi Disabled..."
-printf "${GREEN}Unmounting onboard${END}\n"
+printf "%bUnmounting onboard%b\n" "${GREEN}" "${END}"
 unmount_onboard
 ./fbink -y 0 -Y 100 -m -p -r "Onboard Unmounted..."
 
 ./button_scan -w -u -q
 BS_RES=$?
 if [ $KU_RES -eq 1 ] && $BS_RES; then
-    printf "${GREEN}Updating metadata${END}\n"
+    printf "%bUpdating metadata%b\n" "${GREEN}" "${END}"
     ./fbink -y 0 -Y 100 -m -p -r -q "Entering USBMS mode..."
     insert_usb
 
@@ -89,4 +89,4 @@ if [ $KU_RES -eq 1 ] && $BS_RES; then
     ./fbink -y 0 -Y 100 -m -p -r -q "Onboard Unmounted..."
     remove_usb
 fi
-    
+
