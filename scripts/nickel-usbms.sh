@@ -1,3 +1,5 @@
+#!/bin/sh
+
 # Get the needed environment variables from the running Nickel process.
 # Needed by the Wifi enable/disable functions
 get_nickel_env() {
