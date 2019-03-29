@@ -8,13 +8,13 @@ GREEN="\033[32;1m"
 
 # Check if the user has set their ARM toolchain name
 if [ -z "$CROSS_TC" ]; then
-    printf "${RED}CROSS_TC variable is not set! Please set it before running this script! Eg: CROSS_TC=\"arm-kobo-linux-gnueabihf\"${END}\n"
+    printf "%bCROSS_TC variable is not set! Please set it before running this script! Eg: CROSS_TC=\"arm-kobo-linux-gnueabihf\"%b\n" "${RED}" "${END}"
     exit 1
 fi
 
 # Then check if the toolchain is in the $PATH
-if ! which "${CROSS_TC}-gcc"; then
-    printf "${RED}ARM toolchain not found! Please add to PATH\n${END}\n"
+if ! command -v "${CROSS_TC}-gcc"; then
+    printf "%bARM toolchain not found! Please add to PATH\n%b\n" "${RED}" "${END}"
     exit 1
 fi
 
@@ -34,31 +34,31 @@ mkdir -p ./Build/onboard/.adds/kobo-uncaged/bin
 mkdir -p ./Build/onboard/.adds/kobo-uncaged/fonts
 mkdir -p ./Build/onboard/.adds/kobo-uncaged/scripts
 mkdir -p ./Build/onboard/.adds/kfmon/config
-cd ./Build
+cd ./Build || exit 1
 
 # Build FBInk
 if [ ! -f ./onboard/.adds/kobo-uncaged/bin/fbink ] && [ ! -f ./onboard/.adds/kobo-uncaged/bin/button_scan ]; then
-    printf "${YELLOW}FBInk binaries not found. Building from source${END}\n"
+    printf "%bFBInk binaries not found. Building from source%b\n" "${YELLOW}" "${END}"
     if [ ! -d ./FBInk ]; then
         git clone --recursive --branch v1.12.1 https://github.com/NiLuJe/FBInk.git
     fi
-    cd ./FBInk
+    cd ./FBInk || exit 1
     make clean
     # Build the standard build first for button_scan
     if ! make; then
-        printf "${RED}Make failed to build 'button_scan'. Aborting${END}\n"
+        printf "%bMake failed to build 'button_scan'. Aborting%b\n" "${RED}" "${END}"
         exit 1
     fi
     cp ./Release/button_scan ../onboard/.adds/kobo-uncaged/bin/button_scan
     # Clean for minimal build
     make clean
     if ! MINIMAL=1 make; then
-        printf "${RED}Make failed to build 'fbink'. Aborting${END}\n"
+        printf "%bMake failed to build 'fbink'. Aborting%b\n" "${RED}" "${END}"
         exit 1
     fi
     cp ./Release/fbink ../onboard/.adds/kobo-uncaged/bin/fbink
-    cd ..
-    printf "${GREEN}FBInk binaries built${END}\n"
+    cd -
+    printf "%bFBInk binaries built%b\n" "${GREEN}" "${END}"
 fi
 # Copy the kobo-uncaged scripts to the build directory
 cp ../scripts/start-ku.sh ./onboard/.adds/kobo-uncaged/start-ku.sh
@@ -71,30 +71,30 @@ cp ../kfmon/Kobo-UNCaGED.png ./onboard/Kobo-UNCaGED.png
 
 # Next, obtain a TTF font. LiberationSans in our case
 if [ ! -f ./onboard/.adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf ]; then
-    printf "${YELLOW}Font not found. Downloading LiberationSans${END}\n"
+    printf "%bFont not found. Downloading LiberationSans%b\n" "${YELLOW}" "${END}"
     wget https://github.com/liberationfonts/liberation-fonts/files/2926169/liberation-fonts-ttf-2.00.5.tar.gz
     tar -zxf ./liberation-fonts-ttf-2.00.5.tar.gz liberation-fonts-ttf-2.00.5/LiberationSans-Regular.ttf
     cp ./liberation-fonts-ttf-2.00.5/LiberationSans-Regular.ttf ./onboard/.adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf
-    printf "${GREEN}LiberationSans-Regular.ttf downloaded${END}\n"
+    printf "%bLiberationSans-Regular.ttf downloaded%b\n" "${GREEN}" "${END}"
 fi
 
 # Now that we have everything, time to build Kobo-UNCaGED
-printf "${YELLOW}Building Kobo-UNCaGED${END}\n"
-cd ./onboard/.adds/kobo-uncaged/bin
+printf "%bBuilding Kobo-UNCaGED%b\n" "${YELLOW}" "${END}"
+cd ./onboard/.adds/kobo-uncaged/bin || exit 1
 if ! go build github.com/shermp/Kobo-UNCaGED/kobo-uncaged; then
-    printf "${RED}Go failed to build kobo-uncaged. Aborting${END}\n"
+    printf "%bGo failed to build kobo-uncaged. Aborting%b\n" "${RED}" "${END}"
     exit 1
 fi
-$CROSS_TC-strip kobo-uncaged
-cd ../../../../
-printf "${GREEN}Kobo-UNCaGED built${END}\n"
+"${CROSS_TC}-strip" kobo-uncaged
+cd -
+printf "%bKobo-UNCaGED built%b\n" "${GREEN}" "${END}"
 
 # Finally, zip it all up
-printf "${YELLOW}Creating release archive${END}\n"
-cd ./onboard
+printf "%bCreating release archive%b\n" "${YELLOW}" "${END}"
+cd ./onboard || exit 1
 if ! zip -r ../KoboUncaged.zip .; then
-    printf "${RED}Failed to create zip archive. Aborting${END}\n"
+    printf "%bFailed to create zip archive. Aborting%b\n" "${RED}" "${END}"
     exit 1
 fi
-cd ..
-printf "${GREEN}./Build/KoboUncaged.zip built${END}\n"
+cd -
+printf "%b./Build/KoboUncaged.zip built%b\n" "${GREEN}" "${END}"
