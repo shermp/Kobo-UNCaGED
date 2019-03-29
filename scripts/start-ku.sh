@@ -11,5 +11,5 @@ cp "/mnt/onboard/${KU_DIR}/scripts/nickel-usbms.sh" "$KU_TMP_DIR"
 cp "/mnt/onboard/${KU_DIR}/bin/button_scan" "$KU_TMP_DIR"
 cp "/mnt/onboard/${KU_DIR}/bin/fbink" "$KU_TMP_DIR"
 
-cd "$KU_TMP_DIR"
+cd "$KU_TMP_DIR" || exit 255
 exec ./run-ku.sh "$KU_DIR" "$KU_TMP_DIR"
