@@ -29,9 +29,9 @@ obtain_ip() {
 }
 
 wifi_is_forced() {
-    if grep -qs "/mnt/onboard" "/proc/mounts"; then
+    if grep -qs " /mnt/onboard" "/proc/mounts"; then
         KOBO_CONF_FILE="/mnt/onboard/.kobo/Kobo/Kobo eReader.conf"
-    elif grep -qs "/mnt/newonboard" "/proc/mounts"; then
+    elif grep -qs " /mnt/newonboard" "/proc/mounts"; then
         KOBO_CONF_FILE="/mnt/newonboard/.kobo/Kobo/Kobo eReader.conf"
     else
         return 2
@@ -104,7 +104,7 @@ mount_onboard() {
     # First check to make sure onboard isn't already mounted, if so, we keep trying for up to 5 seconds
     # before aborting
     MOUNT_TIMEOUT=0
-    while grep -qs "/dev/mmcblk0p3" "/proc/mounts"
+    while grep -qs "^/dev/mmcblk0p3" "/proc/mounts"
     do
         # If the partition is still mounted after 5 seconds, we abort
         if [ $MOUNT_TIMEOUT -ge 20 ]; then
@@ -125,7 +125,7 @@ unmount_onboard() {
         return 255
     fi
     # next, make sure we are still mounted where we expect to be
-    if ! grep -qs "$MNT_ONBOARD_NEW" "/proc/mounts"; then
+    if ! grep -qs " $MNT_ONBOARD_NEW" "/proc/mounts"; then
         return 254
     fi
     # If mounted, we now try to unmount
