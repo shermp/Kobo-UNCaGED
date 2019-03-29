@@ -108,7 +108,7 @@ mount_onboard() {
     do
         # If the partition is still mounted after 5 seconds, we abort
         if [ $MOUNT_TIMEOUT -ge 20 ]; then
-            return -1
+            return 255
         fi
         # Nickel hasn't unmounted /dev/mmcblk0p3" yet. We sleep for a bit (250ms), then try again
         usleep 250000
@@ -122,11 +122,11 @@ mount_onboard() {
 unmount_onboard() {
     # First, we check if mount_onboard has previously been invoked
     if [ -z "$MNT_ONBOARD_NEW" ]; then
-        return -1
+        return 255
     fi
     # next, make sure we are still mounted where we expect to be
     if ! grep -qs "$MNT_ONBOARD_NEW" "/proc/mounts"; then
-        return -2
+        return 254
     fi
     # If mounted, we now try to unmount
     umount "$MNT_ONBOARD_NEW"
