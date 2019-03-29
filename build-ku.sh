@@ -85,7 +85,7 @@ if ! go build github.com/shermp/Kobo-UNCaGED/kobo-uncaged; then
     printf "%bGo failed to build kobo-uncaged. Aborting%b\n" "${RED}" "${END}"
     exit 1
 fi
-"${CROSS_TC}-strip" kobo-uncaged
+"${CROSS_TC}-strip" --strip-unneeded kobo-uncaged
 cd -
 printf "%bKobo-UNCaGED built%b\n" "${GREEN}" "${END}"
 
