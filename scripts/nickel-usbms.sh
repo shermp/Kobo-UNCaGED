@@ -54,7 +54,10 @@ logmsg() {
         PRINT_ROW=3
     fi
 
-    ./fbink -q -y ${PRINT_ROW} -mpr "${LOG_MSG}"
+    # Unless we want to keep this off-screen, that is...
+    if [ $# -le 2 ] ; then
+        ./fbink -q -y ${PRINT_ROW} -mpr "${LOG_MSG}"
+    fi
 }
 
 # Get the needed environment variables from the running Nickel process.
@@ -175,7 +178,7 @@ mount_onboard() {
     msg="$(mount -o rw,noatime,nodiratime,shortname=mixed,utf8 -t vfat /dev/mmcblk0p3 "$MNT_ONBOARD_NEW" 2>&1)"
     ret=$?
     if [ ${ret} -ne 0 ]; then
-        logmsg "E" "Failed to mount onboard! (${ret}: ${msg})"
+        logmsg "E" "Failed to mount onboard! (${ret}: ${msg})" "q"
     fi
     return ${ret}
 }
@@ -195,7 +198,7 @@ unmount_onboard() {
     msg="$(umount "$MNT_ONBOARD_NEW" 2>&1)"
     ret=$?
     if [ ${ret} -ne 0 ]; then
-        logmsg "E" "Failed to unmount onboard! (${ret}: ${msg})"
+        logmsg "E" "Failed to unmount onboard! (${ret}: ${msg})" "q"
     fi
     return ${ret}
 }
