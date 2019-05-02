@@ -12,10 +12,10 @@ KU_TMP_DIR="$2"
 . ./nickel-usbms.sh
 
 ./fbink -y 0 -Y 100 -m -p -r -q "Entering USBMS mode..."
-printf "%bInserting USB%b\n" "${GREEN}" "${END}"
+logmsg "I" "Inserting USB"
 insert_usb
 
-printf "%bScanning for Button%b\n" "${GREEN}" "${END}"
+logmsg "I" "Scanning for Button"
 BS_TIMEOUT=0
 while ! ./button_scan -p
 do
@@ -27,16 +27,16 @@ do
     usleep 250000
     BS_TIMEOUT=$(( BS_TIMEOUT + 1 ))
 done
-printf "%b(Re)mounting onboard%b\n" "${GREEN}" "${END}"
+logmsg "I" "(Re)mounting onboard"
 if ! mount_onboard; then
-    printf "%bOnboard did not remount%b\n" "${RED}" "${END}"
+    logmsg "C" "Onboard did not remount"
     remove_usb
     exit 1
 
 fi
-printf "%bEnabling WiFi%b\n" "${GREEN}" "${END}"
+logmsg "I" "Enabling WiFi"
 if ! enable_wifi; then
-    printf "%bWiFi did not enable. Aborting!%b\n" "${RED}" "${END}"
+    logmsg "C" "WiFi did not enable. Aborting!"
     unmount_onboard
     remove_usb
     exit 1
@@ -44,23 +44,23 @@ fi
 
 ./fbink -y 0 -Y 100 -m -p -r -q "USBMS mode entered..."
 
-printf "%bRunning Kobo-UNCaGED%b\n" "${GREEN}" "${END}"
+logmsg "I" "Running Kobo-UNCaGED"
 KU_BIN="${MNT_ONBOARD_NEW}/${KU_DIR}/bin/kobo-uncaged"
 $KU_BIN "-onboardmount=${MNT_ONBOARD_NEW}"
 KU_RES=$?
-printf "%bLeaving USBMS%b\n" "${GREEN}" "${END}"
+logmsg "I" "Leaving USBMS"
 ./fbink -y 0 -Y 100 -m -p -r "Leaving USBMS..."
-printf "%bDisabling WiFi%b\n" "${GREEN}" "${END}"
+logmsg "I" "Disabling WiFi"
 disable_wifi
 ./fbink -y 0 -Y 100 -m -p -r "Wifi Disabled..."
-printf "%bUnmounting onboard%b\n" "${GREEN}" "${END}"
+logmsg "I" "Unmounting onboard"
 unmount_onboard
 ./fbink -y 0 -Y 100 -m -p -r "Onboard Unmounted..."
 
 ./button_scan -w -u -q
 BS_RES=$?
 if [ $KU_RES -eq 1 ] && $BS_RES; then
-    printf "%bUpdating metadata%b\n" "${GREEN}" "${END}"
+    logmsg "I" "Updating metadata"
     ./fbink -y 0 -Y 100 -m -p -r -q "Entering USBMS mode..."
     insert_usb
 
