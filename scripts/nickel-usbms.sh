@@ -67,9 +67,11 @@ get_nickel_env() {
 }
 
 insert_usb() {
+    sync
     echo "usb plug add" >> /tmp/nickel-hardware-status
 }
 remove_usb() {
+    sync
     echo "usb plug remove" >> /tmp/nickel-hardware-status
 }
 
