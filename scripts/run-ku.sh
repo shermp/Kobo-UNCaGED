@@ -11,6 +11,13 @@ KU_DIR="$1"
 KU_TMP_DIR="$2"
 . ./nickel-usbms.sh
 
+# Abort if the device is currently plugged in, as that's liable to confuse Nickel into actually starting a real USBMS session!
+# Which'd probably ultimately cause a crash with our shenanigans...
+if [ "$(cat /sys/devices/platform/pmic_battery.1/power_supply/mc13892_bat/status)" = "Charging" ]; then
+    logmsg "C" "Device is currently plugged in. Aborting!"
+    exit 1
+fi
+
 logmsg "N" "Entering USBMS mode..."
 logmsg "I" "Inserting USB"
 insert_usb
