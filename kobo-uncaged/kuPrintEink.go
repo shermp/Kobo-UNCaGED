@@ -138,6 +138,7 @@ func (kup *kuUserPrint) kuClose() {
 }
 
 func (kup *kuUserPrint) kuPrintln(a ...interface{}) (n int, err error) {
+
 	n = 0
 	err = nil
 	kup.fbink.ReInit(kup.fbCfg)
@@ -146,11 +147,11 @@ func (kup *kuUserPrint) kuPrintln(a ...interface{}) (n int, err error) {
 	if kup.fbState.ViewWidth > kup.fbState.ViewHeight {
 		kup.fbink.PrintRawData(kup.mboxLand.scanlines, int(kup.mboxLand.width), int(kup.mboxLand.height), uint16(kup.mboxLand.xOff), uint16(kup.mboxLand.yOff), kup.fbCfg)
 		n, err = kup.fbink.PrintOT(str, kup.mboxLand.otCfg, kup.fbCfg)
-		kup.fbink.Refresh(uint32(kup.mboxLand.yOff), uint32(kup.mboxLand.xOff), uint32(kup.mboxLand.width), uint32(kup.mboxLand.height), "AUTO", "PASSTHROUGH", false)
+		kup.fbink.Refresh(uint32(kup.mboxLand.yOff), uint32(kup.mboxLand.xOff), uint32(kup.mboxLand.width), uint32(kup.mboxLand.height), gofbink.DitherPassthrough, kup.fbCfg)
 	} else {
 		kup.fbink.PrintRawData(kup.mboxPort.scanlines, int(kup.mboxPort.width), int(kup.mboxPort.height), uint16(kup.mboxPort.xOff), uint16(kup.mboxPort.yOff), kup.fbCfg)
 		n, err = kup.fbink.PrintOT(str, kup.mboxLand.otCfg, kup.fbCfg)
-		kup.fbink.Refresh(uint32(kup.mboxPort.yOff), uint32(kup.mboxPort.xOff), uint32(kup.mboxPort.width), uint32(kup.mboxPort.height), "AUTO", "PASSTHROUGH", false)
+		kup.fbink.Refresh(uint32(kup.mboxPort.yOff), uint32(kup.mboxPort.xOff), uint32(kup.mboxPort.width), uint32(kup.mboxPort.height), gofbink.DitherPassthrough, kup.fbCfg)
 	}
 	return n, err
 }
