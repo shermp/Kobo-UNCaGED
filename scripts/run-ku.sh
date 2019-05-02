@@ -45,7 +45,7 @@ if [ ${ret} -ne 0 ]; then
     remove_usb
     exit 1
 fi
-logmsg "I" "Aquiring IP"
+logmsg "I" "Acquiring IP"
 release_ip
 obtain_ip
 
