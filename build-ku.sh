@@ -61,13 +61,15 @@ if [ ! -f ./onboard/.adds/kobo-uncaged/bin/fbink ] && [ ! -f ./onboard/.adds/kob
     printf "%bFBInk binaries built%b\n" "${GREEN}" "${END}"
 fi
 
-# Get Go-FBInk-v2
-printf "%bGetting Go-FBInk-v2%b\n" "${YELLOW}" "${END}"
-if ! go get github.com/shermp/go-fbink-v2/gofbink; then
-    printf "%bGo failed to get go-fbink-v2. Aborting%b\n" "${RED}" "${END}"
-    exit 1
+# Get Go-FBInk-v2, if required
+if ! go list github.com/shermp/go-fbink-v2/gofbink; do
+    printf "%bGetting Go-FBInk-v2%b\n" "${YELLOW}" "${END}"
+    if ! go get github.com/shermp/go-fbink-v2/gofbink; then
+        printf "%bGo failed to get go-fbink-v2. Aborting%b\n" "${RED}" "${END}"
+        exit 1
+    fi
+    printf "%bGot Go-FBInk-v2%b\n" "${GREEN}" "${END}"
 fi
-printf "%bGot Go-FBInk-v2%b\n" "${GREEN}" "${END}"
 
 # Copy the kobo-uncaged scripts to the build directory
 cp ../scripts/start-ku.sh ./onboard/.adds/kobo-uncaged/start-ku.sh
