@@ -1,3 +1,65 @@
+#!/bin/sh
+
+# Logging facilities
+logmsg() {
+    # Set terminal color escape sequences
+    END="\033[0m"
+    RED="\033[31;1m"
+    YELLOW="\033[33;1m"
+    GREEN="\033[32;1m"
+
+    # Set the requested loglevel, default to notice, like logger
+    LOG_LEVEL="notice"
+    PRINT_COLOR="${GREEN}"
+    case "${1}" in
+        "C" )
+            LOG_LEVEL="crit"
+            PRINT_COLOR="${RED}"
+        ;;
+        "E" )
+            LOG_LEVEL="err"
+            PRINT_COLOR="${RED}"
+        ;;
+        "W" )
+            LOG_LEVEL="warning"
+            PRINT_COLOR="${YELLOW}"
+        ;;
+        "N" )
+            LOG_LEVEL="notice"
+            PRINT_COLOR="${YELLOW}"
+        ;;
+        "I" )
+            LOG_LEVEL="info"
+            PRINT_COLOR="${GREEN}"
+        ;;
+        "D" )
+            LOG_LEVEL="debug"
+            PRINT_COLOR="${YELLOW}"
+        ;;
+    esac
+
+    # Actual message ;)
+    LOG_MSG="${2}"
+
+    # Send to syslog
+    logger -t "UNCaGED" -p daemon.${LOG_LEVEL} "${LOG_MSG}"
+
+    # Print to console
+    printf "%b%s%b\n" "${PRINT_COLOR}" "${LOG_MSG}" "${END}"
+
+    # Print to screen
+    PRINT_ROW=4
+    # Keep notices visible by printing them one row higher
+    if [ "${LOG_LEVEL}" = "notice" ]; then
+        PRINT_ROW=3
+    fi
+
+    # Unless we want to keep this off-screen, that is...
+    if [ $# -le 2 ] ; then
+        ./fbink -q -y ${PRINT_ROW} -mpr "${LOG_MSG}"
+    fi
+}
+
 # Get the needed environment variables from the running Nickel process.
 # Needed by the Wifi enable/disable functions
 get_nickel_env() {
@@ -27,9 +89,9 @@ obtain_ip() {
 }
 
 wifi_is_forced() {
-    if grep -qs "/mnt/onboard" "/proc/mounts"; then
+    if grep -qs " /mnt/onboard" "/proc/mounts"; then
         KOBO_CONF_FILE="/mnt/onboard/.kobo/Kobo/Kobo eReader.conf"
-    elif grep -qs "/mnt/newonboard" "/proc/mounts"; then
+    elif grep -qs " /mnt/newonboard" "/proc/mounts"; then
         KOBO_CONF_FILE="/mnt/newonboard/.kobo/Kobo/Kobo eReader.conf"
     else
         return 2
@@ -37,16 +99,16 @@ wifi_is_forced() {
     grep -qs "ForceWifiOn=true" "$KOBO_CONF_FILE"
     return $?
 }
+
 enable_wifi() {
     if wifi_is_forced; then
         return 0
     fi
     get_nickel_env
     WIFI_TIMEOUT=0
-    while lsmod | grep -q sdio_wifi_pwr
-    do
+    while lsmod | grep -q sdio_wifi_pwr; do
         # If the Wifi hasn't been killed by Nickel within 5 seconds, assume it's not going to...
-        if [ $WIFI_TIMEOUT -ge 20 ]; then
+        if [ ${WIFI_TIMEOUT} -ge 20 ]; then
             return 0
         fi
         # Nickel hasn't killed Wifi yet. We sleep for a bit (250ms), then try again
@@ -96,37 +158,47 @@ disable_wifi() {
 
 mount_onboard() {
     # Set mountpoint variables
-    MNT_ONBOARD_NEW=/mnt/newonboard
+    MNT_ONBOARD_NEW="/mnt/newonboard"
     # Make sure to create the new mountpoint directory, if it doesn't already exist
     mkdir -p "$MNT_ONBOARD_NEW"
-    # First check to make sure onboard isn't already, if so, we keep trying for up to 5 seconds
+    # First check to make sure onboard isn't already mounted, if so, we keep trying for up to 5 seconds
     # before aborting
     MOUNT_TIMEOUT=0
-    while grep -qs "/dev/mmcblk0p3" "/proc/mounts"
-    do
+    while grep -qs "^/dev/mmcblk0p3" "/proc/mounts"; do
         # If the partition is still mounted after 5 seconds, we abort
-        if [ $MOUNT_TIMEOUT -ge 20 ]; then
-            return -1
+        if [ ${MOUNT_TIMEOUT} -ge 20 ]; then
+            return 254
         fi
-        # Nickel hasn't unmounted /dev/mmcblk0p3" yet. We sleep for a bit (250ms), then try again
+        # Nickel hasn't unmounted /dev/mmcblk0p3 yet. We sleep for a bit (250ms), then try again
         usleep 250000
         MOUNT_TIMEOUT=$(( MOUNT_TIMEOUT + 1 ))
     done
     # If we got this far, we are ready to mount
-    mount -t vfat -o rw,noatime,nodiratime,fmask=0022,dmask=0022,codepage=cp437,iocharset=iso8859-1,shortname=mixed,utf8 /dev/mmcblk0p3 "$MNT_ONBOARD_NEW"
-    return $?
+    sleep 1
+    msg="$(mount -o rw,noatime,nodiratime,shortname=mixed,utf8 -t vfat /dev/mmcblk0p3 "$MNT_ONBOARD_NEW" 2>&1)"
+    ret=$?
+    if [ ${ret} -ne 0 ]; then
+        logmsg "E" "Failed to mount onboard! (${ret}: ${msg})" "q"
+    fi
+    return ${ret}
 }
 
 unmount_onboard() {
     # First, we check if mount_onboard has previously been invoked
     if [ -z "$MNT_ONBOARD_NEW" ]; then
-        return -1
+        return 254
     fi
     # next, make sure we are still mounted where we expect to be
-    if ! grep -qs "$MNT_ONBOARD_NEW" "/proc/mounts"; then
-        return -2
+    if ! grep -qs " $MNT_ONBOARD_NEW" "/proc/mounts"; then
+        return 253
     fi
     # If mounted, we now try to unmount
-    umount "$MNT_ONBOARD_NEW"
-    return $?
+    sync
+    sleep 1
+    msg="$(umount "$MNT_ONBOARD_NEW" 2>&1)"
+    ret=$?
+    if [ ${ret} -ne 0 ]; then
+        logmsg "E" "Failed to unmount onboard! (${ret}: ${msg})" "q"
+    fi
+    return ${ret}
 }
