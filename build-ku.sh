@@ -52,7 +52,7 @@ if [ ! -f ./onboard/.adds/kobo-uncaged/bin/fbink ] && [ ! -f ./onboard/.adds/kob
     cp ./Release/button_scan ../onboard/.adds/kobo-uncaged/bin/button_scan
     # Clean for minimal build
     make clean
-    if ! MINIMAL=1 make; then
+    if ! make MINIMAL=1; then
         printf "%bMake failed to build 'fbink'. Aborting%b\n" "${RED}" "${END}"
         exit 1
     fi
