@@ -27,6 +27,7 @@ do
     usleep 250000
     BS_TIMEOUT=$(( BS_TIMEOUT + 1 ))
 done
+
 logmsg "I" "(Re)mounting onboard"
 mount_onboard
 ret=$?
@@ -36,6 +37,7 @@ if [ ${ret} -ne 0 ]; then
     exit 1
 
 fi
+
 logmsg "I" "Enabling WiFi"
 enable_wifi
 ret=$?
@@ -46,21 +48,25 @@ if [ ${ret} -ne 0 ]; then
     exit 1
 fi
 logmsg "I" "Acquiring IP"
-release_ip
 obtain_ip
 
+
 logmsg "N" "USBMS mode entered . . ."
+
 
 logmsg "I" "Running Kobo-UNCaGED"
 KU_BIN="${MNT_ONBOARD_NEW}/${KU_DIR}/bin/kobo-uncaged"
 $KU_BIN "-onboardmount=${MNT_ONBOARD_NEW}"
 KU_RES=$?
+
+
 logmsg "N" "Leaving USBMS . . ."
 logmsg "I" "Disabling WiFi"
 release_ip
 disable_wifi
 ret=$?
 logmsg "N" "WiFi disabled (${ret}) . . ."
+
 logmsg "I" "Unmounting onboard"
 unmount_onboard
 ret=$?
@@ -94,4 +100,3 @@ if [ $KU_RES -eq 1 ] && $BS_RES; then
     logmsg "N" "Onboard unmounted (${ret}) . . ."
     remove_usb
 fi
-
