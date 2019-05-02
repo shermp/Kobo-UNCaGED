@@ -28,6 +28,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"log/syslog"
 	"os"
 	"path"
 	"path/filepath"
@@ -867,6 +868,10 @@ func (ku *KoboUncaged) DisplayProgress(percentage int) {
 }
 
 func mainWithErrCode() returnCode {
+	w, e := syslog.New(syslog.LOG_DEBUG, "KoboUNCaGED")
+	if e == nil {
+		log.SetOutput(w)
+	}
 	onboardMntPtr := flag.String("onboardmount", "/mnt/onboard", "If changed, specify the new new mountpoint of '/mnt/onboard'")
 	sdMntPtr := flag.String("sdmount", "/mnt/sd", "If changed, specify the new new mountpoint of '/mnt/sd'")
 	contentLocPtr := flag.String("location", "onboard", "Choose location to save to. Choices are 'onboard' (default) and 'sd'.")
