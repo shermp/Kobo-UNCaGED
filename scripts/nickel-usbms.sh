@@ -54,9 +54,9 @@ logmsg() {
         PRINT_ROW=3
     fi
 
-    # Unless we want to keep this off-screen, that is...
-    if [ $# -le 2 ] ; then
-        ./fbink -q -y ${PRINT_ROW} -mpr "${LOG_MSG}"
+    # Keep verbose debugging off-screen, though...
+    if [ "${LOG_LEVEL}" != "debug" ] ; then
+        ./fbink -q -y ${PRINT_ROW} -mp "${LOG_MSG}"
     fi
 }
 
@@ -67,15 +67,18 @@ get_nickel_env() {
 }
 
 insert_usb() {
+    sync
     echo "usb plug add" >> /tmp/nickel-hardware-status
 }
 remove_usb() {
+    sync
     echo "usb plug remove" >> /tmp/nickel-hardware-status
 }
 
-# The contents of the following function were adapted from KOreader
+# The contents of the following functions were adapted from KOreader
 release_ip() {
     get_nickel_env
+
     # Release IP and shutdown udhcpc.
     pkill -9 -f '/bin/sh /etc/udhcpc.d/default.script'
     ifconfig "${INTERFACE}" 0.0.0.0
@@ -83,7 +86,10 @@ release_ip() {
 
 obtain_ip() {
     get_nickel_env
+
+    # Make sure we start from scratch
     release_ip
+
     # Use udhcpc to obtain IP.
     env -u LD_LIBRARY_PATH udhcpc -S -i "${INTERFACE}" -s /etc/udhcpc.d/default.script -t15 -T10 -A3 -b -q
 }
@@ -104,7 +110,9 @@ enable_wifi() {
     if wifi_is_forced; then
         return 0
     fi
+
     get_nickel_env
+
     WIFI_TIMEOUT=0
     while lsmod | grep -q sdio_wifi_pwr; do
         # If the Wifi hasn't been killed by Nickel within 5 seconds, assume it's not going to...
@@ -115,6 +123,7 @@ enable_wifi() {
         usleep 250000
         WIFI_TIMEOUT=$(( WIFI_TIMEOUT + 1 ))
     done
+
     # Load wifi modules and enable wifi.
     lsmod | grep -q sdio_wifi_pwr || insmod "/drivers/${PLATFORM}/wifi/sdio_wifi_pwr.ko"
     # Moar sleep!
@@ -136,9 +145,10 @@ disable_wifi() {
     if wifi_is_forced; then
         return 0
     fi
-    get_nickel_env
-    # Disable wifi, and remove all modules.
 
+    get_nickel_env
+
+    # Disable wifi, and remove all modules.
     killall udhcpc default.script wpa_supplicant 2>/dev/null
 
     [ "${WIFI_MODULE}" != "8189fs" ] && [ "${WIFI_MODULE}" != "8192es" ] && wlarm_le -i "${INTERFACE}" down
@@ -161,6 +171,7 @@ mount_onboard() {
     MNT_ONBOARD_NEW="/mnt/newonboard"
     # Make sure to create the new mountpoint directory, if it doesn't already exist
     mkdir -p "$MNT_ONBOARD_NEW"
+
     # First check to make sure onboard isn't already mounted, if so, we keep trying for up to 5 seconds
     # before aborting
     MOUNT_TIMEOUT=0
@@ -173,12 +184,13 @@ mount_onboard() {
         usleep 250000
         MOUNT_TIMEOUT=$(( MOUNT_TIMEOUT + 1 ))
     done
+
     # If we got this far, we are ready to mount
     sleep 1
     msg="$(mount -o rw,noatime,nodiratime,shortname=mixed,utf8 -t vfat /dev/mmcblk0p3 "$MNT_ONBOARD_NEW" 2>&1)"
     ret=$?
     if [ ${ret} -ne 0 ]; then
-        logmsg "E" "Failed to mount onboard! (${ret}: ${msg})" "q"
+        logmsg "D" "Failed to mount onboard! (${ret}: ${msg})"
     fi
     return ${ret}
 }
@@ -188,17 +200,19 @@ unmount_onboard() {
     if [ -z "$MNT_ONBOARD_NEW" ]; then
         return 254
     fi
+
     # next, make sure we are still mounted where we expect to be
     if ! grep -qs " $MNT_ONBOARD_NEW" "/proc/mounts"; then
         return 253
     fi
+
     # If mounted, we now try to unmount
     sync
     sleep 1
     msg="$(umount "$MNT_ONBOARD_NEW" 2>&1)"
     ret=$?
     if [ ${ret} -ne 0 ]; then
-        logmsg "E" "Failed to unmount onboard! (${ret}: ${msg})" "q"
+        logmsg "D" "Failed to unmount onboard! (${ret}: ${msg})"
     fi
     return ${ret}
 }
