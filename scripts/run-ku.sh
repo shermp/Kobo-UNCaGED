@@ -78,7 +78,8 @@ logmsg "N" "Onboard unmounted (${ret}) . . ."
 logmsg "I" "Waiting for content processing"
 ./button_scan -w -u -q
 BS_RES=$?
-if [ $KU_RES -eq 1 ] && [ $BS_RES -eq 0 ]; then
+# Note, KU may have updated metadata, even if no new books are added
+if [ $KU_RES -eq 1 ] || [ $BS_RES -eq 0 ]; then
     logmsg "N" "Updating metadata . . ."
     logmsg "I" "Entering USBMS mode . . ."
     insert_usb
