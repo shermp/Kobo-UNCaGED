@@ -45,6 +45,9 @@ if [ ${ret} -ne 0 ]; then
     remove_usb
     exit 1
 fi
+logmsg "I" "Aquiring IP"
+release_ip
+obtain_ip
 
 logmsg "N" "USBMS mode entered . . ."
 
@@ -54,6 +57,7 @@ $KU_BIN "-onboardmount=${MNT_ONBOARD_NEW}"
 KU_RES=$?
 logmsg "N" "Leaving USBMS . . ."
 logmsg "I" "Disabling WiFi"
+release_ip
 disable_wifi
 ret=$?
 logmsg "N" "WiFi disabled (${ret}) . . ."
