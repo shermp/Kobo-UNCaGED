@@ -3,14 +3,14 @@
 # Logging facilities
 logmsg() {
     # Set terminal color escape sequences
-    local END="\033[0m"
-    local RED="\033[31;1m"
-    local YELLOW="\033[33;1m"
-    local GREEN="\033[32;1m"
+    END="\033[0m"
+    RED="\033[31;1m"
+    YELLOW="\033[33;1m"
+    GREEN="\033[32;1m"
 
     # Set the requested loglevel, default to notice, like logger
-    local LOG_LEVEL="notice"
-    local PRINT_COLOR="${GREEN}"
+    LOG_LEVEL="notice"
+    PRINT_COLOR="${GREEN}"
     case "${1}" in
         "C" )
             LOG_LEVEL="crit"
@@ -39,7 +39,7 @@ logmsg() {
     esac
 
     # Actual message ;)
-    local LOG_MSG="${2}"
+    LOG_MSG="${2}"
 
     # Send to syslog
     logger -t "UNCaGED" -p daemon.${LOG_LEVEL} "${LOG_MSG}"
