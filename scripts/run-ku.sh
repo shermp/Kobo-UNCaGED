@@ -28,16 +28,18 @@ do
     BS_TIMEOUT=$(( BS_TIMEOUT + 1 ))
 done
 logmsg "I" "(Re)mounting onboard"
-if ! mount_onboard; then
-    ret=$?
+mount_onboard
+ret=$?
+if [ ${ret} -ne 0 ]; then
     logmsg "C" "Onboard did not remount (${ret}). Aborting!"
     remove_usb
     exit 1
 
 fi
 logmsg "I" "Enabling WiFi"
-if ! enable_wifi; then
-    ret=$?
+enable_wifi
+ret=$?
+if [ ${ret} -ne 0 ]; then
     logmsg "C" "WiFi did not enable (${ret}). Aborting!"
     unmount_onboard
     remove_usb
