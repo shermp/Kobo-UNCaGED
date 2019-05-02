@@ -96,6 +96,7 @@ wifi_is_forced() {
     grep -qs "ForceWifiOn=true" "$KOBO_CONF_FILE"
     return $?
 }
+
 enable_wifi() {
     if wifi_is_forced; then
         return 0

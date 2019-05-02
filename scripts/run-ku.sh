@@ -29,38 +29,38 @@ do
 done
 logmsg "I" "(Re)mounting onboard"
 if ! mount_onboard; then
-    logmsg "C" "Onboard did not remount"
+    logmsg "C" "Onboard did not remount ($?). Aborting!"
     remove_usb
     exit 1
 
 fi
 logmsg "I" "Enabling WiFi"
 if ! enable_wifi; then
-    logmsg "C" "WiFi did not enable. Aborting!"
+    logmsg "C" "WiFi did not enable ($?). Aborting!"
     unmount_onboard
     remove_usb
     exit 1
 fi
 
-logmsg "N" "USBMS mode entered..."
+logmsg "N" "USBMS mode entered . . ."
 
 logmsg "I" "Running Kobo-UNCaGED"
 KU_BIN="${MNT_ONBOARD_NEW}/${KU_DIR}/bin/kobo-uncaged"
 $KU_BIN "-onboardmount=${MNT_ONBOARD_NEW}"
 KU_RES=$?
-logmsg "N" "Leaving USBMS..."
+logmsg "N" "Leaving USBMS . . ."
 logmsg "I" "Disabling WiFi"
 disable_wifi
-logmsg "N" "WiFi disabled..."
+logmsg "N" "WiFi disabled ($?) . . ."
 logmsg "I" "Unmounting onboard"
 unmount_onboard
-logmsg "N" "Onboard unmounted..."
+logmsg "N" "Onboard unmounted ($?) . . ."
 
 ./button_scan -w -u -q
 BS_RES=$?
 if [ $KU_RES -eq 1 ] && $BS_RES; then
-    logmsg "I" "Updating metadata"
-    logmsg "N" "Entering USBMS mode..."
+    logmsg "N" "Updating metadata . . ."
+    logmsg "I" "Entering USBMS mode . . ."
     insert_usb
 
     BS_TIMEOUT=0
@@ -80,7 +80,7 @@ if [ $KU_RES -eq 1 ] && $BS_RES; then
     fi
     $KU_BIN "-onboardmount=${MNT_ONBOARD_NEW}" "-metadata"
     unmount_onboard
-    logmsg "N" "Onboard unmounted..."
+    logmsg "N" "Onboard unmounted ($?) . . ."
     remove_usb
 fi
 
