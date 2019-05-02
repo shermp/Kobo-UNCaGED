@@ -46,6 +46,9 @@ logmsg() {
 
     # Print to console
     printf "%b%s%b\n" "${PRINT_COLOR}" "${LOG_MSG}" "${END}"
+
+    # Print to screen
+    ./fbink -q -Y 100 -mpr "${LOG_MSG}"
 }
 
 # Get the needed environment variables from the running Nickel process.

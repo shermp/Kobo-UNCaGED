@@ -11,7 +11,7 @@ KU_DIR="$1"
 KU_TMP_DIR="$2"
 . ./nickel-usbms.sh
 
-./fbink -y 0 -Y 100 -m -p -r -q "Entering USBMS mode..."
+logmsg "N" "Entering USBMS mode..."
 logmsg "I" "Inserting USB"
 insert_usb
 
@@ -42,26 +42,25 @@ if ! enable_wifi; then
     exit 1
 fi
 
-./fbink -y 0 -Y 100 -m -p -r -q "USBMS mode entered..."
+logmsg "N" "USBMS mode entered..."
 
 logmsg "I" "Running Kobo-UNCaGED"
 KU_BIN="${MNT_ONBOARD_NEW}/${KU_DIR}/bin/kobo-uncaged"
 $KU_BIN "-onboardmount=${MNT_ONBOARD_NEW}"
 KU_RES=$?
-logmsg "I" "Leaving USBMS"
-./fbink -y 0 -Y 100 -m -p -r "Leaving USBMS..."
+logmsg "N" "Leaving USBMS..."
 logmsg "I" "Disabling WiFi"
 disable_wifi
-./fbink -y 0 -Y 100 -m -p -r "Wifi Disabled..."
+logmsg "N" "WiFi disabled..."
 logmsg "I" "Unmounting onboard"
 unmount_onboard
-./fbink -y 0 -Y 100 -m -p -r "Onboard Unmounted..."
+logmsg "N" "Onboard unmounted..."
 
 ./button_scan -w -u -q
 BS_RES=$?
 if [ $KU_RES -eq 1 ] && $BS_RES; then
     logmsg "I" "Updating metadata"
-    ./fbink -y 0 -Y 100 -m -p -r -q "Entering USBMS mode..."
+    logmsg "N" "Entering USBMS mode..."
     insert_usb
 
     BS_TIMEOUT=0
@@ -81,7 +80,7 @@ if [ $KU_RES -eq 1 ] && $BS_RES; then
     fi
     $KU_BIN "-onboardmount=${MNT_ONBOARD_NEW}" "-metadata"
     unmount_onboard
-    ./fbink -y 0 -Y 100 -m -p -r -q "Onboard Unmounted..."
+    logmsg "N" "Onboard unmounted..."
     remove_usb
 fi
 
