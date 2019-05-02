@@ -29,14 +29,16 @@ do
 done
 logmsg "I" "(Re)mounting onboard"
 if ! mount_onboard; then
-    logmsg "C" "Onboard did not remount ($?). Aborting!"
+    ret=$?
+    logmsg "C" "Onboard did not remount (${ret}). Aborting!"
     remove_usb
     exit 1
 
 fi
 logmsg "I" "Enabling WiFi"
 if ! enable_wifi; then
-    logmsg "C" "WiFi did not enable ($?). Aborting!"
+    ret=$?
+    logmsg "C" "WiFi did not enable (${ret}). Aborting!"
     unmount_onboard
     remove_usb
     exit 1
@@ -51,10 +53,12 @@ KU_RES=$?
 logmsg "N" "Leaving USBMS . . ."
 logmsg "I" "Disabling WiFi"
 disable_wifi
-logmsg "N" "WiFi disabled ($?) . . ."
+ret=$?
+logmsg "N" "WiFi disabled (${ret}) . . ."
 logmsg "I" "Unmounting onboard"
 unmount_onboard
-logmsg "N" "Onboard unmounted ($?) . . ."
+ret=$?
+logmsg "N" "Onboard unmounted (${ret}) . . ."
 
 ./button_scan -w -u -q
 BS_RES=$?
@@ -80,7 +84,8 @@ if [ $KU_RES -eq 1 ] && $BS_RES; then
     fi
     $KU_BIN "-onboardmount=${MNT_ONBOARD_NEW}" "-metadata"
     unmount_onboard
-    logmsg "N" "Onboard unmounted ($?) . . ."
+    ret=$?
+    logmsg "N" "Onboard unmounted (${ret}) . . ."
     remove_usb
 fi
 

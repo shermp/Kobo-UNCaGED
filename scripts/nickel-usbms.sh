@@ -50,7 +50,7 @@ logmsg() {
     # Print to screen
     PRINT_ROW=4
     # Keep notices visible by printing them one row higher
-    if [[ "${LOG_LEVEL}" == "notice" ]]; then
+    if [ "${LOG_LEVEL}" = "notice" ]; then
         PRINT_ROW=3
     fi
 
@@ -156,14 +156,13 @@ disable_wifi() {
 
 mount_onboard() {
     # Set mountpoint variables
-    MNT_ONBOARD_NEW=/mnt/newonboard
+    MNT_ONBOARD_NEW="/mnt/newonboard"
     # Make sure to create the new mountpoint directory, if it doesn't already exist
     mkdir -p "$MNT_ONBOARD_NEW"
     # First check to make sure onboard isn't already mounted, if so, we keep trying for up to 5 seconds
     # before aborting
     MOUNT_TIMEOUT=0
-    while grep -qs "^/dev/mmcblk0p3" "/proc/mounts"
-    do
+    while grep -qs "^/dev/mmcblk0p3" "/proc/mounts"; do
         # If the partition is still mounted after 5 seconds, we abort
         if [ $MOUNT_TIMEOUT -ge 20 ]; then
             return 255
