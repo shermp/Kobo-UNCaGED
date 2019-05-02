@@ -62,7 +62,7 @@ if [ ! -f ./onboard/.adds/kobo-uncaged/bin/fbink ] && [ ! -f ./onboard/.adds/kob
 fi
 
 # Get Go-FBInk-v2, if required
-if ! go list github.com/shermp/go-fbink-v2/gofbink; do
+if ! go list github.com/shermp/go-fbink-v2/gofbink; then
     printf "%bGetting Go-FBInk-v2%b\n" "${YELLOW}" "${END}"
     if ! go get github.com/shermp/go-fbink-v2/gofbink; then
         printf "%bGo failed to get go-fbink-v2. Aborting%b\n" "${RED}" "${END}"
