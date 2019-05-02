@@ -171,12 +171,13 @@ mount_onboard() {
         MOUNT_TIMEOUT=$(( MOUNT_TIMEOUT + 1 ))
     done
     # If we got this far, we are ready to mount
-    msg="$(mount -t vfat -o rw,noatime,nodiratime,fmask=0022,dmask=0022,codepage=cp437,iocharset=iso8859-1,shortname=mixed,utf8 /dev/mmcblk0p3 "$MNT_ONBOARD_NEW" 2>&1)"
+    sleep 1
+    msg="$(mount -o rw,noatime,nodiratime,shortname=mixed,utf8 -t vfat /dev/mmcblk0p3 "$MNT_ONBOARD_NEW" 2>&1)"
     ret=$?
     if [ ${ret} -ne 0 ]; then
         logmsg "E" "Failed to mount onboard! (${ret}: ${msg})"
     fi
-    return $?
+    return ${ret}
 }
 
 unmount_onboard() {
@@ -189,6 +190,12 @@ unmount_onboard() {
         return 253
     fi
     # If mounted, we now try to unmount
-    umount "$MNT_ONBOARD_NEW"
-    return $?
+    sync
+    sleep 1
+    msg="$(umount "$MNT_ONBOARD_NEW" 2>&1)"
+    ret=$?
+    if [ ${ret} -ne 0 ]; then
+        logmsg "E" "Failed to unmount onboard! (${ret}: ${msg})"
+    fi
+    return ${ret}
 }
