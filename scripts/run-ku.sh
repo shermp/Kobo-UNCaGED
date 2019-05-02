@@ -120,5 +120,5 @@ if [ $KU_RES -eq 1 ] && [ $BS_RES -eq 0 ]; then
     remove_usb
 else
     # FBInk returns negative error codes, fudge that back to the <errno.h> value...
-    logmsg "I" "Nothing more to do? (KU: ${KU_RES}; BS: $(( 256 - BS_RES )))"
+    logmsg "I" "Nothing more to do? (KU: ${KU_RES}; BS: -$(( 256 - BS_RES )))"
 fi
