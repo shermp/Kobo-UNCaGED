@@ -10,11 +10,6 @@
 KU_DIR="$1"
 KU_TMP_DIR="$2"
 . ./nickel-usbms.sh
-# Set terminal color escape sequences
-END="\033[0m"
-RED="\033[31;1m"
-YELLOW="\033[33;1m"
-GREEN="\033[32;1m"
 
 ./fbink -y 0 -Y 100 -m -p -r -q "Entering USBMS mode..."
 printf "%bInserting USB%b\n" "${GREEN}" "${END}"

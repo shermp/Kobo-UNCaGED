@@ -1,5 +1,53 @@
 #!/bin/sh
 
+# Logging facilities
+logmsg() {
+    # Set terminal color escape sequences
+    local END="\033[0m"
+    local RED="\033[31;1m"
+    local YELLOW="\033[33;1m"
+    local GREEN="\033[32;1m"
+
+    # Set the requested loglevel, default to notice, like logger
+    local LOG_LEVEL="notice"
+    local PRINT_COLOR="${GREEN}"
+    case "${1}" in
+        "C" )
+            LOG_LEVEL="crit"
+            PRINT_COLOR="${RED}"
+        ;;
+        "E" )
+            LOG_LEVEL="err"
+            PRINT_COLOR="${RED}"
+        ;;
+        "W" )
+            LOG_LEVEL="warning"
+            PRINT_COLOR="${YELLOW}"
+        ;;
+        "N" )
+            LOG_LEVEL="notice"
+            PRINT_COLOR="${YELLOW}"
+        ;;
+        "I" )
+            LOG_LEVEL="info"
+            PRINT_COLOR="${GREEN}"
+        ;;
+        "D" )
+            LOG_LEVEL="debug"
+            PRINT_COLOR="${YELLOW}"
+        ;;
+    esac
+
+    # Actual message ;)
+    local LOG_MSG="${2}"
+
+    # Send to syslog
+    logger -t "UNCaGED" -p daemon.${LOG_LEVEL} "${LOG_MSG}"
+
+    # Print to console
+    printf "%b%s%b\n" "${PRINT_COLOR}" "${LOG_MSG}" "${END}"
+}
+
 # Get the needed environment variables from the running Nickel process.
 # Needed by the Wifi enable/disable functions
 get_nickel_env() {
