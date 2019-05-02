@@ -139,13 +139,19 @@ enable_wifi() {
     pidof wpa_supplicant >/dev/null \
         || env -u LD_LIBRARY_PATH \
             wpa_supplicant -D wext -s -i "${INTERFACE}" -O /var/run/wpa_supplicant -c /etc/wpa_supplicant/wpa_supplicant.conf -B
+    
+    # Obtain an IP address
+    logmsg "I" "Acquiring IP"
+    obtain_ip
 }
 
 disable_wifi() {
     if wifi_is_forced; then
         return 0
     fi
-
+    # Before we continue, better release our IP
+    release_ip
+    
     get_nickel_env
 
     # Disable wifi, and remove all modules.

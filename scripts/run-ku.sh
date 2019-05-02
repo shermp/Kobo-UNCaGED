@@ -54,9 +54,6 @@ if [ ${ret} -ne 0 ]; then
     remove_usb
     exit 1
 fi
-logmsg "I" "Acquiring IP"
-obtain_ip
-
 
 logmsg "N" "USBMS mode entered . . ."
 
@@ -69,7 +66,6 @@ KU_RES=$?
 
 logmsg "N" "Leaving USBMS . . ."
 logmsg "I" "Disabling WiFi"
-release_ip
 disable_wifi
 ret=$?
 logmsg "N" "WiFi disabled (${ret}) . . ."
