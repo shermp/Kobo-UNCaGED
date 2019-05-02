@@ -56,7 +56,7 @@ logmsg() {
 
     # Keep verbose debugging off-screen, though...
     if [ "${LOG_LEVEL}" != "debug" ] ; then
-        ./fbink -q -y ${PRINT_ROW} -mpr "${LOG_MSG}"
+        ./fbink -q -y ${PRINT_ROW} -mp "${LOG_MSG}"
     fi
 }
 
