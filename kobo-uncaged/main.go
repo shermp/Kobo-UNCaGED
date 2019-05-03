@@ -912,8 +912,8 @@ func mainWithErrCode() returnCode {
 			return kuError
 		}
 	} else {
-		log.Println("Connecting to Calibre")
-		ku.kup.kuPrintln("Connecting to Calibre!")
+		log.Println("Preparing Kobo UNCaGED!")
+		ku.kup.kuPrintln("Preparing Kobo UNCaGED!")
 		cc, err := uc.New(ku)
 		if err != nil {
 			log.Print(err)
@@ -921,6 +921,7 @@ func mainWithErrCode() returnCode {
 		}
 		log.Println("Starting Calibre Connection")
 		err = cc.Start()
+		ku.kup.kuPrintln("Waiting for thumbnail generation to complete!")
 		ku.wg.Wait()
 		if err != nil {
 			log.Print(err)
