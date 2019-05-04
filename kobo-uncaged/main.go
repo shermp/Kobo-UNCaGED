@@ -558,9 +558,9 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, thumb []interface{}) {
 		imgBin, err := base64.StdEncoding.DecodeString(imgB64)
 		if err == nil {
 			// No need to perform any image processing for the full cover if it meets all our requirements
-			fullCoverSaved := false
+			//fullCoverSaved := false
 			if (thumbW <= koMaxW && thumbH <= koMaxH) && (thumbW == koMaxW || thumbH == koMaxH) {
-				fullCoverSaved = true
+				//fullCoverSaved = true
 				err = ioutil.WriteFile(path.Join(imgDir, (imgID+string(fullCover))), imgBin, 0644)
 				if err != nil {
 					log.Println(err)
@@ -571,29 +571,29 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, thumb []interface{}) {
 			if err == nil {
 				koAspectRatio := float64(koMaxW) / float64(koMaxH)
 				coverAspectRatio := float64(thumbW) / float64(thumbH)
-				var covFW, covFH, libFW, libFH, gridFW, gridFH int
+				var libFW, libFH, gridFW, gridFH int
 				if coverAspectRatio < koAspectRatio {
-					covFH = ku.koboInfo.coverDetails[fullCover].height
+					//covFH = ku.koboInfo.coverDetails[fullCover].height
 					libFH = ku.koboInfo.coverDetails[libFull].height
 					gridFH = ku.koboInfo.coverDetails[libGrid].height
 				} else {
-					covFW = ku.koboInfo.coverDetails[fullCover].width
+					//covFW = ku.koboInfo.coverDetails[fullCover].width
 					libFW = ku.koboInfo.coverDetails[libFull].width
 					gridFW = ku.koboInfo.coverDetails[libGrid].width
 				}
-				// We resize the full cover image if we haven't already saved it.
-				if !fullCoverSaved {
-					fullCovImg := imaging.Resize(origCover, covFW, covFH, imaging.Lanczos)
-					fc, err := os.OpenFile(path.Join(imgDir, (imgID+string(fullCover))), os.O_WRONLY|os.O_CREATE, 0644)
-					if err == nil {
-						defer fc.Close()
-						imaging.Encode(fc, fullCovImg, imaging.JPEG)
-					} else {
-						log.Println(err)
-					}
-				}
+				// // We resize the full cover image if we haven't already saved it.
+				// if !fullCoverSaved {
+				// 	fullCovImg := imaging.Resize(origCover, covFW, covFH, imaging.Lanczos)
+				// 	fc, err := os.OpenFile(path.Join(imgDir, (imgID+string(fullCover))), os.O_WRONLY|os.O_CREATE, 0644)
+				// 	if err == nil {
+				// 		defer fc.Close()
+				// 		imaging.Encode(fc, fullCovImg, imaging.JPEG)
+				// 	} else {
+				// 		log.Println(err)
+				// 	}
+				// }
 				// Followed by the "library fill" image
-				libImg := imaging.Resize(origCover, libFW, libFH, imaging.Lanczos)
+				libImg := imaging.Resize(origCover, libFW, libFH, imaging.Linear)
 				lc, err := os.OpenFile(path.Join(imgDir, (imgID+string(libFull))), os.O_WRONLY|os.O_CREATE, 0644)
 				if err == nil {
 					defer lc.Close()
@@ -602,7 +602,7 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, thumb []interface{}) {
 					log.Println(err)
 				}
 				// And finally, the "library grid" image
-				gridImg := imaging.Resize(origCover, gridFW, gridFH, imaging.Lanczos)
+				gridImg := imaging.Resize(origCover, gridFW, gridFH, imaging.Linear)
 				gc, err := os.OpenFile(path.Join(imgDir, (imgID+string(libGrid))), os.O_WRONLY|os.O_CREATE, 0644)
 				if err == nil {
 					defer gc.Close()
