@@ -546,10 +546,9 @@ func (ku *KoboUncaged) saveDeviceInfo() error {
 }
 
 func (ku *KoboUncaged) saveCoverImage(contentID string, thumb []interface{}) {
+	defer ku.wg.Done()
 	thumbW := int(thumb[0].(float64))
 	thumbH := int(thumb[1].(float64))
-	koMaxW := ku.koboInfo.coverDetails[fullCover].width
-	koMaxH := ku.koboInfo.coverDetails[fullCover].height
 	imgB64 := thumb[2].(string)
 	imgID := imgIDFromContentID(contentID)
 	imgDir := path.Join(ku.bkRootDir, genImageDirPath(imgID))
@@ -557,11 +556,12 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, thumb []interface{}) {
 	if err == nil {
 		imgBin, err := base64.StdEncoding.DecodeString(imgB64)
 		if err == nil {
-			// No need to perform any image processing for the full cover if it meets all our requirements
-			//fullCoverSaved := false
-			if (thumbW <= koMaxW && thumbH <= koMaxH) && (thumbW == koMaxW || thumbH == koMaxH) {
-				//fullCoverSaved = true
-				err = ioutil.WriteFile(path.Join(imgDir, (imgID+string(fullCover))), imgBin, 0644)
+			libFullSaved := false
+			// No need to perform any image processing for the library thumb if it meets all our requirements
+			// Note, we asked Calibre to give us a thumbnail with a given height...
+			if thumbW <= ku.koboInfo.coverDetails[libFull].width {
+				libFullSaved = true
+				err = ioutil.WriteFile(path.Join(imgDir, (imgID+string(libFull))), imgBin, 0644)
 				if err != nil {
 					log.Println(err)
 				}
@@ -569,37 +569,25 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, thumb []interface{}) {
 			// Now we do our resizing
 			origCover, err := imaging.Decode(bytes.NewReader(imgBin))
 			if err == nil {
-				koAspectRatio := float64(koMaxW) / float64(koMaxH)
-				coverAspectRatio := float64(thumbW) / float64(thumbH)
 				var libFW, libFH, gridFW, gridFH int
-				if coverAspectRatio < koAspectRatio {
-					//covFH = ku.koboInfo.coverDetails[fullCover].height
+				if (float64(thumbW) / float64(thumbH)) < 1.0 {
 					libFH = ku.koboInfo.coverDetails[libFull].height
 					gridFH = ku.koboInfo.coverDetails[libGrid].height
 				} else {
-					//covFW = ku.koboInfo.coverDetails[fullCover].width
 					libFW = ku.koboInfo.coverDetails[libFull].width
 					gridFW = ku.koboInfo.coverDetails[libGrid].width
 				}
-				// // We resize the full cover image if we haven't already saved it.
-				// if !fullCoverSaved {
-				// 	fullCovImg := imaging.Resize(origCover, covFW, covFH, imaging.Lanczos)
-				// 	fc, err := os.OpenFile(path.Join(imgDir, (imgID+string(fullCover))), os.O_WRONLY|os.O_CREATE, 0644)
-				// 	if err == nil {
-				// 		defer fc.Close()
-				// 		imaging.Encode(fc, fullCovImg, imaging.JPEG)
-				// 	} else {
-				// 		log.Println(err)
-				// 	}
-				// }
-				// Followed by the "library fill" image
-				libImg := imaging.Resize(origCover, libFW, libFH, imaging.Linear)
-				lc, err := os.OpenFile(path.Join(imgDir, (imgID+string(libFull))), os.O_WRONLY|os.O_CREATE, 0644)
-				if err == nil {
-					defer lc.Close()
-					imaging.Encode(lc, libImg, imaging.JPEG)
-				} else {
-					log.Println(err)
+
+				// If we haven't allready saved the libFull thumbnail, resize it now.
+				if !libFullSaved {
+					libImg := imaging.Resize(origCover, libFW, libFH, imaging.Linear)
+					lc, err := os.OpenFile(path.Join(imgDir, (imgID+string(libFull))), os.O_WRONLY|os.O_CREATE, 0644)
+					if err == nil {
+						defer lc.Close()
+						imaging.Encode(lc, libImg, imaging.JPEG)
+					} else {
+						log.Println(err)
+					}
 				}
 				// And finally, the "library grid" image
 				gridImg := imaging.Resize(origCover, gridFW, gridFH, imaging.Linear)
@@ -617,7 +605,6 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, thumb []interface{}) {
 	} else {
 		log.Println(err)
 	}
-	ku.wg.Done()
 }
 
 // updateNickelDB updates the Nickel database with updated metadata obtained from a previous run
@@ -670,8 +657,8 @@ func (ku *KoboUncaged) GetClientOptions() uc.ClientOptions {
 	opts.SupportedExt = append(opts.SupportedExt, ext...)
 	opts.DeviceName = "Kobo"
 	opts.DeviceModel = ku.koboInfo.modelName
-	opts.CoverDims.Height = ku.koboInfo.coverDetails[fullCover].height
-	opts.CoverDims.Width = ku.koboInfo.coverDetails[fullCover].width
+	opts.CoverDims.Height = ku.koboInfo.coverDetails[libFull].height
+	opts.CoverDims.Width = ku.koboInfo.coverDetails[libFull].width
 	return opts
 }
 
