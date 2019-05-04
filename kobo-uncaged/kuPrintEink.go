@@ -114,6 +114,7 @@ func mmToPx(mm, dpi int) int {
 }
 
 func createMessageBox(w, h int) []uint8 {
+	fmt.Printf("MBox Width: %d   MBox Height: %d\n", w, h)
 	mb := image.NewRGBA(image.Rect(0, 0, w, h))
 	borderColor := color.RGBA{0, 0, 0, 255}
 	bgColor := color.RGBA{255, 255, 255, 255}
@@ -150,7 +151,7 @@ func (kup *kuUserPrint) kuPrintln(a ...interface{}) (n int, err error) {
 		kup.fbink.Refresh(uint32(kup.mboxLand.yOff), uint32(kup.mboxLand.xOff), uint32(kup.mboxLand.width), uint32(kup.mboxLand.height), gofbink.DitherPassthrough, kup.fbCfg)
 	} else {
 		kup.fbink.PrintRawData(kup.mboxPort.scanlines, int(kup.mboxPort.width), int(kup.mboxPort.height), uint16(kup.mboxPort.xOff), uint16(kup.mboxPort.yOff), kup.fbCfg)
-		n, err = kup.fbink.PrintOT(str, kup.mboxLand.otCfg, kup.fbCfg)
+		n, err = kup.fbink.PrintOT(str, kup.mboxPort.otCfg, kup.fbCfg)
 		kup.fbink.Refresh(uint32(kup.mboxPort.yOff), uint32(kup.mboxPort.xOff), uint32(kup.mboxPort.width), uint32(kup.mboxPort.height), gofbink.DitherPassthrough, kup.fbCfg)
 	}
 	return n, err
