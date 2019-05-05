@@ -624,6 +624,7 @@ func (ku *KoboUncaged) updateNickelDB() error {
 	var desc, series, seriesNum *string
 	var seriesNumFloat *float64
 	for _, cID := range ku.updatedMetadata {
+		desc, series, seriesNum, seriesNumFloat = nil, nil, nil, nil
 		if ku.metadataMap[cID].Comments != nil && *ku.metadataMap[cID].Comments != "" {
 			desc = ku.metadataMap[cID].Comments
 		}
@@ -634,7 +635,6 @@ func (ku *KoboUncaged) updateNickelDB() error {
 			sn := strconv.FormatFloat(*ku.metadataMap[cID].SeriesIndex, 'f', -1, 64)
 			seriesNum = &sn
 			seriesNumFloat = ku.metadataMap[cID].SeriesIndex
-
 		}
 		_, err = stmt.Exec(desc, series, seriesNum, seriesNumFloat, cID)
 		if err != nil {
