@@ -749,22 +749,25 @@ func (ku *KoboUncaged) GetFreeSpace() uint64 {
 }
 
 // SaveBook saves a book with the provided metadata to the disk.
-// Implementations return an io.WriteCloser for UNCaGED to write the ebook to
+// Implementations return an io.WriteCloser (book) for UNCaGED to write the ebook to
 // lastBook informs the client that this is the last book for this transfer
-func (ku *KoboUncaged) SaveBook(md map[string]interface{}, lastBook bool) (io.WriteCloser, error) {
+// newLpath informs UNCaGED of an Lpath change. Use this if the lpath field in md is
+// not valid (eg filesystem limitations.). Return an empty string if original lpath is valid
+func (ku *KoboUncaged) SaveBook(md map[string]interface{}, lastBook bool) (book io.WriteCloser, newLpath string, err error) {
 	koboMD := createKoboMetadata()
 	mapstructure.Decode(md, &koboMD)
 	cID := ku.lpathToContentID(koboMD.Lpath)
 	bkPath := ku.contentIDtoBkPath(cID)
 	bkDir, _ := filepath.Split(bkPath)
-	err := os.MkdirAll(bkDir, 0777)
+	err = os.MkdirAll(bkDir, 0777)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
-	book, err := os.OpenFile(bkPath, os.O_WRONLY|os.O_CREATE, 0644)
+	book, err = os.OpenFile(bkPath, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
+
 	ku.metadataMap[cID] = koboMD
 	ku.updatedMetadata = append(ku.updatedMetadata, cID)
 	// Note, the JSON format for covers should be in the form 'thumbnail: [w, h, "base64string"]'
@@ -776,7 +779,7 @@ func (ku *KoboUncaged) SaveBook(md map[string]interface{}, lastBook bool) (io.Wr
 		ku.writeMDfile()
 		ku.writeUpdateMDfile()
 	}
-	return book, nil
+	return book, "", nil
 }
 
 // GetBook provides an io.ReadCloser, and the file len, from which UNCaGED can send the requested book to Calibre
@@ -849,6 +852,11 @@ func (ku *KoboUncaged) DisplayProgress(percentage int) {
 	// TODO implement display progress
 }
 
+// LogPrintf instructs the client to log informational and debug info, that aren't errors
+func (ku *KoboUncaged) LogPrintf(logLevel uc.UCLogLevel, format string, a ...interface{}) {
+	log.Printf(format, a...)
+}
+
 func mainWithErrCode() returnCode {
 	w, e := syslog.New(syslog.LOG_DEBUG, "KoboUNCaGED")
 	if e == nil {
@@ -896,7 +904,7 @@ func mainWithErrCode() returnCode {
 	} else {
 		log.Println("Preparing Kobo UNCaGED!")
 		ku.kup.kuPrintln("Preparing Kobo UNCaGED!")
-		cc, err := uc.New(ku)
+		cc, err := uc.New(ku, true)
 		if err != nil {
 			log.Print(err)
 			return kuError
