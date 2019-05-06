@@ -388,39 +388,16 @@ func (ku *KoboUncaged) readMDfile() error {
 	// Make the metadatamap here instead of the constructer so we can pre-allocate
 	// the memory with the right size.
 	ku.metadataMap = make(map[string]KoboMetadata, len(koboMD))
-	ku.kup.kuPrintln("Checking for removed books")
-	// Check the Nickel DB to see if the book still exists. We perform the check before
-	// adding the book to the metadata map below
-	query := `SELECT ContentID FROM content 
-	WHERE ContentType=6 
-	AND (MimeType='application/epub+zip' OR MimeType='application/x-kobo-epub+zip') 
-	AND ContentID LIKE ?`
-	rowStmt, err := ku.nickelDB.Prepare(query)
-	if err != nil {
-		return err
-	}
-	defer rowStmt.Close()
-	// convert the list to a map, to make it easier to search later
-	for _, md := range koboMD {
+	// make a temporary map for easy searching later
+	tmpMap := make(map[string]int, len(koboMD))
+	for n, md := range koboMD {
 		contentID := ku.lpathToContentID(md.Lpath)
-		var (
-			dbCID string
-		)
-		err = rowStmt.QueryRow(contentID).Scan(&dbCID)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				// Book not in DB, so we don't proceed further in this loop iteration
-				continue
-			} else {
-				return err
-			}
-		}
-		ku.metadataMap[contentID] = md
+		tmpMap[contentID] = n
 	}
-	ku.kup.kuPrintln("Checking for new books")
+	ku.kup.kuPrintln("Gathering metadata")
 	//spew.Dump(ku.metadataMap)
 	// Now that we have our map, we need to check for any books in the DB not in our
-	// metadata cache
+	// metadata cache, or books that are in our cache but not in the DB
 	var (
 		dbCID         string
 		dbTitle       string
@@ -428,7 +405,7 @@ func (ku *KoboUncaged) readMDfile() error {
 		dbContentType int
 		dbMimeType    string
 	)
-	query = `SELECT ContentID, Title, Attribution, ContentType, MimeType
+	query := `SELECT ContentID, Title, Attribution, ContentType, MimeType
 	FROM content
 	WHERE ContentType=6 
 	AND (MimeType='application/epub+zip' OR MimeType='application/x-kobo-epub+zip')
@@ -449,7 +426,7 @@ func (ku *KoboUncaged) readMDfile() error {
 		if err != nil {
 			return err
 		}
-		if _, exists := ku.metadataMap[dbCID]; !exists {
+		if _, exists := tmpMap[dbCID]; !exists {
 			log.Printf("Book not in cache: %s\n", dbCID)
 			bkMD, err := ku.readEpubMeta(dbCID)
 			if err != nil {
@@ -464,6 +441,8 @@ func (ku *KoboUncaged) readMDfile() error {
 			}
 			//spew.Dump(bkMD)
 			ku.metadataMap[dbCID] = bkMD
+		} else {
+			ku.metadataMap[dbCID] = koboMD[tmpMap[dbCID]]
 		}
 	}
 	err = bkRows.Err()
