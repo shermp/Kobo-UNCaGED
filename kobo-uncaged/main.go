@@ -32,6 +32,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -99,14 +100,15 @@ type KoboUncaged struct {
 		fw           [3]int
 		coverDetails map[koboCoverEnding]coverDims
 	}
-	dbRootDir       string
-	bkRootDir       string
-	contentIDprefix cidPrefix
-	metadataMap     map[string]KoboMetadata
-	updatedMetadata []string
-	driveInfo       uc.DeviceInfo
-	nickelDB        *sql.DB
-	wg              *sync.WaitGroup
+	dbRootDir         string
+	bkRootDir         string
+	contentIDprefix   cidPrefix
+	metadataMap       map[string]KoboMetadata
+	updatedMetadata   []string
+	driveInfo         uc.DeviceInfo
+	nickelDB          *sql.DB
+	wg                *sync.WaitGroup
+	invalidCharsRegex *regexp.Regexp
 }
 
 // We use a constructor, because nested maps
@@ -133,6 +135,10 @@ func New(dbRootDir, bkRootDir string, contentIDprefix cidPrefix, updatingMD bool
 	ku.updatedMetadata = make([]string, 0)
 	fntPath := filepath.Join(ku.dbRootDir, ".adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf")
 	ku.kup, err = newKuPrint(fntPath)
+	if err != nil {
+		return nil, err
+	}
+	ku.invalidCharsRegex, err = regexp.Compile(`[\\?%\*:;\|\"\'><\$!]`)
 	if err != nil {
 		return nil, err
 	}
@@ -756,6 +762,14 @@ func (ku *KoboUncaged) GetFreeSpace() uint64 {
 func (ku *KoboUncaged) SaveBook(md map[string]interface{}, lastBook bool) (book io.WriteCloser, newLpath string, err error) {
 	koboMD := createKoboMetadata()
 	mapstructure.Decode(md, &koboMD)
+	// The calibre wireless driver does not sanitize the filepath for us. We sanitize it here,
+	// and if lpath changes, inform Calibre of the new lpath.
+	newLpath = ku.invalidCharsRegex.ReplaceAllString(koboMD.Lpath, "_")
+	if newLpath != koboMD.Lpath {
+		koboMD.Lpath = newLpath
+	} else {
+		newLpath = ""
+	}
 	cID := ku.lpathToContentID(koboMD.Lpath)
 	bkPath := ku.contentIDtoBkPath(cID)
 	bkDir, _ := filepath.Split(bkPath)
@@ -779,7 +793,7 @@ func (ku *KoboUncaged) SaveBook(md map[string]interface{}, lastBook bool) (book 
 		ku.writeMDfile()
 		ku.writeUpdateMDfile()
 	}
-	return book, "", nil
+	return book, newLpath, nil
 }
 
 // GetBook provides an io.ReadCloser, and the file len, from which UNCaGED can send the requested book to Calibre
