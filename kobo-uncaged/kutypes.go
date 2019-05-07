@@ -21,10 +21,17 @@ type cidPrefix string
 type koboDeviceID string
 type koboCoverEnding string
 
+type mboxSection int
 type kuPrinter interface {
-	kuPrintln(a ...interface{}) (n int, err error)
+	kuPrintln(section mboxSection, a ...interface{}) (n int, err error)
 	kuClose()
 }
+
+const (
+	header mboxSection = iota
+	body
+	footer
+)
 
 // Kobo model ID's from https://github.com/geek1011/KoboStuff/blob/gh-pages/kobofirmware.js#L11
 const (

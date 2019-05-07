@@ -23,43 +23,40 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"log"
 
 	"github.com/shermp/go-fbink-v2/gofbink"
 )
 
+type region struct {
+	x, y, w, h uint32
+}
+
+type orientation struct {
+	otCfg      gofbink.FBInkOTConfig
+	refreshReg region
+	xOff, yOff int16
+}
+
 type kuUserPrint struct {
-	fbCfg    *gofbink.FBInkConfig
-	rCfg     *gofbink.RestrictedConfig
-	fbink    *gofbink.FBInk
-	fbState  *gofbink.FBInkState
-	mboxPort struct {
-		otCfg     *gofbink.FBInkOTConfig
-		xOff      int16
-		yOff      int16
-		width     int16
-		height    int16
-		scanlines []uint8
+	fbCfg   *gofbink.FBInkConfig
+	rCfg    *gofbink.RestrictedConfig
+	fbink   *gofbink.FBInk
+	fbState *gofbink.FBInkState
+	mbox    struct {
+		portrait, landscape orientation
+		hdrH, bdyH, ftrH    uint32
+		mb                  *image.RGBA
 	}
-	mboxLand struct {
-		otCfg     *gofbink.FBInkOTConfig
-		xOff      int16
-		yOff      int16
-		width     int16
-		height    int16
-		scanlines []uint8
-	}
+	headStr, bodyStr, footStr string
 }
 
 func newKuPrint(fontPath string) (*kuUserPrint, error) {
 	kup := &kuUserPrint{}
-	kup.fbCfg = &gofbink.FBInkConfig{}
-	kup.rCfg = &gofbink.RestrictedConfig{}
-	kup.mboxLand.otCfg = &gofbink.FBInkOTConfig{}
-	kup.mboxPort.otCfg = &gofbink.FBInkOTConfig{}
-	kup.mboxLand.otCfg.SizePt = 12
-	kup.mboxLand.otCfg.IsCentred = true
-	kup.mboxPort.otCfg.SizePt = 12
-	kup.mboxPort.otCfg.IsCentred = true
+	kup.fbCfg = &gofbink.FBInkConfig{Valign: gofbink.None, NoRefresh: true, IgnoreAlpha: true}
+	kup.rCfg = &gofbink.RestrictedConfig{IsCentered: true}
+	kup.mbox.landscape.otCfg = gofbink.FBInkOTConfig{SizePt: 10, IsCentred: true}
+	kup.mbox.portrait.otCfg = gofbink.FBInkOTConfig{SizePt: 10, IsCentred: true}
 	kup.fbink = gofbink.New(kup.fbCfg, kup.rCfg)
 	kup.fbink.Init(kup.fbCfg)
 	err := kup.fbink.AddOTfont(fontPath, gofbink.FntRegular)
@@ -69,90 +66,127 @@ func newKuPrint(fontPath string) (*kuUserPrint, error) {
 	kup.fbState = &gofbink.FBInkState{}
 	kup.fbink.GetState(kup.fbCfg, kup.fbState)
 
-	dpi := int(kup.fbState.ScreenDPI)
-	vw := int16(kup.fbState.ViewWidth)
-	vh := int16(kup.fbState.ViewHeight)
-	if vw > vh {
-		kup.mboxLand.width = int16(float64(vw) * 0.667)
-		kup.mboxLand.height = int16(float64(vh) * 0.333)
-		kup.mboxLand.xOff = (vw - kup.mboxLand.width) / 2
-		kup.mboxLand.yOff = int16(float64(vh) * 0.15)
-		calcOTmargins(kup.mboxLand.width, kup.mboxLand.height, vw, vh, kup.mboxLand.xOff, kup.mboxLand.yOff, dpi, kup.mboxLand.otCfg)
-		kup.mboxPort.width = int16(float64(vh) * 0.667)
-		kup.mboxPort.height = int16(float64(vw) * 0.333)
-		kup.mboxPort.xOff = (vh - kup.mboxPort.width) / 2
-		kup.mboxPort.yOff = int16(float64(vw) * 0.15)
-		calcOTmargins(kup.mboxPort.width, kup.mboxPort.height, vh, vw, kup.mboxPort.xOff, kup.mboxPort.yOff, dpi, kup.mboxPort.otCfg)
-	} else {
-		kup.mboxPort.width = int16(float64(vw) * 0.667)
-		kup.mboxPort.height = int16(float64(vh) * 0.333)
-		kup.mboxPort.xOff = (vw - kup.mboxPort.width) / 2
-		kup.mboxPort.yOff = int16(float64(vh) * 0.15)
-		calcOTmargins(kup.mboxPort.width, kup.mboxPort.height, vw, vh, kup.mboxPort.xOff, kup.mboxPort.yOff, dpi, kup.mboxPort.otCfg)
-		kup.mboxLand.width = int16(float64(vh) * 0.667)
-		kup.mboxLand.height = int16(float64(vw) * 0.333)
-		kup.mboxLand.xOff = (vh - kup.mboxLand.width) / 2
-		kup.mboxLand.yOff = int16(float64(vw) * 0.15)
-		calcOTmargins(kup.mboxLand.width, kup.mboxLand.height, vh, vw, kup.mboxLand.xOff, kup.mboxLand.yOff, dpi, kup.mboxLand.otCfg)
+	//dpi := kup.fbState.ScreenDPI
+	vw := kup.fbState.ViewWidth
+	vh := kup.fbState.ViewHeight
+	w := vw
+	if w > vh {
+		w = vh // in case we are landscape
 	}
-	kup.mboxLand.scanlines = createMessageBox(int(kup.mboxLand.width), int(kup.mboxLand.height))
-	kup.mboxPort.scanlines = createMessageBox(int(kup.mboxPort.width), int(kup.mboxPort.height))
-	kup.fbCfg.Valign = gofbink.Center
-	kup.fbCfg.NoRefresh = true
-	kup.fbCfg.IgnoreAlpha = true
+	w = uint32(float64(w) * 0.7)
+	kup.mbox.hdrH = uint32(float64(w) * 0.2)
+	kup.mbox.bdyH = uint32(float64(w) * 0.6)
+	kup.mbox.ftrH = uint32(float64(w) * 0.2)
+	kup.mbox.mb = createMessageBox(int(w), int(w))
+	kup.setOffsets(int(vw), int(vh))
+	kup.headStr, kup.bodyStr, kup.footStr = " ", " ", " "
 	return kup, nil
 }
 
-func calcOTmargins(w, h, vw, vh, x, y int16, dpi int, otCfg *gofbink.FBInkOTConfig) {
-	otCfg.Margins.Top = y + int16(mmToPx(2, dpi))
-	otCfg.Margins.Left = x + int16(mmToPx(2, dpi))
-	otCfg.Margins.Bottom = vh - (y + h) + int16(mmToPx(2, dpi))
-	otCfg.Margins.Right = vw - (x + w) + int16(mmToPx(2, dpi))
-}
-func mmToPx(mm, dpi int) int {
-	return int(float64(mm*dpi) / 25.4)
+func (kup *kuUserPrint) setOffsets(vw, vh int) {
+	// portrait
+	mbW := kup.mbox.mb.Rect.Max.X - kup.mbox.mb.Rect.Min.X
+	mbH := kup.mbox.mb.Rect.Max.Y - kup.mbox.mb.Rect.Min.Y
+	if vh > vw {
+		kup.mbox.portrait.yOff = int16((vh - mbH) / 2)
+		kup.mbox.portrait.xOff = int16((vw - mbW) / 2)
+		kup.mbox.portrait.otCfg.Margins.Left = kup.mbox.portrait.xOff
+		kup.mbox.portrait.otCfg.Margins.Right = kup.mbox.portrait.xOff
+		kup.mbox.portrait.refreshReg.x = uint32(kup.mbox.portrait.xOff)
+		kup.mbox.portrait.refreshReg.y = uint32(kup.mbox.portrait.yOff)
+		kup.mbox.portrait.refreshReg.w = uint32(mbW)
+		kup.mbox.portrait.refreshReg.h = uint32(mbH)
+	} else {
+		kup.mbox.landscape.yOff = int16((vw - mbH) / 2)
+		kup.mbox.landscape.xOff = int16((vh - mbW) / 2)
+		kup.mbox.landscape.otCfg.Margins.Left = kup.mbox.landscape.xOff
+		kup.mbox.landscape.otCfg.Margins.Right = kup.mbox.landscape.xOff
+		kup.mbox.landscape.refreshReg.x = uint32(kup.mbox.landscape.xOff)
+		kup.mbox.landscape.refreshReg.y = uint32(kup.mbox.landscape.yOff)
+		kup.mbox.landscape.refreshReg.w = uint32(mbW)
+		kup.mbox.landscape.refreshReg.h = uint32(mbH)
+	}
+
 }
 
-func createMessageBox(w, h int) []uint8 {
-	fmt.Printf("MBox Width: %d   MBox Height: %d\n", w, h)
-	mb := image.NewRGBA(image.Rect(0, 0, w, h))
-	borderColor := color.RGBA{0, 0, 0, 255}
+func createMessageBox(w, h int) *image.RGBA {
+	log.Printf("MBox Width: %d   MBox Height: %d\n", w, h)
+	mb := image.NewRGBA(image.Rect(0, 0, int(w), int(h)))
 	bgColor := color.RGBA{255, 255, 255, 255}
-	for x := 0; x < w; x++ {
-		mb.SetRGBA(x, 0, borderColor)
-		mb.SetRGBA(x, h-1, borderColor)
-	}
 	for y := 0; y < h; y++ {
-		mb.SetRGBA(0, y, borderColor)
-		mb.SetRGBA(w-1, y, borderColor)
-	}
-	for y := 1; y < h-1; y++ {
-		for x := 1; x < w-1; x++ {
-			mb.SetRGBA(x, y, bgColor)
+		for x := 0; x < w; x++ {
+			mb.Set(x, y, bgColor)
 		}
 	}
-	return mb.Pix
+	return mb
 }
 
 func (kup *kuUserPrint) kuClose() {
 	kup.fbink.FreeOTfonts()
 }
 
-func (kup *kuUserPrint) kuPrintln(a ...interface{}) (n int, err error) {
+func (kup *kuUserPrint) kuPrintSection(orient *orientation, section mboxSection, vh uint32) error {
+	var err error
+	var str string
+	if section == header {
+		orient.otCfg.Margins.Top = orient.yOff
+		orient.otCfg.Margins.Bottom = int16(vh) - (orient.otCfg.Margins.Top + int16(kup.mbox.hdrH))
+		orient.otCfg.SizePt = 13
+		str = kup.headStr
+	} else if section == body {
+		orient.otCfg.Margins.Top = orient.yOff + int16(kup.mbox.hdrH)
+		orient.otCfg.Margins.Bottom = int16(vh) - (orient.otCfg.Margins.Top + int16(kup.mbox.bdyH))
+		orient.otCfg.SizePt = 11
+		str = kup.bodyStr
+	} else {
+		orient.otCfg.Margins.Top = orient.yOff + int16(kup.mbox.hdrH) + int16(kup.mbox.bdyH)
+		orient.otCfg.Margins.Bottom = int16(vh) - (orient.otCfg.Margins.Top + int16(kup.mbox.ftrH))
+		orient.otCfg.SizePt = 11
+		str = kup.footStr
+	}
+	log.Printf("Top Margin: %d, Bottom Margin: %d\n", orient.otCfg.Margins.Top, orient.otCfg.Margins.Bottom)
+	kup.fbCfg.Valign = gofbink.Center
+	_, err = kup.fbink.PrintOT(str, &orient.otCfg, kup.fbCfg)
+	return err
+}
 
+func (kup *kuUserPrint) kuPrintln(section mboxSection, a ...interface{}) (n int, err error) {
 	n = 0
 	err = nil
+	// Reset Valign first, otherwise this triggers a nasty bug where button_scan fails
+	kup.fbCfg.Valign = gofbink.None
 	kup.fbink.ReInit(kup.fbCfg)
 	kup.fbink.GetState(kup.fbCfg, kup.fbState)
 	str := fmt.Sprint(a...)
-	if kup.fbState.ViewWidth > kup.fbState.ViewHeight {
-		kup.fbink.PrintRawData(kup.mboxLand.scanlines, int(kup.mboxLand.width), int(kup.mboxLand.height), uint16(kup.mboxLand.xOff), uint16(kup.mboxLand.yOff), kup.fbCfg)
-		n, err = kup.fbink.PrintOT(str, kup.mboxLand.otCfg, kup.fbCfg)
-		kup.fbink.Refresh(uint32(kup.mboxLand.yOff), uint32(kup.mboxLand.xOff), uint32(kup.mboxLand.width), uint32(kup.mboxLand.height), gofbink.DitherPassthrough, kup.fbCfg)
+	if section == header {
+		kup.headStr = str
+	} else if section == body {
+		kup.bodyStr = str
 	} else {
-		kup.fbink.PrintRawData(kup.mboxPort.scanlines, int(kup.mboxPort.width), int(kup.mboxPort.height), uint16(kup.mboxPort.xOff), uint16(kup.mboxPort.yOff), kup.fbCfg)
-		n, err = kup.fbink.PrintOT(str, kup.mboxPort.otCfg, kup.fbCfg)
-		kup.fbink.Refresh(uint32(kup.mboxPort.yOff), uint32(kup.mboxPort.xOff), uint32(kup.mboxPort.width), uint32(kup.mboxPort.height), gofbink.DitherPassthrough, kup.fbCfg)
+		kup.footStr = str
+	}
+	// Determine our orientation
+	var orient *orientation
+	if kup.fbState.ViewHeight > kup.fbState.ViewWidth {
+		orient = &kup.mbox.portrait
+	} else {
+		orient = &kup.mbox.landscape
+	}
+	// Print the messagebox to FB
+	err = kup.fbink.PrintRBGA(orient.xOff, orient.yOff, kup.mbox.mb, kup.fbCfg)
+	if err != nil {
+		return 0, err
+	}
+	// Print Header
+	kup.kuPrintSection(orient, header, kup.fbState.ViewHeight)
+	// Then body
+	kup.kuPrintSection(orient, body, kup.fbState.ViewHeight)
+	// Then footer
+	kup.kuPrintSection(orient, footer, kup.fbState.ViewHeight)
+	// Finally, refresh
+	err = kup.fbink.Refresh(orient.refreshReg.y, orient.refreshReg.x, orient.refreshReg.w, orient.refreshReg.h, gofbink.DitherPassthrough, kup.fbCfg)
+	if err != nil {
+		return 0, err
 	}
 	return n, err
 }

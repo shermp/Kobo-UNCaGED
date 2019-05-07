@@ -137,26 +137,28 @@ func New(dbRootDir, bkRootDir string, contentIDprefix cidPrefix, updatingMD bool
 	if err != nil {
 		return nil, err
 	}
+	ku.kup.kuPrintln(header, "Kobo-UNCaGED")
+	ku.kup.kuPrintln(body, "Gathering information about your Kobo")
 	ku.invalidCharsRegex, err = regexp.Compile(`[\\?%\*:;\|\"\'><\$!]`)
 	if err != nil {
 		return nil, err
 	}
-	ku.kup.kuPrintln("Opening NickelDB")
+	log.Println("Opening NickelDB")
 	err = ku.openNickelDB()
 	if err != nil {
 		return nil, err
 	}
-	ku.kup.kuPrintln("Getting Kobo Info")
+	log.Println("Getting Kobo Info")
 	err = ku.getKoboInfo()
 	if err != nil {
 		return nil, err
 	}
-	ku.kup.kuPrintln("Getting Device Info")
+	log.Println("Getting Device Info")
 	err = ku.loadDeviceInfo()
 	if err != nil {
 		return nil, err
 	}
-	ku.kup.kuPrintln("Reading Metadata")
+	log.Println("Reading Metadata")
 	err = ku.readMDfile()
 	if err != nil {
 		return nil, err
@@ -371,7 +373,7 @@ func (ku *KoboUncaged) readEpubMeta(contentID string) (KoboMetadata, error) {
 // and unmarshals (eventially) to a map of KoboMetadata structs, converting
 // "lpath" to Kobo's "ContentID", and using that as the map keys
 func (ku *KoboUncaged) readMDfile() error {
-	ku.kup.kuPrintln("Reading metadata.calibre")
+	log.Println(body, "Reading metadata.calibre")
 	mdJSON, err := ioutil.ReadFile(filepath.Join(ku.bkRootDir, calibreMDfile))
 	if err != nil {
 		if !os.IsNotExist(err) {
@@ -394,7 +396,7 @@ func (ku *KoboUncaged) readMDfile() error {
 		contentID := ku.lpathToContentID(md.Lpath)
 		tmpMap[contentID] = n
 	}
-	ku.kup.kuPrintln("Gathering metadata")
+	log.Println(body, "Gathering metadata")
 	//spew.Dump(ku.metadataMap)
 	// Now that we have our map, we need to check for any books in the DB not in our
 	// metadata cache, or books that are in our cache but not in the DB
@@ -841,13 +843,14 @@ func (ku *KoboUncaged) DeleteBook(book uc.BookID) error {
 // Println is used to print messages to the users display. Usage is identical to
 // that of fmt.Println()
 func (ku *KoboUncaged) Println(a ...interface{}) (n int, err error) {
-	return ku.kup.kuPrintln(a...)
+	return ku.kup.kuPrintln(body, a...)
 }
 
 // DisplayProgress Instructs the client to display the current progress to the user.
 // percentage will be an integer between 0 and 100 inclusive
 func (ku *KoboUncaged) DisplayProgress(percentage int) {
-	// TODO implement display progress
+	str := fmt.Sprintf("Progress: %d%%", percentage)
+	ku.kup.kuPrintln(footer, str)
 }
 
 // LogPrintf instructs the client to log informational and debug info, that aren't errors
@@ -893,7 +896,7 @@ func mainWithErrCode() returnCode {
 	defer ku.kup.kuClose()
 	if *mdPtr {
 		log.Println("Updating Metadata")
-		ku.kup.kuPrintln("Updading Metadata!")
+		ku.kup.kuPrintln(body, "Updading Metadata!")
 		err = ku.updateNickelDB()
 		if err != nil {
 			log.Print(err)
@@ -901,22 +904,27 @@ func mainWithErrCode() returnCode {
 		}
 	} else {
 		log.Println("Preparing Kobo UNCaGED!")
-		ku.kup.kuPrintln("Preparing Kobo UNCaGED!")
+		ku.kup.kuPrintln(body, "Searching for Calibre")
 		cc, err := uc.New(ku, true)
 		if err != nil {
 			log.Print(err)
+			// TODO: Probably need to come up with a set of error codes for
+			//       UNCaGED instead of this string comparison
+			if err.Error() == "calibre server not found" {
+				ku.kup.kuPrintln(body, "Calibre not found!\nHave you enabled the Calibre Wireless service?")
+			}
 			return kuError
 		}
 		log.Println("Starting Calibre Connection")
 		err = cc.Start()
-		ku.kup.kuPrintln("Waiting for thumbnail generation to complete!")
+		ku.kup.kuPrintln(body, "Waiting for thumbnail generation to complete!")
 		ku.wg.Wait()
 		if err != nil {
 			log.Print(err)
 			return kuError
 		}
 		if len(ku.updatedMetadata) > 0 {
-			ku.kup.kuPrintln("Kobo-UNCaGED will restart automatically to update metadata")
+			ku.kup.kuPrintln(body, "Kobo-UNCaGED will restart automatically to update metadata")
 			return kuSuccessRerun
 		}
 	}

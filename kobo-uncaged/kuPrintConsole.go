@@ -29,7 +29,7 @@ func newKuPrint(fontPath string) (*kuUserPrint, error) {
 	return kup, nil
 }
 
-func (kup *kuUserPrint) kuPrintln(a ...interface{}) (n int, err error) {
+func (kup *kuUserPrint) kuPrintln(section mboxSection, a ...interface{}) (n int, err error) {
 	return fmt.Println(a...)
 }
 
