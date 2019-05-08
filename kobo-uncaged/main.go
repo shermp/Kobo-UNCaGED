@@ -52,7 +52,7 @@ type returnCode int
 const kuVersion = "v0.1.0alpha"
 
 const (
-	kuError           returnCode = -1
+	kuError           returnCode = 250
 	kuSuccessNoAction returnCode = 0
 	kuSuccessRerun    returnCode = 1
 )
@@ -840,17 +840,34 @@ func (ku *KoboUncaged) DeleteBook(book uc.BookID) error {
 	return nil
 }
 
-// Println is used to print messages to the users display. Usage is identical to
-// that of fmt.Println()
-func (ku *KoboUncaged) Println(a ...interface{}) (n int, err error) {
-	return ku.kup.kuPrintln(body, a...)
-}
-
-// DisplayProgress Instructs the client to display the current progress to the user.
-// percentage will be an integer between 0 and 100 inclusive
-func (ku *KoboUncaged) DisplayProgress(percentage int) {
-	str := fmt.Sprintf("Progress: %d%%", percentage)
-	ku.kup.kuPrintln(footer, str)
+// UpdateStatus gives status updates from the UNCaGED library
+func (ku *KoboUncaged) UpdateStatus(status uc.UCStatus, progress int) {
+	footerStr := " "
+	if progress >= 0 && progress <= 100 {
+		footerStr = fmt.Sprintf("%d%%", progress)
+	}
+	switch status {
+	case uc.Idle:
+		fallthrough
+	case uc.Connected:
+		ku.kup.kuPrintln(body, "Connected")
+		ku.kup.kuPrintln(footer, footerStr)
+	case uc.Connecting:
+		ku.kup.kuPrintln(body, "Connecting to Calibre")
+		ku.kup.kuPrintln(footer, footerStr)
+	case uc.SearchingCalibre:
+		ku.kup.kuPrintln(body, "Searching for Calibre")
+		ku.kup.kuPrintln(footer, footerStr)
+	case uc.Disconnected:
+		ku.kup.kuPrintln(body, "Disconnected")
+		ku.kup.kuPrintln(footer, footerStr)
+	case uc.SendingBook:
+		ku.kup.kuPrintln(body, "Sending book to Calibre")
+		ku.kup.kuPrintln(footer, footerStr)
+	case uc.ReceivingBook:
+		ku.kup.kuPrintln(body, "Receiving book(s) from Calibre")
+		ku.kup.kuPrintln(footer, footerStr)
+	}
 }
 
 // LogPrintf instructs the client to log informational and debug info, that aren't errors
@@ -902,9 +919,9 @@ func mainWithErrCode() returnCode {
 			log.Print(err)
 			return kuError
 		}
+		ku.kup.kuPrintln(body, "Metadata Updated!\n\nReturning to Home screen")
 	} else {
 		log.Println("Preparing Kobo UNCaGED!")
-		ku.kup.kuPrintln(body, "Searching for Calibre")
 		cc, err := uc.New(ku, true)
 		if err != nil {
 			log.Print(err)
@@ -917,7 +934,7 @@ func mainWithErrCode() returnCode {
 		}
 		log.Println("Starting Calibre Connection")
 		err = cc.Start()
-		ku.kup.kuPrintln(body, "Waiting for thumbnail generation to complete!")
+		ku.kup.kuPrintln(body, "Finishing up")
 		ku.wg.Wait()
 		if err != nil {
 			log.Print(err)
@@ -927,6 +944,7 @@ func mainWithErrCode() returnCode {
 			ku.kup.kuPrintln(body, "Kobo-UNCaGED will restart automatically to update metadata")
 			return kuSuccessRerun
 		}
+		ku.kup.kuPrintln(body, "Nothing more to do!\n\nReturning to Home screen")
 	}
 
 	return kuSuccessNoAction
