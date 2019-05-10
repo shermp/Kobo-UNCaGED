@@ -296,13 +296,12 @@ func (ku *KoboUncaged) getKoboInfo() error {
 // readEpubMeta opens an epub (or kepub), and attempts to read the
 // metadata it contains. This is used if the metadata has not yet
 // been cached
-func (ku *KoboUncaged) readEpubMeta(contentID string) (KoboMetadata, error) {
-	md := createKoboMetadata()
+func (ku *KoboUncaged) readEpubMeta(contentID string, md *KoboMetadata) error {
 	lpath := ku.contentIDtoLpath(contentID)
 	epubPath := ku.contentIDtoBkPath(contentID)
 	bk, err := epub.Open(epubPath)
 	if err != nil {
-		return md, err
+		return err
 	}
 	defer bk.Close()
 	md.Lpath = lpath
@@ -366,7 +365,7 @@ func (ku *KoboUncaged) readEpubMeta(contentID string) (KoboMetadata, error) {
 		}
 
 	}
-	return md, nil
+	return nil
 }
 
 // readMDfile loads cached metadata from the "metadata.calibre" JSON file
@@ -404,13 +403,16 @@ func (ku *KoboUncaged) readMDfile() error {
 		dbCID         string
 		dbTitle       string
 		dbAttr        string
+		dbDesc        *string
+		dbPublisher   *string
+		dbSeries      *string
+		dbbSeriesNum  *string
 		dbContentType int
 		dbMimeType    string
 	)
-	query := `SELECT ContentID, Title, Attribution, ContentType, MimeType
+	query := `SELECT ContentID, Title, Attribution, Description, Publisher, Series, SeriesNumber, ContentType, MimeType
 	FROM content
 	WHERE ContentType=6 
-	AND (MimeType='application/epub+zip' OR MimeType='application/x-kobo-epub+zip')
 	AND MimeType NOT LIKE 'image%' 
 	AND ContentID LIKE ?`
 	bkStmt, err := ku.nickelDB.Prepare(query)
@@ -424,15 +426,26 @@ func (ku *KoboUncaged) readMDfile() error {
 	}
 	defer bkRows.Close()
 	for bkRows.Next() {
-		err = bkRows.Scan(&dbCID, &dbTitle, &dbAttr, &dbContentType, &dbMimeType)
+		err = bkRows.Scan(&dbCID, &dbTitle, &dbAttr, &dbDesc, &dbPublisher, &dbSeries, &dbbSeriesNum, &dbContentType, &dbMimeType)
 		if err != nil {
 			return err
 		}
 		if _, exists := tmpMap[dbCID]; !exists {
 			log.Printf("Book not in cache: %s\n", dbCID)
-			bkMD, err := ku.readEpubMeta(dbCID)
+			//bkMD := KoboMetadata{Title: dbTitle, Comments: dbDesc, Publisher: dbPublisher, Series: dbSeries}
+			bkMD := createKoboMetadata()
+			bkMD.Title, bkMD.Comments, bkMD.Publisher, bkMD.Series = dbTitle, dbDesc, dbPublisher, dbSeries
+			index, err := strconv.ParseFloat(*dbbSeriesNum, 64)
+			if err == nil {
+				bkMD.SeriesIndex = &index
+			}
+			bkMD.Authors = strings.Split(dbAttr, ",")
+			for i := range bkMD.Authors {
+				bkMD.Authors[i] = strings.TrimSpace(bkMD.Authors[i])
+			}
+			err = ku.readEpubMeta(dbCID, &bkMD)
 			if err != nil {
-				return err
+				log.Print(err)
 			}
 			fi, err := os.Stat(filepath.Join(ku.bkRootDir, bkMD.Lpath))
 			if err == nil {
