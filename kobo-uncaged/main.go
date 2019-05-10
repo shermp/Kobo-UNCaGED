@@ -401,8 +401,8 @@ func (ku *KoboUncaged) readMDfile() error {
 	// metadata cache, or books that are in our cache but not in the DB
 	var (
 		dbCID         string
-		dbTitle       string
-		dbAttr        string
+		dbTitle       *string
+		dbAttr        *string
 		dbDesc        *string
 		dbPublisher   *string
 		dbSeries      *string
@@ -434,18 +434,25 @@ func (ku *KoboUncaged) readMDfile() error {
 			log.Printf("Book not in cache: %s\n", dbCID)
 			//bkMD := KoboMetadata{Title: dbTitle, Comments: dbDesc, Publisher: dbPublisher, Series: dbSeries}
 			bkMD := createKoboMetadata()
-			bkMD.Title, bkMD.Comments, bkMD.Publisher, bkMD.Series = dbTitle, dbDesc, dbPublisher, dbSeries
+			bkMD.Comments, bkMD.Publisher, bkMD.Series = dbDesc, dbPublisher, dbSeries
+			if dbTitle != nil {
+				bkMD.Title = *dbTitle
+			}
 			index, err := strconv.ParseFloat(*dbbSeriesNum, 64)
 			if err == nil {
 				bkMD.SeriesIndex = &index
 			}
-			bkMD.Authors = strings.Split(dbAttr, ",")
-			for i := range bkMD.Authors {
-				bkMD.Authors[i] = strings.TrimSpace(bkMD.Authors[i])
+			if dbAttr != nil {
+				bkMD.Authors = strings.Split(*dbAttr, ",")
+				for i := range bkMD.Authors {
+					bkMD.Authors[i] = strings.TrimSpace(bkMD.Authors[i])
+				}
 			}
-			err = ku.readEpubMeta(dbCID, &bkMD)
-			if err != nil {
-				log.Print(err)
+			if dbMimeType == "application/epub+zip" || dbMimeType == "application/x-kobo-epub+zip" {
+				err = ku.readEpubMeta(dbCID, &bkMD)
+				if err != nil {
+					log.Print(err)
+				}
 			}
 			fi, err := os.Stat(filepath.Join(ku.bkRootDir, bkMD.Lpath))
 			if err == nil {
@@ -653,7 +660,7 @@ func (ku *KoboUncaged) updateNickelDB() error {
 func (ku *KoboUncaged) GetClientOptions() uc.ClientOptions {
 	opts := uc.ClientOptions{}
 	opts.ClientName = "Kobo UNCaGED " + kuVersion
-	ext := []string{"kepub", "epub"}
+	ext := []string{"kepub", "epub", "mobi", "pdf", "cbz", "cbr", "txt", "html", "rtf"}
 	opts.SupportedExt = append(opts.SupportedExt, ext...)
 	opts.DeviceName = "Kobo"
 	opts.DeviceModel = ku.koboInfo.modelName
