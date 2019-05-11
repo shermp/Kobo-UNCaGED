@@ -432,15 +432,16 @@ func (ku *KoboUncaged) readMDfile() error {
 		}
 		if _, exists := tmpMap[dbCID]; !exists {
 			log.Printf("Book not in cache: %s\n", dbCID)
-			//bkMD := KoboMetadata{Title: dbTitle, Comments: dbDesc, Publisher: dbPublisher, Series: dbSeries}
 			bkMD := createKoboMetadata()
 			bkMD.Comments, bkMD.Publisher, bkMD.Series = dbDesc, dbPublisher, dbSeries
 			if dbTitle != nil {
 				bkMD.Title = *dbTitle
 			}
-			index, err := strconv.ParseFloat(*dbbSeriesNum, 64)
-			if err == nil {
-				bkMD.SeriesIndex = &index
+			if dbbSeriesNum != nil {
+				index, err := strconv.ParseFloat(*dbbSeriesNum, 64)
+				if err == nil {
+					bkMD.SeriesIndex = &index
+				}
 			}
 			if dbAttr != nil {
 				bkMD.Authors = strings.Split(*dbAttr, ",")
@@ -674,7 +675,10 @@ func (ku *KoboUncaged) GetClientOptions() uc.ClientOptions {
 func (ku *KoboUncaged) GetDeviceBookList() []uc.BookCountDetails {
 	bc := []uc.BookCountDetails{}
 	for _, md := range ku.metadataMap {
-		lastMod, _ := time.Parse(time.RFC3339, *md.LastModified)
+		lastMod := time.Now()
+		if md.LastModified != nil {
+			lastMod, _ = time.Parse(time.RFC3339, *md.LastModified)
+		}
 		bcd := uc.BookCountDetails{
 			UUID:         md.UUID,
 			Lpath:        md.Lpath,
