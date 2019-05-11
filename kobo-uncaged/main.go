@@ -217,6 +217,34 @@ func (ku *KoboUncaged) contentIDisKepub(contentID string) bool {
 	return strings.HasSuffix(contentID, ".kepub.epub")
 }
 
+func (ku *KoboUncaged) updateIfExists(cID string, len int) error {
+	if _, exists := ku.metadataMap[cID]; exists {
+		var currSize int
+		// Make really sure this is in the Nickel DB
+		// The query helpfully comes from Calibre
+		testQuery := `SELECT ___FileSize 
+                        FROM content 
+                        WHERE ContentID = ? 
+                        AND ContentType = 6`
+		err := ku.nickelDB.QueryRow(testQuery, cID).Scan(&currSize)
+		if err != nil {
+			return err
+		}
+		if currSize != len {
+			updateQuery := `UPDATE content 
+						SET ___FileSize = ? 
+						WHERE ContentId = ? 
+						AND ContentType = 6`
+			_, err = ku.nickelDB.Exec(updateQuery, len, cID)
+			if err != nil {
+				return err
+			}
+			log.Println("Updated existing book file length")
+		}
+	}
+	return nil
+}
+
 func (ku *KoboUncaged) getKoboInfo() error {
 	// Get the model ID and firmware version from the device
 	versInfo, err := ioutil.ReadFile(filepath.Join(ku.dbRootDir, koboVersPath))
@@ -769,7 +797,7 @@ func (ku *KoboUncaged) GetFreeSpace() uint64 {
 // lastBook informs the client that this is the last book for this transfer
 // newLpath informs UNCaGED of an Lpath change. Use this if the lpath field in md is
 // not valid (eg filesystem limitations.). Return an empty string if original lpath is valid
-func (ku *KoboUncaged) SaveBook(md map[string]interface{}, lastBook bool) (book io.WriteCloser, newLpath string, err error) {
+func (ku *KoboUncaged) SaveBook(md map[string]interface{}, len int, lastBook bool) (book io.WriteCloser, newLpath string, err error) {
 	koboMD := createKoboMetadata()
 	mapstructure.Decode(md, &koboMD)
 	// The calibre wireless driver does not sanitize the filepath for us. We sanitize it here,
@@ -798,6 +826,10 @@ func (ku *KoboUncaged) SaveBook(md map[string]interface{}, lastBook bool) (book 
 	if koboMD.Thumbnail != nil {
 		ku.wg.Add(1)
 		go ku.saveCoverImage(cID, koboMD.Thumbnail)
+	}
+	err = ku.updateIfExists(cID, len)
+	if err != nil {
+		log.Print(err)
 	}
 	if lastBook {
 		ku.writeMDfile()
