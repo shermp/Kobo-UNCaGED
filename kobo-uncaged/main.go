@@ -441,14 +441,13 @@ func (ku *KoboUncaged) readMDfile() error {
 	query := `SELECT ContentID, Title, Attribution, Description, Publisher, Series, SeriesNumber, ContentType, MimeType
 	FROM content
 	WHERE ContentType=6 
-	AND MimeType NOT LIKE 'image%' 
-	AND ContentID LIKE ?`
-	bkStmt, err := ku.nickelDB.Prepare(query)
-	if err != nil {
-		return err
-	}
-	defer bkStmt.Close()
-	bkRows, err := bkStmt.Query(ku.contentIDprefix + "%")
+	AND MimeType NOT LIKE 'image%'
+	AND (IsDownloaded='true' OR IsDownloaded=1)
+	AND ___FileSize>0
+	AND Accessibility=-1
+	AND ContentID LIKE 'file:///%'`
+
+	bkRows, err := ku.nickelDB.Query(query)
 	if err != nil {
 		return err
 	}
