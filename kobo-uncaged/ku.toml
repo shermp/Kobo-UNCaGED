@@ -1,0 +1,13 @@
+# This is a default configuration file for Kobo-UNCaGED.
+
+# Prefer sending kepub files to your Kobo, when they exist in your Calibre library.
+# If this setting is false, epub files will be the preferred format.
+preferKepub = true
+
+# Provide a comma separated list of passwords. Kobo-UNCaGED will try each of these in turn,
+# untill or if one succeeds. Eg:
+# passwordList = ["password1","password2","passwordn"]
+passwordList = []
+
+# Provide more verbose logging
+enableDebug = false

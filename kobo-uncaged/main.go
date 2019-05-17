@@ -44,6 +44,7 @@ import (
 	"github.com/kapmahc/epub"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/mitchellh/mapstructure"
+	"github.com/pelletier/go-toml"
 	"github.com/shermp/UNCaGED/uc"
 )
 
@@ -120,6 +121,11 @@ type KoboUncaged struct {
 		fw           [3]int
 		coverDetails map[koboCoverEnding]coverDims
 	}
+	KuConfig struct {
+		PreferKepub  bool
+		PasswordList []string
+		EnableDebug  bool
+	}
 	dbRootDir         string
 	bkRootDir         string
 	contentIDprefix   cidPrefix
@@ -158,6 +164,19 @@ func New(dbRootDir, bkRootDir string, contentIDprefix cidPrefix, updatingMD bool
 	if err != nil {
 		return nil, err
 	}
+	configBytes, err := ioutil.ReadFile(filepath.Join(ku.dbRootDir, ".adds/kobo-uncaged/config/ku.toml"))
+	if err != nil {
+		ku.kup.kuPrintln(body, "Error loading config file")
+		log.Print(err)
+		return nil, err
+	}
+	err = toml.Unmarshal(configBytes, &ku.KuConfig)
+	if err != nil {
+		ku.kup.kuPrintln(body, "Error reading config file")
+		log.Print(err)
+		return nil, err
+	}
+	ku.passwords = newUncagedPassword(ku.KuConfig.PasswordList)
 	ku.kup.kuPrintln(header, "Kobo-UNCaGED")
 	ku.kup.kuPrintln(body, "Gathering information about your Kobo")
 	ku.invalidCharsRegex, err = regexp.Compile(`[\\?%\*:;\|\"\'><\$!]`)
@@ -709,7 +728,12 @@ func (ku *KoboUncaged) updateNickelDB() error {
 func (ku *KoboUncaged) GetClientOptions() uc.ClientOptions {
 	opts := uc.ClientOptions{}
 	opts.ClientName = "Kobo UNCaGED " + kuVersion
-	ext := []string{"kepub", "epub", "mobi", "pdf", "cbz", "cbr", "txt", "html", "rtf"}
+	var ext []string
+	if ku.KuConfig.PreferKepub {
+		ext = []string{"kepub", "epub", "mobi", "pdf", "cbz", "cbr", "txt", "html", "rtf"}
+	} else {
+		ext = []string{"epub", "kepub", "mobi", "pdf", "cbz", "cbr", "txt", "html", "rtf"}
+	}
 	opts.SupportedExt = append(opts.SupportedExt, ext...)
 	opts.DeviceName = "Kobo"
 	opts.DeviceModel = ku.koboInfo.modelName
@@ -1000,7 +1024,7 @@ func mainWithErrCode() returnCode {
 		ku.kup.kuPrintln(body, "Metadata Updated!\n\nReturning to Home screen")
 	} else {
 		log.Println("Preparing Kobo UNCaGED!")
-		cc, err := uc.New(ku, true)
+		cc, err := uc.New(ku, ku.KuConfig.EnableDebug)
 		if err != nil {
 			log.Print(err)
 			// TODO: Probably need to come up with a set of error codes for

@@ -33,6 +33,7 @@ export CXX="${CROSS_TC}-g++"
 mkdir -p ./Build/onboard/.adds/kobo-uncaged/bin
 mkdir -p ./Build/onboard/.adds/kobo-uncaged/fonts
 mkdir -p ./Build/onboard/.adds/kobo-uncaged/scripts
+mkdir -p ./Build/onboard/.adds/kobo-uncaged/config
 mkdir -p ./Build/onboard/.adds/kfmon/config
 cd ./Build || exit 1
 
@@ -79,6 +80,9 @@ cp ../scripts/nickel-usbms.sh ./onboard/.adds/kobo-uncaged/scripts/nickel-usbms.
 # And the kfmon files
 cp ../kfmon/kobo-uncaged.ini ./onboard/.adds/kfmon/config/kobo-uncaged.ini
 cp ../kfmon/Kobo-UNCaGED.png ./onboard/Kobo-UNCaGED.png
+
+# Config file
+cp ../kobo-uncaged/ku.toml ./onboard/.adds/kobo-uncaged/config/ku.toml
 
 # Next, obtain a TTF font. LiberationSans in our case
 if [ ! -f ./onboard/.adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf ]; then
