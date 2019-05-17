@@ -57,6 +57,7 @@ const (
 	kuError           returnCode = 250
 	kuSuccessNoAction returnCode = 0
 	kuSuccessRerun    returnCode = 1
+	kuPasswordError   returnCode = 100
 )
 
 const koboDBpath = ".kobo/KoboReader.sqlite"
@@ -1037,13 +1038,18 @@ func mainWithErrCode() returnCode {
 			return kuError
 		}
 		log.Println("Starting Calibre Connection")
-		err = cc.Start()
 		ku.kup.kuPrintln(body, "Finishing up")
 		ku.wg.Wait()
+		err = cc.Start()
 		if err != nil {
+			if err.Error() == "no password entered" {
+				ku.kup.kuPrintln(body, "No valid password found!")
+				return kuPasswordError
+			}
 			log.Print(err)
 			return kuError
 		}
+
 		if len(ku.updatedMetadata) > 0 {
 			ku.kup.kuPrintln(body, "Kobo-UNCaGED will restart automatically to update metadata")
 			return kuSuccessRerun

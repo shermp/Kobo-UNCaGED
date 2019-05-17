@@ -115,6 +115,8 @@ if [ $KU_RES -eq 1 ] || [ $BS_RES -eq 0 ]; then
 
     logmsg "I" "Going back to Nickel"
     remove_usb
+elif [ $KU_RES -eq 100 ]; then
+    logmsg "I" "Password issue. Check your ku.toml config file"
 elif [ $KU_RES -ne 0 ] && [ $BS_RES -ne 0 ]; then
     # FBInk returns negative error codes, fudge that back to the <errno.h> value...
     logmsg "I" "Something strange happened... (KU: ${KU_RES}; BS: -$(( 256 - BS_RES )))"
