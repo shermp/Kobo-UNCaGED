@@ -90,6 +90,26 @@ func imgIDFromContentID(contentID string) string {
 	return r.Replace(contentID)
 }
 
+type uncagedPassword struct {
+	currPassIndex int
+	passwordList  []string
+}
+
+func newUncagedPassword(passwordList []string) *uncagedPassword {
+	pw := &uncagedPassword{}
+	pw.passwordList = passwordList
+	return pw
+}
+
+func (pw *uncagedPassword) nextPassword() string {
+	password := ""
+	if pw.currPassIndex < len(pw.passwordList) {
+		password = pw.passwordList[pw.currPassIndex]
+		pw.currPassIndex++
+	}
+	return password
+}
+
 // KoboUncaged contains the variables and methods required to use
 // the UNCaGED library
 type KoboUncaged struct {
@@ -105,6 +125,7 @@ type KoboUncaged struct {
 	contentIDprefix   cidPrefix
 	metadataMap       map[string]KoboMetadata
 	updatedMetadata   []string
+	passwords         *uncagedPassword
 	driveInfo         uc.DeviceInfo
 	nickelDB          *sql.DB
 	wg                *sync.WaitGroup
@@ -772,9 +793,8 @@ func (ku *KoboUncaged) UpdateMetadata(mdList []map[string]interface{}) {
 }
 
 // GetPassword gets a password from the user.
-func (ku *KoboUncaged) GetPassword() string {
-	// TODO obtain password for user. Using on-screen-keyboard? Config file?
-	return ""
+func (ku *KoboUncaged) GetPassword(calibreInfo uc.CalibreInitInfo) string {
+	return ku.passwords.nextPassword()
 }
 
 // GetFreeSpace reports the amount of free storage space to Calibre
@@ -921,6 +941,9 @@ func (ku *KoboUncaged) UpdateStatus(status uc.UCStatus, progress int) {
 		ku.kup.kuPrintln(footer, footerStr)
 	case uc.ReceivingBook:
 		ku.kup.kuPrintln(body, "Receiving book(s) from Calibre")
+		ku.kup.kuPrintln(footer, footerStr)
+	case uc.EmptyPasswordReceived:
+		ku.kup.kuPrintln(body, "No valid password found!")
 		ku.kup.kuPrintln(footer, footerStr)
 	}
 }
