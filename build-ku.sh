@@ -81,8 +81,8 @@ cp ../scripts/nickel-usbms.sh ./onboard/.adds/kobo-uncaged/scripts/nickel-usbms.
 cp ../kfmon/kobo-uncaged.ini ./onboard/.adds/kfmon/config/kobo-uncaged.ini
 cp ../kfmon/Kobo-UNCaGED.png ./onboard/Kobo-UNCaGED.png
 
-# Config file
-cp ../kobo-uncaged/ku.toml ./onboard/.adds/kobo-uncaged/config/ku.toml
+# Default config file
+cp ../kobo-uncaged/ku.toml ./onboard/.adds/kobo-uncaged/config/ku.toml.default
 
 # Next, obtain a TTF font. LiberationSans in our case
 if [ ! -f ./onboard/.adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf ]; then
@@ -96,7 +96,9 @@ fi
 # Now that we have everything, time to build Kobo-UNCaGED
 printf "%bBuilding Kobo-UNCaGED%b\n" "${YELLOW}" "${END}"
 cd ./onboard/.adds/kobo-uncaged/bin || exit 1
-if ! go build github.com/shermp/Kobo-UNCaGED/kobo-uncaged; then
+ku_vers=$(git describe)
+go_ldflags="-X main.kuVersion=${ku_vers}"
+if ! go build -ldflags "$go_ldflags" github.com/shermp/Kobo-UNCaGED/kobo-uncaged; then
     printf "%bGo failed to build kobo-uncaged. Aborting%b\n" "${RED}" "${END}"
     exit 1
 fi
@@ -107,9 +109,9 @@ printf "%bKobo-UNCaGED built%b\n" "${GREEN}" "${END}"
 # Finally, zip it all up
 printf "%bCreating release archive%b\n" "${YELLOW}" "${END}"
 cd ./onboard || exit 1
-if ! zip -r ../KoboUncaged.zip .; then
+if ! zip -r "../KoboUncaged-${ku_vers}.zip" .; then
     printf "%bFailed to create zip archive. Aborting%b\n" "${RED}" "${END}"
     exit 1
 fi
 cd -
-printf "%b./Build/KoboUncaged.zip built%b\n" "${GREEN}" "${END}"
+printf "%b./Build/KoboUncaged-${ku_vers}.zip built%b\n" "${GREEN}" "${END}"

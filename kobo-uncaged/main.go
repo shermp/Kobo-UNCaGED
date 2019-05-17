@@ -50,7 +50,8 @@ import (
 
 type returnCode int
 
-const kuVersion = "v0.1.0alpha"
+// Note, this is set by the go linker at build time
+var kuVersion string
 
 const (
 	kuError           returnCode = 250
@@ -177,7 +178,8 @@ func New(dbRootDir, bkRootDir string, contentIDprefix cidPrefix, updatingMD bool
 		return nil, err
 	}
 	ku.passwords = newUncagedPassword(ku.KuConfig.PasswordList)
-	ku.kup.kuPrintln(header, "Kobo-UNCaGED")
+	headerStr := "Kobo-UNCaGED  " + kuVersion
+	ku.kup.kuPrintln(header, headerStr)
 	ku.kup.kuPrintln(body, "Gathering information about your Kobo")
 	ku.invalidCharsRegex, err = regexp.Compile(`[\\?%\*:;\|\"\'><\$!]`)
 	if err != nil {

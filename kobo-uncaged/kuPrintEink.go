@@ -131,7 +131,7 @@ func (kup *kuUserPrint) kuPrintSection(orient *orientation, section mboxSection,
 	if section == header {
 		orient.otCfg.Margins.Top = orient.yOff
 		orient.otCfg.Margins.Bottom = int16(vh) - (orient.otCfg.Margins.Top + int16(kup.mbox.hdrH))
-		orient.otCfg.SizePt = 13
+		orient.otCfg.SizePt = 12
 		str = kup.headStr
 	} else if section == body {
 		orient.otCfg.Margins.Top = orient.yOff + int16(kup.mbox.hdrH)
