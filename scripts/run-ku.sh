@@ -115,7 +115,7 @@ if [ $KU_RES -eq 1 ] || [ $BS_RES -eq 0 ]; then
 
     logmsg "I" "Going back to Nickel"
     remove_usb
-else
+elif [ $KU_RES -ne 0 ] && [ $BS_RES -ne 0 ]; then
     # FBInk returns negative error codes, fudge that back to the <errno.h> value...
-    logmsg "I" "Nothing more to do? (KU: ${KU_RES}; BS: -$(( 256 - BS_RES )))"
+    logmsg "I" "Something strange happened... (KU: ${KU_RES}; BS: -$(( 256 - BS_RES )))"
 fi
