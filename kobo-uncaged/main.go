@@ -70,13 +70,6 @@ const kuUpdatedMDfile = "metadata_update.kobouc"
 const onboardPrefix cidPrefix = "file:///mnt/onboard/"
 const sdPrefix cidPrefix = "file:///mnt/sd/"
 
-// imgIDFromContentID generates an imageID from a contentID, using the
-// the replacement values as found in the Calibre Kobo driver
-func imgIDFromContentID(contentID string) string {
-	r := strings.NewReplacer("/", "_", " ", "_", ":", "_", ".", "_")
-	return r.Replace(contentID)
-}
-
 type uncagedPassword struct {
 	currPassIndex int
 	passwordList  []string

@@ -5,6 +5,13 @@ import (
 	"strings"
 )
 
+// imgIDFromContentID generates an imageID from a contentID, using the
+// the replacement values as found in the Calibre Kobo driver
+func imgIDFromContentID(contentID string) string {
+	r := strings.NewReplacer("/", "_", " ", "_", ":", "_", ".", "_")
+	return r.Replace(contentID)
+}
+
 func contentIDtoBkPath(rootDir, cid, cidPrefix string) string {
 	return filepath.Join(rootDir, strings.TrimPrefix(cid, cidPrefix))
 }
