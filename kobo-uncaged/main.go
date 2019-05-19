@@ -503,8 +503,8 @@ func (ku *KoboUncaged) readMDfile() error {
 	AND MimeType NOT LIKE 'image%'
 	AND (IsDownloaded='true' OR IsDownloaded=1)
 	AND ___FileSize>0
-	AND Accessibility=-1
-	AND ContentID LIKE 'file:///%'`
+	AND Accessibility=-1 `
+	query += fmt.Sprintf("AND ContentID LIKE 'file://%s%%';", ku.contentIDprefix)
 
 	bkRows, err := ku.nickelDB.Query(query)
 	if err != nil {
