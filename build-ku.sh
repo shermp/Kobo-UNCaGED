@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# Allow script to be run from another dir
+cd "$(dirname "$0")"
+
 # Set terminal color escape sequences
 END="\033[0m"
 RED="\033[31;1m"
@@ -96,13 +99,12 @@ fi
 # Now that we have everything, time to build Kobo-UNCaGED
 printf "%bBuilding Kobo-UNCaGED%b\n" "${YELLOW}" "${END}"
 cd ./onboard/.adds/kobo-uncaged/bin || exit 1
-ku_vers=$(git describe)
-go_ldflags="-X main.kuVersion=${ku_vers}"
+ku_vers="$(git describe --tags)"
+go_ldflags="-s -w -X main.kuVersion=${ku_vers}"
 if ! go build -ldflags "$go_ldflags" github.com/shermp/Kobo-UNCaGED/kobo-uncaged; then
     printf "%bGo failed to build kobo-uncaged. Aborting%b\n" "${RED}" "${END}"
     exit 1
 fi
-"${CROSS_TC}-strip" --strip-unneeded kobo-uncaged
 cd -
 printf "%bKobo-UNCaGED built%b\n" "${GREEN}" "${END}"
 
