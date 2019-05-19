@@ -239,19 +239,21 @@ func (ku *KoboUncaged) updateIfExists(cID string, len int) error {
 		var currSize int
 		// Make really sure this is in the Nickel DB
 		// The query helpfully comes from Calibre
-		testQuery := `SELECT ___FileSize 
-                        FROM content 
-                        WHERE ContentID = ? 
-                        AND ContentType = 6`
+		testQuery := `
+			SELECT ___FileSize 
+			FROM content 
+			WHERE ContentID = ? 
+			AND ContentType = 6`
 		err := ku.nickelDB.QueryRow(testQuery, cID).Scan(&currSize)
 		if err != nil {
 			return err
 		}
 		if currSize != len {
-			updateQuery := `UPDATE content 
-						SET ___FileSize = ? 
-						WHERE ContentId = ? 
-						AND ContentType = 6`
+			updateQuery := `
+				UPDATE content 
+				SET ___FileSize = ? 
+				WHERE ContentId = ? 
+				AND ContentType = 6`
 			_, err = ku.nickelDB.Exec(updateQuery, len, cID)
 			if err != nil {
 				return err
@@ -397,14 +399,15 @@ func (ku *KoboUncaged) readMDfile() error {
 		dbContentType int
 		dbMimeType    string
 	)
-	query := `SELECT ContentID, Title, Attribution, Description, Publisher, Series, SeriesNumber, ContentType, MimeType
-	FROM content
-	WHERE ContentType=6 
-	AND MimeType NOT LIKE 'image%'
-	AND (IsDownloaded='true' OR IsDownloaded=1)
-	AND ___FileSize>0
-	AND Accessibility=-1 `
-	query += fmt.Sprintf("AND ContentID LIKE 'file://%s%%';", ku.contentIDprefix)
+	query := fmt.Sprintf(`
+		SELECT ContentID, Title, Attribution, Description, Publisher, Series, SeriesNumber, ContentType, MimeType
+		FROM content
+		WHERE ContentType=6
+		AND MimeType NOT LIKE 'image%%'
+		AND (IsDownloaded='true' OR IsDownloaded=1)
+		AND ___FileSize>0
+		AND Accessibility=-1
+		AND ContentID LIKE 'file://%s%%';`, ku.contentIDprefix)
 
 	bkRows, err := ku.nickelDB.Query(query)
 	if err != nil {
@@ -610,12 +613,13 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64
 func (ku *KoboUncaged) updateNickelDB() error {
 	// No matter what happens, we remove the 'metadata_update.kobouc' file when we're done
 	defer os.Remove(filepath.Join(ku.bkRootDir, kuUpdatedMDfile))
-	query := `UPDATE content SET 
-	Description=?,
-	Series=?,
-	SeriesNumber=?,
-	SeriesNumberFloat=? 
-	WHERE ContentID=?`
+	query := `
+		UPDATE content SET 
+		Description=?,
+		Series=?,
+		SeriesNumber=?,
+		SeriesNumberFloat=? 
+		WHERE ContentID=?`
 	stmt, err := ku.nickelDB.Prepare(query)
 	if err != nil {
 		return err
