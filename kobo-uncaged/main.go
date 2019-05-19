@@ -25,6 +25,7 @@ import (
 	"flag"
 	"fmt"
 	"html"
+	"image"
 	"io"
 	"io/ioutil"
 	"log"
@@ -584,62 +585,60 @@ func (ku *KoboUncaged) saveDeviceInfo() error {
 	return ioutil.WriteFile(filepath.Join(ku.bkRootDir, calibreDIfile), diJSON, 0644)
 }
 
-func (ku *KoboUncaged) saveCoverImage(contentID string, thumb []interface{}) {
+func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64 string) {
 	defer ku.wg.Done()
-	thumbW := int(thumb[0].(float64))
-	thumbH := int(thumb[1].(float64))
-	imgB64 := thumb[2].(string)
 	imgID := imgIDFromContentID(contentID)
 	imgDir := path.Join(ku.bkRootDir, ku.genImageDirPath(imgID))
 	_, libFullSize, libGridSize := ku.device.CoverSize()
-	err := os.MkdirAll(imgDir, 0744)
-	if err == nil {
-		imgBin, err := base64.StdEncoding.DecodeString(imgB64)
-		if err == nil {
-			libFullSaved := false
-			// No need to perform any image processing for the library thumb if it meets all our requirements
-			// Note, we asked Calibre to give us a thumbnail with a given height...
-			if thumbW <= libFullSize.X {
-				libFullSaved = true
-				err = ioutil.WriteFile(path.Join(imgDir, (imgID+string(libFull))), imgBin, 0644)
-				if err != nil {
-					log.Println(err)
-				}
-			}
-			// Now we do our resizing
-			origCover, err := imaging.Decode(bytes.NewReader(imgBin))
-			if err == nil {
-				var libFW, libFH, gridFW, gridFH int
-				if (float64(thumbW) / float64(thumbH)) < 1.0 {
-					libFH, gridFH = libFullSize.Y, libGridSize.Y
-				} else {
-					libFW, gridFW = libFullSize.X, libGridSize.X
-				}
 
-				// If we haven't allready saved the libFull thumbnail, resize it now.
-				if !libFullSaved {
-					libImg := imaging.Resize(origCover, libFW, libFH, imaging.Linear)
-					lc, err := os.OpenFile(path.Join(imgDir, (imgID+string(libFull))), os.O_WRONLY|os.O_CREATE, 0644)
-					if err == nil {
-						defer lc.Close()
-						imaging.Encode(lc, libImg, imaging.JPEG)
-					} else {
-						log.Println(err)
-					}
-				}
-				// And finally, the "library grid" image
-				gridImg := imaging.Resize(origCover, gridFW, gridFH, imaging.Linear)
-				gc, err := os.OpenFile(path.Join(imgDir, (imgID+string(libGrid))), os.O_WRONLY|os.O_CREATE, 0644)
-				if err == nil {
-					defer gc.Close()
-					imaging.Encode(gc, gridImg, imaging.JPEG)
-				} else {
-					log.Println(err)
-				}
-			}
+	if err := os.MkdirAll(imgDir, 0744); err != nil {
+		log.Println(err)
+		return
+	}
+
+	imgBin, err := base64.StdEncoding.DecodeString(imgB64)
+	if err != nil {
+		return
+	}
+
+	// Now we do our resizing
+	origCover, err := imaging.Decode(bytes.NewReader(imgBin))
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	var libFW, libFH, gridFW, gridFH int
+	if (float64(size.X) / float64(size.Y)) < 1.0 {
+		libFH, gridFH = libFullSize.Y, libGridSize.Y
+	} else {
+		libFW, gridFW = libFullSize.X, libGridSize.X
+	}
+
+	// No need to perform any image processing for the library thumb if it meets all our requirements
+	// Note, we asked Calibre to give us a thumbnail with a given height...
+	if size.X <= libFullSize.X {
+		err = ioutil.WriteFile(path.Join(imgDir, imgID+string(libFull)), imgBin, 0644)
+		if err != nil {
+			log.Println(err)
+		}
+	} else {
+		libImg := imaging.Resize(origCover, libFW, libFH, imaging.Linear)
+		lc, err := os.OpenFile(path.Join(imgDir, imgID+string(libFull)), os.O_WRONLY|os.O_CREATE, 0644)
+		if err == nil {
+			defer lc.Close()
+			imaging.Encode(lc, libImg, imaging.JPEG)
 		} else {
 			log.Println(err)
 		}
+	}
+
+	// And finally, the "library grid" image
+	gridImg := imaging.Resize(origCover, gridFW, gridFH, imaging.Linear)
+	gc, err := os.OpenFile(path.Join(imgDir, imgID+string(libGrid)), os.O_WRONLY|os.O_CREATE, 0644)
+	if err == nil {
+		defer gc.Close()
+		imaging.Encode(gc, gridImg, imaging.JPEG)
 	} else {
 		log.Println(err)
 	}
@@ -824,9 +823,9 @@ func (ku *KoboUncaged) SaveBook(md map[string]interface{}, len int, lastBook boo
 	ku.metadataMap[cID] = koboMD
 	ku.updatedMetadata = append(ku.updatedMetadata, cID)
 	// Note, the JSON format for covers should be in the form 'thumbnail: [w, h, "base64string"]'
-	if koboMD.Thumbnail != nil {
+	if kt := koboMD.Thumbnail; kt != nil {
 		ku.wg.Add(1)
-		go ku.saveCoverImage(cID, koboMD.Thumbnail)
+		go ku.saveCoverImage(cID, image.Pt(int(kt[0].(float64)), int(kt[1].(float64))), kt[2].(string))
 	}
 	err = ku.updateIfExists(cID, len)
 	if err != nil {
