@@ -1,5 +1,8 @@
 #!/bin/sh
 
+# Allow script to be run from another dir
+cd "$(dirname "$0")"
+
 # Set terminal color escape sequences
 END="\033[0m"
 RED="\033[31;1m"
