@@ -1,6 +1,8 @@
 package main
 
 import (
+	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -40,4 +42,16 @@ func contentIDtoLpath(cid, cidPrefix string) string {
 		cid = strings.TrimSuffix(cid, ".epub")
 	}
 	return strings.TrimPrefix(cid, cidPrefix)
+}
+
+func writeJSON(fn string, v interface{}) error {
+	f, err := os.OpenFile(fn, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	enc := json.NewEncoder(f)
+	enc.SetIndent("", "    ")
+	return enc.Encode(v)
 }

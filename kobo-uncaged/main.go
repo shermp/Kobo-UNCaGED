@@ -76,13 +76,11 @@ type uncagedPassword struct {
 }
 
 func newUncagedPassword(passwordList []string) *uncagedPassword {
-	pw := &uncagedPassword{}
-	pw.passwordList = passwordList
-	return pw
+	return &uncagedPassword{passwordList: passwordList}
 }
 
 func (pw *uncagedPassword) nextPassword() string {
-	password := ""
+	var password string
 	if pw.currPassIndex < len(pw.passwordList) {
 		password = pw.passwordList[pw.currPassIndex]
 		pw.currPassIndex++
@@ -117,7 +115,7 @@ type KoboUncaged struct {
 
 // We use a constructor, because nested maps
 func createKoboMetadata() KoboMetadata {
-	md := KoboMetadata{}
+	var md KoboMetadata
 	md.UserMetadata = make(map[string]interface{}, 0)
 	md.UserCategories = make(map[string]interface{}, 0)
 	md.AuthorSortMap = make(map[string]string, 0)
@@ -134,29 +132,30 @@ func New(dbRootDir, sdRootDir string, updatingMD bool) (*KoboUncaged, error) {
 	ku.dbRootDir = dbRootDir
 	ku.bkRootDir = dbRootDir
 	ku.contentIDprefix = onboardPrefix
-	ku.updatedMetadata = make([]string, 0)
+
 	fntPath := filepath.Join(ku.dbRootDir, ".adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf")
-	ku.kup, err = newKuPrint(fntPath)
-	if err != nil {
+	if ku.kup, err = newKuPrint(fntPath); err != nil {
 		return nil, err
 	}
+
 	configBytes, err := ioutil.ReadFile(filepath.Join(ku.dbRootDir, ".adds/kobo-uncaged/config/ku.toml"))
 	if err != nil {
 		ku.kup.kuPrintln(body, "Error loading config file")
 		log.Print(err)
 		return nil, err
 	}
-	err = toml.Unmarshal(configBytes, &ku.KuConfig)
-	if err != nil {
+	if err := toml.Unmarshal(configBytes, &ku.KuConfig); err != nil {
 		ku.kup.kuPrintln(body, "Error reading config file")
 		log.Print(err)
 		return nil, err
 	}
+
 	if sdRootDir != "" && ku.KuConfig.PreferSDCard {
 		ku.useSDCard = true
 		ku.bkRootDir = sdRootDir
 		ku.contentIDprefix = sdPrefix
 	}
+
 	ku.passwords = newUncagedPassword(ku.KuConfig.PasswordList)
 	headerStr := "Kobo-UNCaGED  " + kuVersion
 	if ku.useSDCard {
@@ -164,6 +163,7 @@ func New(dbRootDir, sdRootDir string, updatingMD bool) (*KoboUncaged, error) {
 	} else {
 		headerStr += "\nUsing Internal Storage"
 	}
+
 	ku.kup.kuPrintln(header, headerStr)
 	ku.kup.kuPrintln(body, "Gathering information about your Kobo")
 	ku.invalidCharsRegex, err = regexp.Compile(`[\\?%\*:;\|\"\'><\$!]`)
@@ -171,30 +171,27 @@ func New(dbRootDir, sdRootDir string, updatingMD bool) (*KoboUncaged, error) {
 		return nil, err
 	}
 	log.Println("Opening NickelDB")
-	err = ku.openNickelDB()
-	if err != nil {
+	if err := ku.openNickelDB(); err != nil {
 		return nil, err
 	}
 	log.Println("Getting Kobo Info")
-	err = ku.getKoboInfo()
-	if err != nil {
+	if err := ku.getKoboInfo(); err != nil {
 		return nil, err
 	}
 	log.Println("Getting Device Info")
-	err = ku.loadDeviceInfo()
-	if err != nil {
+	if err := ku.loadDeviceInfo(); err != nil {
 		return nil, err
 	}
 	log.Println("Reading Metadata")
-	err = ku.readMDfile()
-	if err != nil {
+	if err := ku.readMDfile(); err != nil {
 		return nil, err
 	}
-	if updatingMD {
-		err = ku.readUpdateMDfile()
-		if err != nil {
-			return nil, err
-		}
+
+	if !updatingMD {
+		return ku, nil
+	}
+	if err := ku.readUpdateMDfile(); err != nil {
+		return nil, err
 	}
 	return ku, nil
 }
@@ -463,21 +460,13 @@ func (ku *KoboUncaged) readMDfile() error {
 }
 
 func (ku *KoboUncaged) writeMDfile() error {
-	// First, convert our metadata map to a slice
+	var n int
 	metadata := make([]KoboMetadata, len(ku.metadataMap))
-	n := 0
 	for _, md := range ku.metadataMap {
 		metadata[n] = md
 		n++
 	}
-	// Convert it to JSON, prettifying it in the process
-	mdJSON, _ := json.MarshalIndent(metadata, "", "    ")
-
-	err := ioutil.WriteFile(filepath.Join(ku.bkRootDir, calibreMDfile), mdJSON, 0644)
-	if err != nil {
-		return err
-	}
-	return nil
+	return writeJSON(filepath.Join(ku.bkRootDir, calibreMDfile), metadata)
 }
 
 func (ku *KoboUncaged) readUpdateMDfile() error {
@@ -501,14 +490,10 @@ func (ku *KoboUncaged) readUpdateMDfile() error {
 
 func (ku *KoboUncaged) writeUpdateMDfile() error {
 	// We only write the file if there is new or updated metadata to write
-	if len(ku.updatedMetadata) > 0 {
-		mdJSON, _ := json.MarshalIndent(ku.updatedMetadata, "", "    ")
-		err := ioutil.WriteFile(filepath.Join(ku.bkRootDir, kuUpdatedMDfile), mdJSON, 0644)
-		if err != nil {
-			return err
-		}
+	if len(ku.updatedMetadata) == 0 {
+		return nil
 	}
-	return nil
+	return writeJSON(filepath.Join(ku.bkRootDir, kuUpdatedMDfile), ku.updatedMetadata)
 }
 
 func (ku *KoboUncaged) loadDeviceInfo() error {
@@ -526,21 +511,14 @@ func (ku *KoboUncaged) loadDeviceInfo() error {
 		}
 		return err
 	}
-	if len(diJSON) > 0 {
-		err = json.Unmarshal(diJSON, &ku.driveInfo.DevInfo)
-		if err != nil {
-			return err
-		}
+	if len(diJSON) == 0 {
+		return nil
 	}
-	return nil
+	return json.Unmarshal(diJSON, &ku.driveInfo.DevInfo)
 }
 
 func (ku *KoboUncaged) saveDeviceInfo() error {
-	diJSON, err := json.MarshalIndent(ku.driveInfo.DevInfo, "", "    ")
-	if err != nil {
-		return err
-	}
-	return ioutil.WriteFile(filepath.Join(ku.bkRootDir, calibreDIfile), diJSON, 0644)
+	return writeJSON(filepath.Join(ku.bkRootDir, calibreDIfile), ku.driveInfo.DevInfo)
 }
 
 func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64 string) {
@@ -619,20 +597,20 @@ func (ku *KoboUncaged) updateNickelDB() error {
 	}
 	var desc, series, seriesNum *string
 	var seriesNumFloat *float64
-	for _, cID := range ku.updatedMetadata {
+	for _, cid := range ku.updatedMetadata {
 		desc, series, seriesNum, seriesNumFloat = nil, nil, nil, nil
-		if ku.metadataMap[cID].Comments != nil && *ku.metadataMap[cID].Comments != "" {
-			desc = ku.metadataMap[cID].Comments
+		if ku.metadataMap[cid].Comments != nil && *ku.metadataMap[cid].Comments != "" {
+			desc = ku.metadataMap[cid].Comments
 		}
-		if ku.metadataMap[cID].Series != nil && *ku.metadataMap[cID].Series != "" {
-			series = ku.metadataMap[cID].Series
+		if ku.metadataMap[cid].Series != nil && *ku.metadataMap[cid].Series != "" {
+			series = ku.metadataMap[cid].Series
 		}
-		if ku.metadataMap[cID].SeriesIndex != nil && *ku.metadataMap[cID].SeriesIndex != 0.0 {
-			sn := strconv.FormatFloat(*ku.metadataMap[cID].SeriesIndex, 'f', -1, 64)
+		if ku.metadataMap[cid].SeriesIndex != nil && *ku.metadataMap[cid].SeriesIndex != 0.0 {
+			sn := strconv.FormatFloat(*ku.metadataMap[cid].SeriesIndex, 'f', -1, 64)
 			seriesNum = &sn
-			seriesNumFloat = ku.metadataMap[cID].SeriesIndex
+			seriesNumFloat = ku.metadataMap[cid].SeriesIndex
 		}
-		_, err = stmt.Exec(desc, series, seriesNum, seriesNumFloat, cID)
+		_, err = stmt.Exec(desc, series, seriesNum, seriesNumFloat, cid)
 		if err != nil {
 			log.Print(err)
 		}
@@ -687,11 +665,11 @@ func (ku *KoboUncaged) GetMetadataList(books []uc.BookID) []map[string]interface
 	mdList := []map[string]interface{}{}
 	if len(books) > 0 {
 		for _, bk := range books {
-			cID := lpathToContentID(bk.Lpath, string(ku.contentIDprefix))
-			fmt.Println(cID)
+			cid := lpathToContentID(bk.Lpath, string(ku.contentIDprefix))
+			fmt.Println(cid)
 			md := map[string]interface{}{}
-			//spew.Dump(ku.metadataMap[cID])
-			mapstructure.Decode(ku.metadataMap[cID], &md)
+			//spew.Dump(ku.metadataMap[cid])
+			mapstructure.Decode(ku.metadataMap[cid], &md)
 			mdList = append(mdList, md)
 		}
 	} else {
@@ -724,9 +702,9 @@ func (ku *KoboUncaged) UpdateMetadata(mdList []map[string]interface{}) {
 		koboMD := createKoboMetadata()
 		mapstructure.Decode(md, &koboMD)
 		koboMD.Thumbnail = nil
-		cID := lpathToContentID(koboMD.Lpath, string(ku.contentIDprefix))
-		ku.metadataMap[cID] = koboMD
-		ku.updatedMetadata = append(ku.updatedMetadata, cID)
+		cid := lpathToContentID(koboMD.Lpath, string(ku.contentIDprefix))
+		ku.metadataMap[cid] = koboMD
+		ku.updatedMetadata = append(ku.updatedMetadata, cid)
 	}
 	ku.writeMDfile()
 	ku.writeUpdateMDfile()
@@ -741,7 +719,7 @@ func (ku *KoboUncaged) GetPassword(calibreInfo uc.CalibreInitInfo) string {
 func (ku *KoboUncaged) GetFreeSpace() uint64 {
 	// Note, this method of getting available disk space is Linux specific...
 	// Don't try to run this code on Windows. It will probably fall over
-	fs := syscall.Statfs_t{}
+	var fs syscall.Statfs_t
 	err := syscall.Statfs(ku.bkRootDir, &fs)
 	if err != nil {
 		log.Println(err)
@@ -801,8 +779,8 @@ func (ku *KoboUncaged) SaveBook(md map[string]interface{}, len int, lastBook boo
 // NOTE: filePos > 0 is not currently implemented in the Calibre source code, but that could
 // change at any time, so best to handle it anyway.
 func (ku *KoboUncaged) GetBook(book uc.BookID, filePos int64) (io.ReadCloser, int64, error) {
-	cID := lpathToContentID(book.Lpath, string(ku.contentIDprefix))
-	bkPath := contentIDtoBkPath(ku.bkRootDir, cID, string(ku.contentIDprefix))
+	cid := lpathToContentID(book.Lpath, string(ku.contentIDprefix))
+	bkPath := contentIDtoBkPath(ku.bkRootDir, cid, string(ku.contentIDprefix))
 	fi, err := os.Stat(bkPath)
 	if err != nil {
 		return nil, 0, err
@@ -817,8 +795,8 @@ func (ku *KoboUncaged) GetBook(book uc.BookID, filePos int64) (io.ReadCloser, in
 func (ku *KoboUncaged) DeleteBook(book uc.BookID) error {
 	// Start with basic book deletion. A more fancy implementation can come later
 	// (eg: removing cover image remnants etc)
-	cID := lpathToContentID(book.Lpath, string(ku.contentIDprefix))
-	bkPath := contentIDtoBkPath(ku.bkRootDir, cID, string(ku.contentIDprefix))
+	cid := lpathToContentID(book.Lpath, string(ku.contentIDprefix))
+	bkPath := contentIDtoBkPath(ku.bkRootDir, cid, string(ku.contentIDprefix))
 	dir, _ := filepath.Split(bkPath)
 	dirPath := filepath.Clean(dir)
 	err := os.Remove(bkPath)
@@ -839,11 +817,11 @@ func (ku *KoboUncaged) DeleteBook(book uc.BookID) error {
 		dirPath = filepath.Clean(filepath.Join(dirPath, "../"))
 	}
 	// Now we remove the book from the metadata map
-	delete(ku.metadataMap, cID)
+	delete(ku.metadataMap, cid)
 	// As well as the updated metadata list, if it was added to the list this session
 	l := len(ku.updatedMetadata)
 	for n := 0; n < l; n++ {
-		if ku.updatedMetadata[n] == cID {
+		if ku.updatedMetadata[n] == cid {
 			ku.updatedMetadata[n] = ku.updatedMetadata[len(ku.updatedMetadata)-1]
 			ku.updatedMetadata = ku.updatedMetadata[:len(ku.updatedMetadata)-1]
 			break
@@ -894,8 +872,8 @@ func (ku *KoboUncaged) LogPrintf(logLevel uc.UCLogLevel, format string, a ...int
 }
 
 func mainWithErrCode() returnCode {
-	w, e := syslog.New(syslog.LOG_DEBUG, "KoboUNCaGED")
-	if e == nil {
+	w, err := syslog.New(syslog.LOG_DEBUG, "KoboUNCaGED")
+	if err == nil {
 		log.SetOutput(w)
 	}
 	onboardMntPtr := flag.String("onboardmount", "/mnt/onboard", "If changed, specify the new new mountpoint of '/mnt/onboard'")
