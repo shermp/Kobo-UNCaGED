@@ -55,3 +55,22 @@ func writeJSON(fn string, v interface{}) error {
 	enc.SetIndent("", "    ")
 	return enc.Encode(v)
 }
+
+func readJSON(fn string, out interface{}) (emptyOrNotExist bool, err error) {
+	f, err := os.Open(fn)
+	if os.IsNotExist(err) {
+		return true, nil
+	} else if err != nil {
+		return false, err
+	}
+	defer f.Close()
+
+	fi, err := f.Stat()
+	if err != nil {
+		return false, err
+	} else if fi.Size() == 0 {
+		return true, nil
+	}
+
+	return false, json.NewDecoder(f).Decode(out)
+}

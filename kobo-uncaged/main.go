@@ -335,12 +335,8 @@ func (ku *KoboUncaged) readEpubMeta(contentID string, md *KoboMetadata) error {
 		case "calibre:title_sort":
 			md.TitleSort = m.Content
 		case "calibre:author_link_map":
-			almJSON := html.UnescapeString(m.Content)
-			alm := make(map[string]string, 0)
-			err := json.Unmarshal([]byte(almJSON), &alm)
-			if err == nil {
-				md.AuthorLinkMap = alm
-			}
+			var alm map[string]string
+			_ = json.Unmarshal([]byte(html.UnescapeString(m.Content)), &alm)
 		}
 
 	}
@@ -352,19 +348,15 @@ func (ku *KoboUncaged) readEpubMeta(contentID string, md *KoboMetadata) error {
 // "lpath" to Kobo's "ContentID", and using that as the map keys
 func (ku *KoboUncaged) readMDfile() error {
 	log.Println(body, "Reading metadata.calibre")
-	mdJSON, err := ioutil.ReadFile(filepath.Join(ku.bkRootDir, calibreMDfile))
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
+
+	var koboMD []KoboMetadata
+	emptyOrNotExist, err := readJSON(filepath.Join(ku.bkRootDir, calibreMDfile), &koboMD)
+	if emptyOrNotExist {
+		// ignore
+	} else if err != nil {
+		return err
 	}
-	koboMD := []KoboMetadata{}
-	if len(mdJSON) > 0 {
-		err = json.Unmarshal(mdJSON, &koboMD)
-		if err != nil {
-			return err
-		}
-	}
+
 	// Make the metadatamap here instead of the constructer so we can pre-allocate
 	// the memory with the right size.
 	ku.metadataMap = make(map[string]KoboMetadata, len(koboMD))
@@ -470,20 +462,12 @@ func (ku *KoboUncaged) writeMDfile() error {
 }
 
 func (ku *KoboUncaged) readUpdateMDfile() error {
-	mdJSONarr, err := ioutil.ReadFile(filepath.Join(ku.bkRootDir, kuUpdatedMDfile))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		log.Print(err)
+	emptyOrNotExist, err := readJSON(filepath.Join(ku.bkRootDir, kuUpdatedMDfile), &ku.updatedMetadata)
+	if emptyOrNotExist {
+		// ignore
+	} else if err != nil {
+		log.Println(err)
 		return err
-	}
-	if len(mdJSONarr) > 0 {
-		err = json.Unmarshal(mdJSONarr, &ku.updatedMetadata)
-		if err != nil {
-			log.Print(err)
-			return err
-		}
 	}
 	return nil
 }
@@ -497,24 +481,19 @@ func (ku *KoboUncaged) writeUpdateMDfile() error {
 }
 
 func (ku *KoboUncaged) loadDeviceInfo() error {
-	diJSON, err := ioutil.ReadFile(filepath.Join(ku.bkRootDir, calibreDIfile))
-	if err != nil {
-		if os.IsNotExist(err) {
-			uuid4, _ := uuid.NewV4()
-			ku.driveInfo.DevInfo.LocationCode = "main"
-			ku.driveInfo.DevInfo.DeviceName = "Kobo " + ku.device.Model()
-			ku.driveInfo.DevInfo.DeviceStoreUUID = uuid4.String()
-			if ku.useSDCard {
-				ku.driveInfo.DevInfo.LocationCode = "A"
-			}
-			return nil
+	emptyOrNotExist, err := readJSON(filepath.Join(ku.bkRootDir, calibreDIfile), &ku.driveInfo.DevInfo)
+	if emptyOrNotExist {
+		uuid4, _ := uuid.NewV4()
+		ku.driveInfo.DevInfo.LocationCode = "main"
+		ku.driveInfo.DevInfo.DeviceName = "Kobo " + ku.device.Model()
+		ku.driveInfo.DevInfo.DeviceStoreUUID = uuid4.String()
+		if ku.useSDCard {
+			ku.driveInfo.DevInfo.LocationCode = "A"
 		}
+	} else if err != nil {
 		return err
 	}
-	if len(diJSON) == 0 {
-		return nil
-	}
-	return json.Unmarshal(diJSON, &ku.driveInfo.DevInfo)
+	return nil
 }
 
 func (ku *KoboUncaged) saveDeviceInfo() error {
