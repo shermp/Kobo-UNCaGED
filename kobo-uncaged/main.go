@@ -921,7 +921,7 @@ func mainWithErrCode() returnCode {
 	defer ku.kup.kuClose()
 	if *mdPtr {
 		log.Println("Updating Metadata")
-		ku.kup.kuPrintln(body, "Updading Metadata!")
+		ku.kup.kuPrintln(body, "Updating Metadata!")
 		err = ku.updateNickelDB()
 		if err != nil {
 			log.Print(err)
