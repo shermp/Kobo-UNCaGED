@@ -36,11 +36,19 @@ while ! ./button_scan -p; do
     BS_TIMEOUT=$(( BS_TIMEOUT + 1 ))
 done
 
-logmsg "I" "(Re)mounting onboard"
+logmsg "I" "Mounting onboard"
 mount_onboard
 ret=$?
 if [ ${ret} -ne 0 ]; then
-    logmsg "C" "Onboard did not remount (${ret}). Aborting!"
+    logmsg "C" "Onboard did not mount (${ret}). Aborting!"
+    remove_usb
+    exit 1
+fi
+logmsg "I" "Mounting SD card"
+mount_sd
+ret=$?
+if [ ${ret} -ne 0 ]; then
+    logmsg "C" "SD card did not mount (${ret}). Aborting!"
     remove_usb
     exit 1
 fi
@@ -60,9 +68,13 @@ logmsg "N" "USBMS mode entered . . ."
 
 logmsg "I" "Running Kobo-UNCaGED"
 KU_BIN="${MNT_ONBOARD_NEW}/${KU_DIR}/bin/kobo-uncaged"
-$KU_BIN "-onboardmount=${MNT_ONBOARD_NEW}"
-KU_RES=$?
-
+if [ -z "$MNT_SD_NEW" ]; then
+    $KU_BIN -onboardmount="${MNT_ONBOARD_NEW}"
+    KU_RES=$?
+else
+    $KU_BIN -onboardmount="${MNT_ONBOARD_NEW}" -sdmount="${MNT_SD_NEW}"
+    KU_RES=$?
+fi
 
 logmsg "N" "Leaving USBMS . . ."
 logmsg "I" "Disabling WiFi"
@@ -74,6 +86,11 @@ logmsg "I" "Unmounting onboard"
 unmount_onboard
 ret=$?
 logmsg "N" "Onboard unmounted (${ret}) . . ."
+
+logmsg "I" "Unmounting SD card"
+unmount_sd
+ret=$?
+logmsg "N" "SD card unmounted (${ret}) . . ."
 
 logmsg "I" "Waiting for content processing"
 ./button_scan -w -u -q
@@ -104,14 +121,31 @@ if [ $KU_RES -eq 1 ] || [ $BS_RES -eq 0 ]; then
         remove_usb
         exit 1
     fi
+    logmsg "I" "Remounting SD card"
+    mount_sd
+    ret=$?
+    if [ ${ret} -ne 0 ]; then
+        logmsg "C" "SD card did not Remount (${ret}). Aborting!"
+        remove_usb
+        exit 1
+    fi
 
     logmsg "I" "Running Kobo-UNCaGED"
-    $KU_BIN "-onboardmount=${MNT_ONBOARD_NEW}" "-metadata"
+    if [ -z "$MNT_SD_NEW" ]; then
+        $KU_BIN -onboardmount="${MNT_ONBOARD_NEW}" -metadata
+    else
+        $KU_BIN -onboardmount="${MNT_ONBOARD_NEW}" -sdmount="${MNT_SD_NEW}" -metadata
+    fi
 
     logmsg "I" "Unmounting onboard"
     unmount_onboard
     ret=$?
     logmsg "N" "Onboard unmounted (${ret}) . . ."
+
+    logmsg "I" "Unmounting SD card"
+    unmount_sd
+    ret=$?
+    logmsg "N" "SD card unmounted (${ret}) . . ."
 
     logmsg "I" "Going back to Nickel"
     remove_usb

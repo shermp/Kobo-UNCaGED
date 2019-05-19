@@ -172,31 +172,91 @@ disable_wifi() {
     fi
 }
 
-mount_onboard() {
-    # Set mountpoint variables
-    MNT_ONBOARD_NEW="/mnt/newonboard"
+# Call example: mount_fs "/dev/mmcblk0p3" "/mnt/newonboard"
+mount_fs() {
+    # Set variables
+    BLK_DEV=$1
+    MNT_NEW=$2
     # Make sure to create the new mountpoint directory, if it doesn't already exist
-    mkdir -p "$MNT_ONBOARD_NEW"
-
-    # First check to make sure onboard isn't already mounted, if so, we keep trying for up to 5 seconds
+    mkdir -p "$MNT_NEW"
+    # First check to make device isn't already mounted, if so, we keep trying for up to 5 seconds
     # before aborting
     MOUNT_TIMEOUT=0
-    while grep -qs "^/dev/mmcblk0p3" "/proc/mounts"; do
+    while grep -qs "^${BLK_DEV}" "/proc/mounts"; do
         # If the partition is still mounted after 5 seconds, we abort
         if [ ${MOUNT_TIMEOUT} -ge 20 ]; then
             return 254
         fi
-        # Nickel hasn't unmounted /dev/mmcblk0p3 yet. We sleep for a bit (250ms), then try again
+        # Nickel hasn't unmounted device yet. We sleep for a bit (250ms), then try again
         usleep 250000
         MOUNT_TIMEOUT=$(( MOUNT_TIMEOUT + 1 ))
     done
 
     # If we got this far, we are ready to mount
     sleep 1
-    msg="$(mount -o rw,noatime,nodiratime,shortname=mixed,utf8 -t vfat /dev/mmcblk0p3 "$MNT_ONBOARD_NEW" 2>&1)"
+    msg="$(mount -o rw,noatime,nodiratime,shortname=mixed,utf8 -t vfat ${BLK_DEV} "$MNT_NEW" 2>&1)"
     ret=$?
     if [ ${ret} -ne 0 ]; then
-        logmsg "D" "Failed to mount onboard! (${ret}: ${msg})"
+        logmsg "D" "Failed to mount ${BLK_DEV}! (${ret}: ${msg})"
+    fi
+    return ${ret}
+}
+
+# Call exampe: unmount_fs "/mnt/newonboard"
+unmount_fs() {
+    MNT_NEW=$1
+    # next, make sure we are still mounted where we expect to be
+    if ! grep -qs " ${MNT_NEW}" "/proc/mounts"; then
+        return 253
+    fi
+
+    # If mounted, we now try to unmount
+    sync
+    sleep 1
+    msg="$(umount "${MNT_NEW}" 2>&1)"
+    ret=$?
+    if [ ${ret} -ne 0 ]; then
+        logmsg "D" "Failed to unmount ${MNT_NEW}! (${ret}: ${msg})"
+    fi
+    return ${ret}
+}
+
+# Note, no SD card is not considered an error. Always check whether
+# MNT_SD_NEW exists before attempting to use the SD card
+mount_sd() {
+    # Check if SD card is present
+    if [ ! -b "/dev/mmcblk1p1" ]; then
+        ret=0
+    else
+        MNT_SD_NEW="/mnt/newsd"
+        mount_fs "/dev/mmcblk1p1" "$MNT_SD_NEW"
+        ret=$?
+        if [ ${ret} -ne 0 ]; then
+            unset MNT_SD_NEW
+        fi
+    fi
+    return ${ret}
+}
+
+mount_onboard() {
+    MNT_ONBOARD_NEW="/mnt/newonboard"
+    mount_fs "/dev/mmcblk0p3" "$MNT_ONBOARD_NEW"
+    ret=$?
+    if [ ${ret} -ne 0 ]; then
+        unset MNT_ONBOARD_NEW
+    fi
+    return ${ret}
+}
+
+unmount_sd() {
+    if [ ! -b "/dev/mmcblk1p1" ]; then
+        ret=0
+    elif [ -z "$MNT_SD_NEW" ]; then
+        ret=254
+    else
+        unmount_fs "$MNT_SD_NEW"
+        ret=$?
+        unset MNT_SD_NEW
     fi
     return ${ret}
 }
@@ -204,21 +264,11 @@ mount_onboard() {
 unmount_onboard() {
     # First, we check if mount_onboard has previously been invoked
     if [ -z "$MNT_ONBOARD_NEW" ]; then
-        return 254
-    fi
-
-    # next, make sure we are still mounted where we expect to be
-    if ! grep -qs " $MNT_ONBOARD_NEW" "/proc/mounts"; then
-        return 253
-    fi
-
-    # If mounted, we now try to unmount
-    sync
-    sleep 1
-    msg="$(umount "$MNT_ONBOARD_NEW" 2>&1)"
-    ret=$?
-    if [ ${ret} -ne 0 ]; then
-        logmsg "D" "Failed to unmount onboard! (${ret}: ${msg})"
+        ret=254
+    else
+        unmount_fs "$MNT_ONBOARD_NEW"
+        ret=$?
+        unset MNT_ONBOARD_NEW
     fi
     return ${ret}
 }
