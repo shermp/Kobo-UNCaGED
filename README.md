@@ -66,8 +66,8 @@ Kobo-UNCaGED requires the following prerequisites to build correctly:
 
 Once the prerequisites are met, follow the next steps:
 
-1. `go get github.com/shermp/Kobo-UNCaGED/kobo-uncaged/`
-2. `cd ~/go/src/github.com/shermp/Kobo-UNCaGED` OR `cd ${GOPATH}/src/github.com/shermp/Kobo-UNCaGED` depending on how your Go environment was installed.
+1. `git clone github.com/shermp/Kobo-UNCaGED`
+2. `cd Kobo-UNCaGED`
 3. `./build-ku.sh`. This will download and build all further requirements, and create the necessary directory structure.
 4. Extract `./Build/KoboUncaged.zip` to the root of your Kobo user directory (`/mnt/onboard`).
 5. Unplug, then reboot your Kobo.
@@ -75,7 +75,7 @@ Once the prerequisites are met, follow the next steps:
 ### Developing
 
 To help with development, it's recommended that you try the following: 
-1. Download the repository using `go get` as above
+1. Download the repository as above
 2. Change to the source directory (as in step 2 above)
 3. Fork the repository on Github
 4. In the local repository, add your fork as a remote, eg: `git remote add remote_name fork_url`
