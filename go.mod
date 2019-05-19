@@ -1,4 +1,4 @@
-module github.com/shermp/Kobo-UNCaGED/kobo-uncaged
+module github.com/shermp/Kobo-UNCaGED
 
 require (
 	github.com/disintegration/imaging v1.6.0
