@@ -69,23 +69,6 @@ const kuUpdatedMDfile = "metadata_update.kobouc"
 const onboardPrefix cidPrefix = "file:///mnt/onboard/"
 const sdPrefix cidPrefix = "file:///mnt/sd/"
 
-// genImagePath generates the directory structure used by
-// kobo to store the cover image files.
-// It has been ported from the implementation in the KoboTouch
-// driver in Calibre
-func genImageDirPath(imageID string) string {
-	imgID := []byte(imageID)
-	h := uint32(0x00000000)
-	for _, x := range imgID {
-		h = (h << 4) + uint32(x)
-		h ^= (h & 0xf0000000) >> 23
-		h &= 0x0fffffff
-	}
-	dir1 := h & (0xff * 1)
-	dir2 := (h & (0xff00 * 1)) >> 8
-	return fmt.Sprintf(".kobo-images/%d/%d", dir1, dir2)
-}
-
 // imgIDFromContentID generates an imageID from a contentID, using the
 // the replacement values as found in the Calibre Kobo driver
 func imgIDFromContentID(contentID string) string {
@@ -124,6 +107,7 @@ type KoboUncaged struct {
 		coverDetails map[koboCoverEnding]coverDims
 	}
 	KuConfig struct {
+		PreferSDCard bool
 		PreferKepub  bool
 		PasswordList []string
 		EnableDebug  bool
@@ -131,6 +115,7 @@ type KoboUncaged struct {
 	dbRootDir         string
 	bkRootDir         string
 	contentIDprefix   cidPrefix
+	useSDCard         bool
 	metadataMap       map[string]KoboMetadata
 	updatedMetadata   []string
 	passwords         *uncagedPassword
@@ -152,13 +137,13 @@ func createKoboMetadata() KoboMetadata {
 }
 
 // New creates a KoboUncaged object, ready for use
-func New(dbRootDir, bkRootDir string, contentIDprefix cidPrefix, updatingMD bool) (*KoboUncaged, error) {
+func New(dbRootDir, sdRootDir string, updatingMD bool) (*KoboUncaged, error) {
 	var err error
 	ku := &KoboUncaged{}
 	ku.wg = &sync.WaitGroup{}
 	ku.dbRootDir = dbRootDir
-	ku.bkRootDir = bkRootDir
-	ku.contentIDprefix = contentIDprefix
+	ku.bkRootDir = dbRootDir
+	ku.contentIDprefix = onboardPrefix
 	ku.koboInfo.coverDetails = make(map[koboCoverEnding]coverDims)
 	ku.updatedMetadata = make([]string, 0)
 	fntPath := filepath.Join(ku.dbRootDir, ".adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf")
@@ -178,8 +163,18 @@ func New(dbRootDir, bkRootDir string, contentIDprefix cidPrefix, updatingMD bool
 		log.Print(err)
 		return nil, err
 	}
+	if sdRootDir != "" && ku.KuConfig.PreferSDCard {
+		ku.useSDCard = true
+		ku.bkRootDir = sdRootDir
+		ku.contentIDprefix = sdPrefix
+	}
 	ku.passwords = newUncagedPassword(ku.KuConfig.PasswordList)
 	headerStr := "Kobo-UNCaGED  " + kuVersion
+	if ku.useSDCard {
+		headerStr += "\nUsing SD Card"
+	} else {
+		headerStr += "\nUsing Internal Storage"
+	}
 	ku.kup.kuPrintln(header, headerStr)
 	ku.kup.kuPrintln(body, "Gathering information about your Kobo")
 	ku.invalidCharsRegex, err = regexp.Compile(`[\\?%\*:;\|\"\'><\$!]`)
@@ -213,6 +208,27 @@ func New(dbRootDir, bkRootDir string, contentIDprefix cidPrefix, updatingMD bool
 		}
 	}
 	return ku, nil
+}
+
+// genImagePath generates the directory structure used by
+// kobo to store the cover image files.
+// It has been ported from the implementation in the KoboTouch
+// driver in Calibre
+func (ku *KoboUncaged) genImageDirPath(imageID string) string {
+	imgID := []byte(imageID)
+	h := uint32(0x00000000)
+	for _, x := range imgID {
+		h = (h << 4) + uint32(x)
+		h ^= (h & 0xf0000000) >> 23
+		h &= 0x0fffffff
+	}
+	dir1 := h & (0xff * 1)
+	dir2 := (h & (0xff00 * 1)) >> 8
+	pathPrefix := ".kobo-images"
+	if ku.useSDCard {
+		pathPrefix = "koboExtStorage/images-cache"
+	}
+	return fmt.Sprintf("%s/%d/%d", pathPrefix, dir1, dir2)
 }
 
 func (ku *KoboUncaged) openNickelDB() error {
@@ -607,6 +623,9 @@ func (ku *KoboUncaged) loadDeviceInfo() error {
 			ku.driveInfo.DevInfo.LocationCode = "main"
 			ku.driveInfo.DevInfo.DeviceName = "Kobo " + ku.koboInfo.modelName
 			ku.driveInfo.DevInfo.DeviceStoreUUID = uuid4.String()
+			if ku.useSDCard {
+				ku.driveInfo.DevInfo.LocationCode = "A"
+			}
 			return nil
 		}
 		return err
@@ -634,7 +653,7 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, thumb []interface{}) {
 	thumbH := int(thumb[1].(float64))
 	imgB64 := thumb[2].(string)
 	imgID := imgIDFromContentID(contentID)
-	imgDir := path.Join(ku.bkRootDir, genImageDirPath(imgID))
+	imgDir := path.Join(ku.bkRootDir, ku.genImageDirPath(imgID))
 	err := os.MkdirAll(imgDir, 0744)
 	if err == nil {
 		imgBin, err := base64.StdEncoding.DecodeString(imgB64)
@@ -986,31 +1005,14 @@ func mainWithErrCode() returnCode {
 		log.SetOutput(w)
 	}
 	onboardMntPtr := flag.String("onboardmount", "/mnt/onboard", "If changed, specify the new new mountpoint of '/mnt/onboard'")
-	sdMntPtr := flag.String("sdmount", "/mnt/sd", "If changed, specify the new new mountpoint of '/mnt/sd'")
-	contentLocPtr := flag.String("location", "onboard", "Choose location to save to. Choices are 'onboard' (default) and 'sd'.")
+	sdMntPtr := flag.String("sdmount", "", "If changed, specify the new new mountpoint of '/mnt/sd'")
 	mdPtr := flag.Bool("metadata", false, "Updates the Kobo DB with new metadata")
 
 	flag.Parse()
 	log.Println("Started Kobo-UNCaGED")
-	useOnboard := true
-	bkRootDir := *onboardMntPtr
-	dbRootDir := *onboardMntPtr
-	cidPrefix := onboardPrefix
-	if *contentLocPtr == "onboard" {
-		useOnboard = true
-	} else if *contentLocPtr == "sd" {
-		useOnboard = false
-	} else {
-		log.Println("Unrecognized location string. Defaulting to 'onboard'")
-		useOnboard = true
-	}
-	if !useOnboard {
-		bkRootDir = *sdMntPtr
-		cidPrefix = sdPrefix
-	}
-	log.Println(dbRootDir)
+
 	log.Println("Creating KU object")
-	ku, err := New(dbRootDir, bkRootDir, cidPrefix, *mdPtr)
+	ku, err := New(*onboardMntPtr, *sdMntPtr, *mdPtr)
 	if err != nil {
 		log.Print(err)
 		return kuError

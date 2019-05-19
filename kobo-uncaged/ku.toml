@@ -1,5 +1,9 @@
 # This is a default configuration file for Kobo-UNCaGED.
 
+# Prefer saving books to the external SD card if your device has one, and a
+# card is inserted. Otherwise books are saved to the internal storage
+preferSDCard = true
+
 # Prefer sending kepub files to your Kobo, when they exist in your Calibre library.
 # If this setting is false, epub files will be the preferred format.
 preferKepub = true
