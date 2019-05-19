@@ -100,12 +100,8 @@ func (pw *uncagedPassword) nextPassword() string {
 // the UNCaGED library
 type KoboUncaged struct {
 	kup      kuPrinter
-	koboInfo struct {
-		model        koboDeviceID
-		modelName    string
-		fw           [3]int
-		coverDetails map[koboCoverEnding]coverDims
-	}
+	device   koboDevice
+	fw       [3]int
 	KuConfig struct {
 		PreferSDCard bool
 		PreferKepub  bool
@@ -144,7 +140,6 @@ func New(dbRootDir, sdRootDir string, updatingMD bool) (*KoboUncaged, error) {
 	ku.dbRootDir = dbRootDir
 	ku.bkRootDir = dbRootDir
 	ku.contentIDprefix = onboardPrefix
-	ku.koboInfo.coverDetails = make(map[koboCoverEnding]coverDims)
 	ku.updatedMetadata = make([]string, 0)
 	fntPath := filepath.Join(ku.dbRootDir, ".adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf")
 	ku.kup, err = newKuPrint(fntPath)
@@ -315,67 +310,9 @@ func (ku *KoboUncaged) getKoboInfo() error {
 		versFields := strings.Split(vers, ",")
 		fwStr := strings.Split(versFields[2], ".")
 		for i, f := range fwStr {
-			ku.koboInfo.fw[i], _ = strconv.Atoi(f)
+			ku.fw[i], _ = strconv.Atoi(f)
 		}
-		ku.koboInfo.model = koboDeviceID(versFields[len(versFields)-1])
-	}
-	// Once we have the model number, we set the appropriate cover image dims
-	// These values come from https://github.com/kovidgoyal/calibre/blob/master/src/calibre/devices/kobo/driver.py
-	switch ku.koboInfo.model {
-	case glo, aura, auraEd2r1, auraEd2r2:
-		ku.koboInfo.coverDetails[fullCover] = coverDims{width: 758, height: 1024}
-		ku.koboInfo.coverDetails[libFull] = coverDims{width: 355, height: 479}
-		ku.koboInfo.coverDetails[libGrid] = coverDims{width: 149, height: 201}
-	case gloHD, claraHD:
-		ku.koboInfo.coverDetails[fullCover] = coverDims{width: 1072, height: 1448}
-		ku.koboInfo.coverDetails[libFull] = coverDims{width: 355, height: 479}
-		ku.koboInfo.coverDetails[libGrid] = coverDims{width: 149, height: 201}
-	case auraHD, auraH2O, auraH2Oed2r1, auraH2Oed2r2:
-		ku.koboInfo.coverDetails[fullCover] = coverDims{width: 1080, height: 1440}
-		ku.koboInfo.coverDetails[libFull] = coverDims{width: 355, height: 471}
-		ku.koboInfo.coverDetails[libGrid] = coverDims{width: 149, height: 198}
-	case auraOne, auraOneLE:
-		ku.koboInfo.coverDetails[fullCover] = coverDims{width: 1404, height: 1872}
-		ku.koboInfo.coverDetails[libFull] = coverDims{width: 355, height: 473}
-		ku.koboInfo.coverDetails[libGrid] = coverDims{width: 149, height: 198}
-	case forma:
-		ku.koboInfo.coverDetails[fullCover] = coverDims{width: 1440, height: 1920}
-		ku.koboInfo.coverDetails[libFull] = coverDims{width: 355, height: 473}
-		ku.koboInfo.coverDetails[libGrid] = coverDims{width: 149, height: 198}
-	default:
-		ku.koboInfo.coverDetails[fullCover] = coverDims{width: 600, height: 800}
-		ku.koboInfo.coverDetails[libFull] = coverDims{width: 355, height: 473}
-		ku.koboInfo.coverDetails[libGrid] = coverDims{width: 149, height: 198}
-	}
-
-	// Populate model name
-	switch ku.koboInfo.model {
-	case touch2, touchAB, touchC:
-		ku.koboInfo.modelName = "Touch"
-	case mini:
-		ku.koboInfo.modelName = "Mini"
-	case glo:
-		ku.koboInfo.modelName = "Glo"
-	case gloHD:
-		ku.koboInfo.modelName = "Glo HD"
-	case aura:
-		ku.koboInfo.modelName = "Aura"
-	case auraH2O:
-		ku.koboInfo.modelName = "Aura H2O"
-	case auraH2Oed2r1, auraH2Oed2r2:
-		ku.koboInfo.modelName = "Aura H2O Ed. 2"
-	case auraEd2r1, auraEd2r2:
-		ku.koboInfo.modelName = "Aura Ed. 2"
-	case auraHD:
-		ku.koboInfo.modelName = "Aura HD"
-	case auraOne, auraOneLE:
-		ku.koboInfo.modelName = "Aura One"
-	case claraHD:
-		ku.koboInfo.modelName = "Clara HD"
-	case forma:
-		ku.koboInfo.modelName = "Forma"
-	default:
-		ku.koboInfo.modelName = "Unknown Kobo"
+		ku.device = koboDevice(versFields[len(versFields)-1])
 	}
 	return nil
 }
@@ -621,7 +558,7 @@ func (ku *KoboUncaged) loadDeviceInfo() error {
 		if os.IsNotExist(err) {
 			uuid4, _ := uuid.NewV4()
 			ku.driveInfo.DevInfo.LocationCode = "main"
-			ku.driveInfo.DevInfo.DeviceName = "Kobo " + ku.koboInfo.modelName
+			ku.driveInfo.DevInfo.DeviceName = "Kobo " + ku.device.Model()
 			ku.driveInfo.DevInfo.DeviceStoreUUID = uuid4.String()
 			if ku.useSDCard {
 				ku.driveInfo.DevInfo.LocationCode = "A"
@@ -654,6 +591,7 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, thumb []interface{}) {
 	imgB64 := thumb[2].(string)
 	imgID := imgIDFromContentID(contentID)
 	imgDir := path.Join(ku.bkRootDir, ku.genImageDirPath(imgID))
+	_, libFullSize, libGridSize := ku.device.CoverSize()
 	err := os.MkdirAll(imgDir, 0744)
 	if err == nil {
 		imgBin, err := base64.StdEncoding.DecodeString(imgB64)
@@ -661,7 +599,7 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, thumb []interface{}) {
 			libFullSaved := false
 			// No need to perform any image processing for the library thumb if it meets all our requirements
 			// Note, we asked Calibre to give us a thumbnail with a given height...
-			if thumbW <= ku.koboInfo.coverDetails[libFull].width {
+			if thumbW <= libFullSize.X {
 				libFullSaved = true
 				err = ioutil.WriteFile(path.Join(imgDir, (imgID+string(libFull))), imgBin, 0644)
 				if err != nil {
@@ -673,11 +611,9 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, thumb []interface{}) {
 			if err == nil {
 				var libFW, libFH, gridFW, gridFH int
 				if (float64(thumbW) / float64(thumbH)) < 1.0 {
-					libFH = ku.koboInfo.coverDetails[libFull].height
-					gridFH = ku.koboInfo.coverDetails[libGrid].height
+					libFH, gridFH = libFullSize.Y, libGridSize.Y
 				} else {
-					libFW = ku.koboInfo.coverDetails[libFull].width
-					gridFW = ku.koboInfo.coverDetails[libGrid].width
+					libFW, gridFW = libFullSize.X, libGridSize.X
 				}
 
 				// If we haven't allready saved the libFull thumbnail, resize it now.
@@ -758,9 +694,9 @@ func (ku *KoboUncaged) GetClientOptions() uc.ClientOptions {
 	}
 	opts.SupportedExt = append(opts.SupportedExt, ext...)
 	opts.DeviceName = "Kobo"
-	opts.DeviceModel = ku.koboInfo.modelName
-	opts.CoverDims.Height = ku.koboInfo.coverDetails[libFull].height
-	opts.CoverDims.Width = ku.koboInfo.coverDetails[libFull].width
+	opts.DeviceModel = ku.device.Model()
+	_, lf, _ := ku.device.CoverSize()
+	opts.CoverDims.Width, opts.CoverDims.Height = lf.X, lf.Y
 	return opts
 }
 
