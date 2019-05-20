@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# A few constants for stuff that should pretty much be set in stone
+ONBOARD_BLOCKDEV="/dev/mmcblk0p3"
+SDCARD_BLOCKDEV="/dev/mmcblk1p1"
+
 # Logging facilities
 logmsg() {
     # Set terminal color escape sequences
@@ -139,7 +143,7 @@ enable_wifi() {
     pidof wpa_supplicant >/dev/null \
         || env -u LD_LIBRARY_PATH \
             wpa_supplicant -D wext -s -i "${INTERFACE}" -O /var/run/wpa_supplicant -c /etc/wpa_supplicant/wpa_supplicant.conf -B
-    
+
     # Obtain an IP address
     logmsg "I" "Acquiring IP"
     obtain_ip
@@ -151,7 +155,7 @@ disable_wifi() {
     fi
     # Before we continue, better release our IP
     release_ip
-    
+
     get_nickel_env
 
     # Disable wifi, and remove all modules.
@@ -172,11 +176,11 @@ disable_wifi() {
     fi
 }
 
-# Call example: mount_fs "/dev/mmcblk0p3" "/mnt/newonboard"
+# Call example: mount_fs "$ONBOARD_BLOCKDEV" "/mnt/newonboard"
 mount_fs() {
     # Set variables
-    BLK_DEV=$1
-    MNT_NEW=$2
+    BLK_DEV="$1"
+    MNT_NEW="$2"
     # Make sure to create the new mountpoint directory, if it doesn't already exist
     mkdir -p "$MNT_NEW"
     # First check to make device isn't already mounted, if so, we keep trying for up to 5 seconds
@@ -194,7 +198,7 @@ mount_fs() {
 
     # If we got this far, we are ready to mount
     sleep 1
-    msg="$(mount -o rw,noatime,nodiratime,shortname=mixed,utf8 -t vfat ${BLK_DEV} "$MNT_NEW" 2>&1)"
+    msg="$(mount -o noatime,nodiratime,shortname=mixed,utf8 -t vfat "$BLK_DEV" "$MNT_NEW" 2>&1)"
     ret=$?
     if [ ${ret} -ne 0 ]; then
         logmsg "D" "Failed to mount ${BLK_DEV}! (${ret}: ${msg})"
@@ -204,7 +208,7 @@ mount_fs() {
 
 # Call exampe: unmount_fs "/mnt/newonboard"
 unmount_fs() {
-    MNT_NEW=$1
+    MNT_NEW="$1"
     # next, make sure we are still mounted where we expect to be
     if ! grep -qs " ${MNT_NEW}" "/proc/mounts"; then
         return 253
@@ -213,7 +217,7 @@ unmount_fs() {
     # If mounted, we now try to unmount
     sync
     sleep 1
-    msg="$(umount "${MNT_NEW}" 2>&1)"
+    msg="$(umount "$MNT_NEW" 2>&1)"
     ret=$?
     if [ ${ret} -ne 0 ]; then
         logmsg "D" "Failed to unmount ${MNT_NEW}! (${ret}: ${msg})"
@@ -225,11 +229,11 @@ unmount_fs() {
 # MNT_SD_NEW exists before attempting to use the SD card
 mount_sd() {
     # Check if SD card is present
-    if [ ! -b "/dev/mmcblk1p1" ]; then
+    if [ ! -b "$SDCARD_BLOCKDEV" ]; then
         ret=0
     else
         MNT_SD_NEW="/mnt/newsd"
-        mount_fs "/dev/mmcblk1p1" "$MNT_SD_NEW"
+        mount_fs "$SDCARD_BLOCKDEV" "$MNT_SD_NEW"
         ret=$?
         if [ ${ret} -ne 0 ]; then
             unset MNT_SD_NEW
@@ -240,7 +244,7 @@ mount_sd() {
 
 mount_onboard() {
     MNT_ONBOARD_NEW="/mnt/newonboard"
-    mount_fs "/dev/mmcblk0p3" "$MNT_ONBOARD_NEW"
+    mount_fs "$ONBOARD_BLOCKDEV" "$MNT_ONBOARD_NEW"
     ret=$?
     if [ ${ret} -ne 0 ]; then
         unset MNT_ONBOARD_NEW
@@ -249,7 +253,7 @@ mount_onboard() {
 }
 
 unmount_sd() {
-    if [ ! -b "/dev/mmcblk1p1" ]; then
+    if [ ! -b "$SDCARD_BLOCKDEV" ]; then
         ret=0
     elif [ -z "$MNT_SD_NEW" ]; then
         ret=254
