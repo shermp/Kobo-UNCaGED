@@ -591,7 +591,7 @@ func (ku *KoboUncaged) updateNickelDB() error {
 		}
 		_, err = stmt.Exec(desc, series, seriesNum, seriesNumFloat, cid)
 		if err != nil {
-			log.Print(wrapPos(wrap(err, "could exec nickel db update with %#v", []interface{}{desc, series, seriesNum, seriesNumFloat, cid})))
+			log.Print(wrapPos(wrap(err, "could not exec nickel db update with %#v", []interface{}{desc, series, seriesNum, seriesNumFloat, cid})))
 		}
 	}
 	return nil
