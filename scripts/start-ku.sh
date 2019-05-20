@@ -12,7 +12,7 @@ cp "/mnt/onboard/${KU_DIR}/bin/button_scan" "$KU_TMP_DIR"
 cp "/mnt/onboard/${KU_DIR}/bin/fbink" "$KU_TMP_DIR"
 
 # Check if we have a ku.toml file. If not, copy it from the default file
-if [ ! -e "/mnt/onboard/${KU_DIR}/config/ku.toml" ]; then
+if [ ! -f "/mnt/onboard/${KU_DIR}/config/ku.toml" ]; then
     cp "/mnt/onboard/${KU_DIR}/config/ku.toml.default" "/mnt/onboard/${KU_DIR}/config/ku.toml"
 fi
 
