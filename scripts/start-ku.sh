@@ -19,7 +19,9 @@ fi
 cd "$KU_TMP_DIR" || exit 255
 ./run-ku.sh "$KU_DIR" "$KU_TMP_DIR"
 
-# Cleanup behind us
+# Cleanup behind us, with gloves on
+# (i.e., avoid rm -rf "${KU_TMP_DIR}" to avoid unfortunate mistakes,
+# because we're root, and the rootfs is stupidly rw by default on Kobo).
 for cur_file in ${KU_REQ_FILES}; do
     rm -f "${KU_TMP_DIR}/${cur_file##*/}"
 done
