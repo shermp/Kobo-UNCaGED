@@ -13,7 +13,7 @@ KU_TMP_DIR="$2"
 
 # Abort if the device is currently plugged in, as that's liable to confuse Nickel into actually starting a real USBMS session!
 # Which'd probably ultimately cause a crash with our shenanigans...
-if [ "$(cat /sys/devices/platform/pmic_battery.1/power_supply/mc13892_bat/status)" = "Charging" ]; then
+if [ $(cat /sys/devices/platform/pmic_battery.1/power_supply/mc13892_charger/online) -ne 0 ]; then
     # Sleep a bit to lose the race with Nickel's opening of our image
     sleep 2
     logmsg "C" "Device is currently plugged in. Aborting!"
