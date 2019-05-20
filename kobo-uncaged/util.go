@@ -79,7 +79,7 @@ func readJSON(fn string, out interface{}) (emptyOrNotExist bool, err error) {
 
 func wrapPos(err error) error {
 	if err != nil {
-		pc, file, line, ok := runtime.Caller(0)
+		pc, file, line, ok := runtime.Caller(1)
 		if !ok {
 			return wrap(err, "[unknown pos]")
 		}
