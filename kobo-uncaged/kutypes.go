@@ -17,8 +17,10 @@
 
 package main
 
+import "image"
+
 type cidPrefix string
-type koboDeviceID string
+type koboDevice string
 type koboCoverEnding string
 
 type mboxSection int
@@ -31,27 +33,6 @@ const (
 	header mboxSection = iota
 	body
 	footer
-)
-
-// Kobo model ID's from https://github.com/geek1011/KoboStuff/blob/gh-pages/kobofirmware.js#L11
-const (
-	touchAB      koboDeviceID = "00000000-0000-0000-0000-000000000310"
-	touchC       koboDeviceID = "00000000-0000-0000-0000-000000000320"
-	mini         koboDeviceID = "00000000-0000-0000-0000-000000000340"
-	glo          koboDeviceID = "00000000-0000-0000-0000-000000000330"
-	gloHD        koboDeviceID = "00000000-0000-0000-0000-000000000371"
-	touch2       koboDeviceID = "00000000-0000-0000-0000-000000000372"
-	aura         koboDeviceID = "00000000-0000-0000-0000-000000000360"
-	auraHD       koboDeviceID = "00000000-0000-0000-0000-000000000350"
-	auraH2O      koboDeviceID = "00000000-0000-0000-0000-000000000370"
-	auraH2Oed2r1 koboDeviceID = "00000000-0000-0000-0000-000000000374"
-	auraH2Oed2r2 koboDeviceID = "00000000-0000-0000-0000-000000000378"
-	auraOne      koboDeviceID = "00000000-0000-0000-0000-000000000373"
-	auraOneLE    koboDeviceID = "00000000-0000-0000-0000-000000000381"
-	auraEd2r1    koboDeviceID = "00000000-0000-0000-0000-000000000375"
-	auraEd2r2    koboDeviceID = "00000000-0000-0000-0000-000000000379"
-	claraHD      koboDeviceID = "00000000-0000-0000-0000-000000000376"
-	forma        koboDeviceID = "00000000-0000-0000-0000-000000000380"
 )
 
 const (
@@ -96,7 +77,88 @@ type KoboMetadata struct {
 	Identifiers     map[string]string      `json:"identifiers" mapstructure:"identifiers"`
 }
 
-type coverDims struct {
-	width  int
-	height int
+// Kobo model ID's from https://github.com/geek1011/KoboStuff/blob/gh-pages/kobofirmware.js#L11
+const (
+	touchAB      koboDevice = "00000000-0000-0000-0000-000000000310"
+	touchC       koboDevice = "00000000-0000-0000-0000-000000000320"
+	mini         koboDevice = "00000000-0000-0000-0000-000000000340"
+	glo          koboDevice = "00000000-0000-0000-0000-000000000330"
+	gloHD        koboDevice = "00000000-0000-0000-0000-000000000371"
+	touch2       koboDevice = "00000000-0000-0000-0000-000000000372"
+	aura         koboDevice = "00000000-0000-0000-0000-000000000360"
+	auraHD       koboDevice = "00000000-0000-0000-0000-000000000350"
+	auraH2O      koboDevice = "00000000-0000-0000-0000-000000000370"
+	auraH2Oed2r1 koboDevice = "00000000-0000-0000-0000-000000000374"
+	auraH2Oed2r2 koboDevice = "00000000-0000-0000-0000-000000000378"
+	auraOne      koboDevice = "00000000-0000-0000-0000-000000000373"
+	auraOneLE    koboDevice = "00000000-0000-0000-0000-000000000381"
+	auraEd2r1    koboDevice = "00000000-0000-0000-0000-000000000375"
+	auraEd2r2    koboDevice = "00000000-0000-0000-0000-000000000379"
+	claraHD      koboDevice = "00000000-0000-0000-0000-000000000376"
+	forma        koboDevice = "00000000-0000-0000-0000-000000000380"
+)
+
+// Model returns the model name for the device.
+func (d koboDevice) Model() string {
+	switch d {
+	case touch2, touchAB, touchC:
+		return "Touch"
+	case mini:
+		return "Mini"
+	case glo:
+		return "Glo"
+	case gloHD:
+		return "Glo HD"
+	case aura:
+		return "Aura"
+	case auraH2O:
+		return "Aura H2O"
+	case auraH2Oed2r1, auraH2Oed2r2:
+		return "Aura H2O Ed. 2"
+	case auraEd2r1, auraEd2r2:
+		return "Aura Ed. 2"
+	case auraHD:
+		return "Aura HD"
+	case auraOne, auraOneLE:
+		return "Aura One"
+	case claraHD:
+		return "Clara HD"
+	case forma:
+		return "Forma"
+	default:
+		return "Unknown Kobo"
+	}
+}
+
+// CoverSize gets the appropriate cover dimensions for the device.
+// These values come from https://github.com/kovidgoyal/calibre/blob/master/src/calibre/devices/kobo/driver.py
+func (d koboDevice) CoverSize() (fullCover, libFull, libGrid image.Point) {
+	var fc, lf, lg image.Point
+	switch d {
+	case glo, aura, auraEd2r1, auraEd2r2:
+		fc = image.Pt(758, 1024)
+		lf = image.Pt(355, 479)
+		lg = image.Pt(149, 201)
+	case gloHD, claraHD:
+		fc = image.Pt(1072, 1448)
+		lf = image.Pt(355, 479)
+		lg = image.Pt(149, 201)
+	case auraHD, auraH2O, auraH2Oed2r1, auraH2Oed2r2:
+		fc = image.Pt(1080, 1440)
+		lf = image.Pt(355, 471)
+		lg = image.Pt(149, 198)
+	case auraOne, auraOneLE:
+		fc = image.Pt(1404, 1872)
+		lf = image.Pt(355, 473)
+		lg = image.Pt(149, 198)
+	case forma:
+		fc = image.Pt(1440, 1920)
+		lf = image.Pt(355, 473)
+		lg = image.Pt(149, 198)
+	default:
+		fc = image.Pt(600, 800)
+		lf = image.Pt(355, 473)
+		lg = image.Pt(149, 198)
+	}
+	return fc, lf, lg
 }
