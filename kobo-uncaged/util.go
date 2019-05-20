@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -73,4 +75,22 @@ func readJSON(fn string, out interface{}) (emptyOrNotExist bool, err error) {
 	}
 
 	return false, json.NewDecoder(f).Decode(out)
+}
+
+func wrapPos(err error) error {
+	if err != nil {
+		pc, file, line, ok := runtime.Caller(0)
+		if !ok {
+			return wrap(err, "[unknown pos]")
+		}
+		return wrap(err, "[0x%X %s:%d]", pc, file, line)
+	}
+	return nil
+}
+
+func wrap(err error, format string, a ...interface{}) error {
+	if err != nil {
+		return fmt.Errorf("%s: %v", fmt.Sprintf(format, a...), err)
+	}
+	return nil
 }
