@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"log"
 
 	"github.com/shermp/go-fbink-v2/gofbink"
 )
@@ -110,7 +109,7 @@ func (kup *kuUserPrint) setOffsets(vw, vh int) {
 }
 
 func createMessageBox(w, h int) *image.RGBA {
-	log.Printf("MBox Width: %d   MBox Height: %d\n", w, h)
+	//log.Printf("MBox Width: %d   MBox Height: %d\n", w, h)
 	mb := image.NewRGBA(image.Rect(0, 0, int(w), int(h)))
 	bgColor := color.RGBA{255, 255, 255, 255}
 	for y := 0; y < h; y++ {
@@ -144,7 +143,7 @@ func (kup *kuUserPrint) kuPrintSection(orient *orientation, section mboxSection,
 		orient.otCfg.SizePt = 11
 		str = kup.footStr
 	}
-	log.Printf("Top Margin: %d, Bottom Margin: %d\n", orient.otCfg.Margins.Top, orient.otCfg.Margins.Bottom)
+	//log.Printf("Top Margin: %d, Bottom Margin: %d\n", orient.otCfg.Margins.Top, orient.otCfg.Margins.Bottom)
 	kup.fbCfg.Valign = gofbink.Center
 	_, err = kup.fbink.PrintOT(str, &orient.otCfg, kup.fbCfg)
 	return err
