@@ -194,7 +194,7 @@ mount_fs() {
 
     # If we got this far, we are ready to mount
     sleep 1
-    msg="$(mount -o rw,noatime,nodiratime,shortname=mixed,utf8 -t vfat "$BLK_DEV" "$MNT_NEW" 2>&1)"
+    msg="$(mount -o noatime,nodiratime,shortname=mixed,utf8 -t vfat "$BLK_DEV" "$MNT_NEW" 2>&1)"
     ret=$?
     if [ ${ret} -ne 0 ]; then
         logmsg "D" "Failed to mount ${BLK_DEV}! (${ret}: ${msg})"
