@@ -389,7 +389,7 @@ func (ku *KoboUncaged) readMDfile() error {
 		AND (IsDownloaded='true' OR IsDownloaded=1)
 		AND ___FileSize>0
 		AND Accessibility=-1
-		AND ContentID LIKE 'file://%s%%';`, ku.contentIDprefix)
+		AND ContentID LIKE '%s%%';`, ku.contentIDprefix)
 
 	bkRows, err := ku.nickelDB.Query(query)
 	if err != nil {
