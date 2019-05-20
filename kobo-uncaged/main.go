@@ -236,7 +236,7 @@ func (ku *KoboUncaged) updateIfExists(cID string, len int) error {
 			AND ContentType = 6`
 		err := ku.nickelDB.QueryRow(testQuery, cID).Scan(&currSize)
 		if err != nil {
-			return err
+			return wrapPos(wrap(err, "could not find nickel content to update"))
 		}
 		if currSize != len {
 			updateQuery := `
@@ -246,7 +246,7 @@ func (ku *KoboUncaged) updateIfExists(cID string, len int) error {
 				AND ContentType = 6`
 			_, err = ku.nickelDB.Exec(updateQuery, len, cID)
 			if err != nil {
-				return err
+				return wrapPos(wrap(err, "could not update nickel content"))
 			}
 			log.Println("Updated existing book file length")
 		}
@@ -393,13 +393,13 @@ func (ku *KoboUncaged) readMDfile() error {
 
 	bkRows, err := ku.nickelDB.Query(query)
 	if err != nil {
-		return err
+		return wrapPos(wrap(err, "could not select content like '%s%%'", ku.contentIDprefix))
 	}
 	defer bkRows.Close()
 	for bkRows.Next() {
 		err = bkRows.Scan(&dbCID, &dbTitle, &dbAttr, &dbDesc, &dbPublisher, &dbSeries, &dbbSeriesNum, &dbContentType, &dbMimeType)
 		if err != nil {
-			return err
+			return wrapPos(wrap(err, "could not select content like '%s%%'", ku.contentIDprefix))
 		}
 		if _, exists := tmpMap[dbCID]; !exists {
 			log.Printf("Book not in cache: %s\n", dbCID)
@@ -441,7 +441,7 @@ func (ku *KoboUncaged) readMDfile() error {
 	}
 	err = bkRows.Err()
 	if err != nil {
-		return err
+		return wrapPos(wrap(err, "could not select content like '%s%%'", ku.contentIDprefix))
 	}
 	// Hopefully, our metadata is now up to date. Update the cache on disk
 	err = ku.writeMDfile()
@@ -591,7 +591,7 @@ func (ku *KoboUncaged) updateNickelDB() error {
 		}
 		_, err = stmt.Exec(desc, series, seriesNum, seriesNumFloat, cid)
 		if err != nil {
-			log.Print(err)
+			log.Print(wrapPos(wrap(err, "could exec nickel db update with %#v", []interface{}{desc, series, seriesNum, seriesNumFloat, cid})))
 		}
 	}
 	return nil
