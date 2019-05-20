@@ -56,7 +56,7 @@ It is highly recommended to build Kobo-UNCaGED on a Linux based system. It will 
 
 Kobo-UNCaGED requires the following prerequisites to build correctly:
 
-* [Go](https://golang.org/doc/install) (Minimum version unknown, but 1.11+ should be safe to use)
+* [Go](https://golang.org/doc/install) Go 1.10+ should work. If using modules, Go 1.11.4+ should work, although 1.12+ is highly recommended. Go versions of Go 1.11.x below 1.11.4 will have issues, especially when using modules.
 * [ARM Cross Compiler](https://github.com/koreader/koxtoolchain) is required, as some of the libraries required use CGO. We will also be compiling FBink. The linked toolchain by the KOReader developers is recommended. Note that this toolchain takes a LONG time to setup (40-50 minutes on my VM)
 * Standard tools such as git, tar, zip, wget, make
 * The shell/environment variable `CROSS_TC` is set to the name of your cross compiler eg: `arm-kobo-linux-gnueabihf`, and that `${CROSS_TC}-gcc` etc are in your PATH.
