@@ -1,5 +1,9 @@
 #!/bin/sh
 
+# A few constants for stuff that should pretty much be set in stone
+ONBOARD_BLOCKDEV="/dev/mmcblk0p3"
+SDCARD_BLOCKDEV="/dev/mmcblk1p1"
+
 # Logging facilities
 logmsg() {
     # Set terminal color escape sequences
@@ -172,7 +176,7 @@ disable_wifi() {
     fi
 }
 
-# Call example: mount_fs "/dev/mmcblk0p3" "/mnt/newonboard"
+# Call example: mount_fs "$ONBOARD_BLOCKDEV" "/mnt/newonboard"
 mount_fs() {
     # Set variables
     BLK_DEV="$1"
@@ -225,11 +229,11 @@ unmount_fs() {
 # MNT_SD_NEW exists before attempting to use the SD card
 mount_sd() {
     # Check if SD card is present
-    if [ ! -b "/dev/mmcblk1p1" ]; then
+    if [ ! -b "$SDCARD_BLOCKDEV" ]; then
         ret=0
     else
         MNT_SD_NEW="/mnt/newsd"
-        mount_fs "/dev/mmcblk1p1" "$MNT_SD_NEW"
+        mount_fs "$SDCARD_BLOCKDEV" "$MNT_SD_NEW"
         ret=$?
         if [ ${ret} -ne 0 ]; then
             unset MNT_SD_NEW
@@ -240,7 +244,7 @@ mount_sd() {
 
 mount_onboard() {
     MNT_ONBOARD_NEW="/mnt/newonboard"
-    mount_fs "/dev/mmcblk0p3" "$MNT_ONBOARD_NEW"
+    mount_fs "$ONBOARD_BLOCKDEV" "$MNT_ONBOARD_NEW"
     ret=$?
     if [ ${ret} -ne 0 ]; then
         unset MNT_ONBOARD_NEW
@@ -249,7 +253,7 @@ mount_onboard() {
 }
 
 unmount_sd() {
-    if [ ! -b "/dev/mmcblk1p1" ]; then
+    if [ ! -b "$SDCARD_BLOCKDEV" ]; then
         ret=0
     elif [ -z "$MNT_SD_NEW" ]; then
         ret=254
