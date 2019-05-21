@@ -737,8 +737,6 @@ func (ku *KoboUncaged) SaveBook(md map[string]interface{}, len int, lastBook boo
 	if err != nil {
 		return nil, "", err
 	}
-
-	ku.metadataMap[cID] = koboMD
 	ku.updatedMetadata = append(ku.updatedMetadata, cID)
 	// Note, the JSON format for covers should be in the form 'thumbnail: [w, h, "base64string"]'
 	if kt := koboMD.Thumbnail; kt != nil {
@@ -749,6 +747,7 @@ func (ku *KoboUncaged) SaveBook(md map[string]interface{}, len int, lastBook boo
 	if err != nil {
 		log.Print(err)
 	}
+	ku.metadataMap[cID] = koboMD
 	if lastBook {
 		ku.writeMDfile()
 		ku.writeUpdateMDfile()
