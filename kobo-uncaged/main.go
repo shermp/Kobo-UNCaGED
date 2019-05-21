@@ -569,8 +569,8 @@ func (ku *KoboUncaged) GetClientOptions() uc.ClientOptions {
 	opts.SupportedExt = append(opts.SupportedExt, ext...)
 	opts.DeviceName = "Kobo"
 	opts.DeviceModel = ku.device.Model()
-	lf := libFull.Size(ku.device)
-	opts.CoverDims.Width, opts.CoverDims.Height = lf.X, lf.Y
+	fc := fullCover.Size(ku.device)
+	opts.CoverDims.Width, opts.CoverDims.Height = fc.X, fc.Y
 	return opts
 }
 
