@@ -179,6 +179,11 @@ func (d koboDevice) FullCover() image.Point {
 	case gloHD, claraHD: // alyssum, nova
 		return image.Pt(1072, 1448)
 	case auraHD, auraH2O, auraH2Oed2r1, auraH2Oed2r2: // dragon
+		if d == auraH2O {
+			// Nickel's behaviour is incorrect as of 4.14.12777.
+			// See https://github.com/shermp/Kobo-UNCaGED/pull/17#pullrequestreview-240281740
+			return image.Pt(1080, 1429)
+		}
 		return image.Pt(1080, 1440)
 	case glo, auraEd2r1, auraEd2r2: // kraken, star
 		return image.Pt(758, 1024)
