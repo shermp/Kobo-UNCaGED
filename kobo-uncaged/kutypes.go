@@ -194,5 +194,5 @@ func (k koboCover) Size(d koboDevice) image.Point {
 // RelPath gets the path to the cover file relative to the images dir.
 func (k koboCover) RelPath(imageID string) string {
 	dir1, dir2, basename := hashedImageParts(imageID)
-	return filepath.Join(dir1, dir2, fmt.Sprintf("%s - %s.jpg", basename, k.String()))
+	return filepath.Join(dir1, dir2, fmt.Sprintf("%s - %s.parsed", basename, k.String()))
 }
