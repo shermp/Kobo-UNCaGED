@@ -363,7 +363,8 @@ func (ku *KoboUncaged) readMDfile() error {
 	// make a temporary map for easy searching later
 	tmpMap := make(map[string]int, len(koboMD))
 	for n, md := range koboMD {
-		contentID := lpathToContentID(md.Lpath, string(ku.contentIDprefix))
+		newLpath := lpathKepubConvert(md.Lpath)
+		contentID := lpathToContentID(newLpath, string(ku.contentIDprefix))
 		tmpMap[contentID] = n
 	}
 	log.Println(body, "Gathering metadata")
@@ -719,6 +720,7 @@ func (ku *KoboUncaged) SaveBook(md map[string]interface{}, len int, lastBook boo
 	// The calibre wireless driver does not sanitize the filepath for us. We sanitize it here,
 	// and if lpath changes, inform Calibre of the new lpath.
 	newLpath = ku.invalidCharsRegex.ReplaceAllString(koboMD.Lpath, "_")
+	newLpath = lpathKepubConvert(newLpath)
 	if newLpath != koboMD.Lpath {
 		koboMD.Lpath = newLpath
 	} else {
