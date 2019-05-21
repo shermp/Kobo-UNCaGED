@@ -167,3 +167,26 @@ func (d koboDevice) CoverSize() (fullCover, libFull, libGrid image.Point) {
 	}
 	return fc, lf, lg
 }
+
+// FullCover gets the appropriate cover dimensions for the device. These values
+// come from Image::sizeForType in the Kobo firmware.
+// See https://github.com/shermp/Kobo-UNCaGED/issues/16#issuecomment-494229994
+// for more details.
+func (d koboDevice) FullCover() image.Point {
+	switch d {
+	case auraOne, auraOneLE: // daylight
+		return image.Pt(1404, 1872)
+	case gloHD, claraHD: // alyssum, nova
+		return image.Pt(1072, 1448)
+	case auraHD, auraH2O, auraH2Oed2r1, auraH2Oed2r2: // dragon
+		return image.Pt(1080, 1440)
+	case glo, auraEd2r1, auraEd2r2: // kraken, star
+		return image.Pt(758, 1024)
+	case aura: // phoenix
+		return image.Pt(758, 1014)
+	case forma, forma32gb: // frost
+		return image.Pt(1440, 1920)
+	default: // KoboWifi, KoboTouch, trilogy, KoboTouch2
+		return image.Pt(600, 800)
+	}
+}
