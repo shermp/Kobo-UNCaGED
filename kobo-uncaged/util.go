@@ -18,10 +18,6 @@ func contentIDtoBkPath(rootDir, cid, cidPrefix string) string {
 	return filepath.Join(rootDir, strings.TrimPrefix(cid, cidPrefix))
 }
 
-func contentIDisBkDir(cid, cidPrefix string) bool {
-	return strings.HasPrefix(cid, cidPrefix)
-}
-
 func lpathIsKepub(lpath string) bool {
 	return strings.HasSuffix(lpath, ".kepub")
 }
