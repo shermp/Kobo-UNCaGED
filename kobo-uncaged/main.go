@@ -491,33 +491,30 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64
 	if ku.useSDCard {
 		imgDir = "koboExtStorage/images-cache"
 	}
-	if err := os.MkdirAll(imgDir, 0755); err != nil {
-		log.Println(err)
-		return
-	}
 
 	imgID := imgIDFromContentID(contentID)
 
-	// N3_LIBRARY_FULL
-	lfsz := resizeKeepAspectRatioByExpanding(sz, libFull.Size(ku.device))
-	lfimg := imaging.Resize(img, lfsz.X, lfsz.Y, imaging.Linear)
-	lf, err := os.OpenFile(filepath.Join(imgDir, libFull.RelPath(imgID)), os.O_WRONLY|os.O_CREATE, 0644)
-	if err == nil {
-		defer lf.Close()
-		imaging.Encode(lf, lfimg, imaging.JPEG)
-	} else {
-		log.Println(err)
-	}
+	for _, cover := range []koboCover{libFull, libGrid} {
+		nsz := resizeKeepAspectRatioByExpanding(sz, cover.Size(ku.device))
+		nimg := imaging.Resize(img, nsz.X, nsz.Y, imaging.Linear)
+		nfn := filepath.Join(imgDir, cover.RelPath(imgID))
 
-	// N3_GRID
-	lgsz := resizeKeepAspectRatioByExpanding(sz, libGrid.Size(ku.device))
-	lgimg := imaging.Resize(img, lgsz.X, lgsz.Y, imaging.Linear)
-	lg, err := os.OpenFile(filepath.Join(imgDir, libGrid.RelPath(imgID)), os.O_WRONLY|os.O_CREATE, 0644)
-	if err == nil {
-		defer lg.Close()
-		imaging.Encode(lg, lgimg, imaging.JPEG)
-	} else {
-		log.Println(err)
+		if err := os.MkdirAll(filepath.Dir(nfn), 0755); err != nil {
+			log.Println(err)
+			continue
+		}
+
+		lf, err := os.OpenFile(nfn, os.O_WRONLY|os.O_CREATE, 0644)
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
+		if err := imaging.Encode(lf, nimg, imaging.JPEG); err != nil {
+			log.Println(err)
+			lf.Close()
+		}
+		lf.Close()
 	}
 }
 
