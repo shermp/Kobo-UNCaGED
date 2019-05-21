@@ -363,7 +363,7 @@ func (ku *KoboUncaged) readMDfile() error {
 	// make a temporary map for easy searching later
 	tmpMap := make(map[string]int, len(koboMD))
 	for n, md := range koboMD {
-		contentID := lpathToContentID(md.Lpath, string(ku.contentIDprefix))
+		contentID := lpathToContentID(lpathKepubConvert(md.Lpath), string(ku.contentIDprefix))
 		tmpMap[contentID] = n
 	}
 	log.Println(body, "Gathering metadata")
@@ -719,6 +719,9 @@ func (ku *KoboUncaged) SaveBook(md map[string]interface{}, len int, lastBook boo
 	// The calibre wireless driver does not sanitize the filepath for us. We sanitize it here,
 	// and if lpath changes, inform Calibre of the new lpath.
 	newLpath = ku.invalidCharsRegex.ReplaceAllString(koboMD.Lpath, "_")
+	// Also, for kepub files, Calibre defaults to using "book/path.kepub"
+	// but we require "book/path.kepub.epub". We change that here if needed.
+	newLpath = lpathKepubConvert(newLpath)
 	if newLpath != koboMD.Lpath {
 		koboMD.Lpath = newLpath
 	} else {
@@ -735,8 +738,6 @@ func (ku *KoboUncaged) SaveBook(md map[string]interface{}, len int, lastBook boo
 	if err != nil {
 		return nil, "", err
 	}
-
-	ku.metadataMap[cID] = koboMD
 	ku.updatedMetadata = append(ku.updatedMetadata, cID)
 	// Note, the JSON format for covers should be in the form 'thumbnail: [w, h, "base64string"]'
 	if kt := koboMD.Thumbnail; kt != nil {
@@ -747,6 +748,7 @@ func (ku *KoboUncaged) SaveBook(md map[string]interface{}, len int, lastBook boo
 	if err != nil {
 		log.Print(err)
 	}
+	ku.metadataMap[cID] = koboMD
 	if lastBook {
 		ku.writeMDfile()
 		ku.writeUpdateMDfile()

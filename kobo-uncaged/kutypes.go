@@ -95,7 +95,8 @@ const (
 	auraEd2r1    koboDevice = "00000000-0000-0000-0000-000000000375"
 	auraEd2r2    koboDevice = "00000000-0000-0000-0000-000000000379"
 	claraHD      koboDevice = "00000000-0000-0000-0000-000000000376"
-	forma        koboDevice = "00000000-0000-0000-0000-000000000380"
+	forma        koboDevice = "00000000-0000-0000-0000-000000000377"
+	forma32gb    koboDevice = "00000000-0000-0000-0000-000000000380"
 )
 
 // Model returns the model name for the device.
@@ -123,7 +124,7 @@ func (d koboDevice) Model() string {
 		return "Aura One"
 	case claraHD:
 		return "Clara HD"
-	case forma:
+	case forma, forma32gb:
 		return "Forma"
 	default:
 		return "Unknown Kobo"
@@ -143,18 +144,22 @@ func (d koboDevice) CoverSize() (fullCover, libFull, libGrid image.Point) {
 		fc = image.Pt(1072, 1448)
 		lf = image.Pt(355, 479)
 		lg = image.Pt(149, 201)
-	case auraHD, auraH2O, auraH2Oed2r1, auraH2Oed2r2:
+	case auraHD, auraH2Oed2r1, auraH2Oed2r2:
 		fc = image.Pt(1080, 1440)
 		lf = image.Pt(355, 471)
+		lg = image.Pt(149, 198)
+	case auraH2O:
+		fc = image.Pt(1080, 1429)
+		lf = image.Pt(355, 473)
 		lg = image.Pt(149, 198)
 	case auraOne, auraOneLE:
 		fc = image.Pt(1404, 1872)
 		lf = image.Pt(355, 473)
 		lg = image.Pt(149, 198)
-	case forma:
+	case forma, forma32gb:
 		fc = image.Pt(1440, 1920)
-		lf = image.Pt(355, 473)
-		lg = image.Pt(149, 198)
+		lf = image.Pt(398, 530)
+		lg = image.Pt(167, 223)
 	default:
 		fc = image.Pt(600, 800)
 		lf = image.Pt(355, 473)
