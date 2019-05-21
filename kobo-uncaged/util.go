@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"image"
 	"os"
 	"path/filepath"
@@ -99,5 +100,5 @@ func hashedImageParts(imageID string) (dir1, dir2, basename string) {
 		h ^= (h & 0xf0000000) >> 23
 		h &= 0x0fffffff
 	}
-	return dir1, dir2, imageID
+	return fmt.Sprintf("%d", h&(0xff*1)), fmt.Sprintf("%d", (h&(0xff00*1))>>8), imageID
 }
