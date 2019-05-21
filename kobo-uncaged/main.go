@@ -506,7 +506,7 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64
 	imgDir := path.Join(ku.bkRootDir, ku.genImageDirPath(imgID))
 	_, libFullSize, libGridSize := ku.device.CoverSize()
 
-	if err := os.MkdirAll(imgDir, 0744); err != nil {
+	if err := os.MkdirAll(imgDir, 0755); err != nil {
 		log.Println(err)
 		return
 	}
