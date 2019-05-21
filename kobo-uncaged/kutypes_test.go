@@ -6,6 +6,24 @@ import (
 	"testing"
 )
 
+func TestKoboCoverString(t *testing.T) {
+	for _, cover := range []koboCover{fullCover, libFull, libGrid} {
+		if cover.String() == "" {
+			t.Errorf("expected non-empty string for %#v", cover)
+		}
+		// it will also fail if it panics due to an unknown cover.
+	}
+}
+
+func TestKoboCoverSize(t *testing.T) {
+	for _, cover := range []koboCover{fullCover, libFull, libGrid} {
+		if sz := cover.Size(touchAB); sz.X == 0 || sz.Y == 0 {
+			t.Errorf("expected non-zero size for %#v, got %s", cover, sz)
+		}
+		// it will also fail if it panics due to an unknown cover.
+	}
+}
+
 func TestKoboCoverRelPath(t *testing.T) {
 	for _, tc := range []struct {
 		cover    koboCover
