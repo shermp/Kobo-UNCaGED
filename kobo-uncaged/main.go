@@ -18,7 +18,6 @@
 package main
 
 import (
-	"bytes"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -31,7 +30,6 @@ import (
 	"log"
 	"log/syslog"
 	"os"
-	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -194,27 +192,6 @@ func New(dbRootDir, sdRootDir string, updatingMD bool) (*KoboUncaged, error) {
 		return nil, err
 	}
 	return ku, nil
-}
-
-// genImagePath generates the directory structure used by
-// kobo to store the cover image files.
-// It has been ported from the implementation in the KoboTouch
-// driver in Calibre
-func (ku *KoboUncaged) genImageDirPath(imageID string) string {
-	imgID := []byte(imageID)
-	h := uint32(0x00000000)
-	for _, x := range imgID {
-		h = (h << 4) + uint32(x)
-		h ^= (h & 0xf0000000) >> 23
-		h &= 0x0fffffff
-	}
-	dir1 := h & (0xff * 1)
-	dir2 := (h & (0xff00 * 1)) >> 8
-	pathPrefix := ".kobo-images"
-	if ku.useSDCard {
-		pathPrefix = "koboExtStorage/images-cache"
-	}
-	return fmt.Sprintf("%s/%d/%d", pathPrefix, dir1, dir2)
 }
 
 func (ku *KoboUncaged) openNickelDB() error {
@@ -502,58 +479,43 @@ func (ku *KoboUncaged) saveDeviceInfo() error {
 
 func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64 string) {
 	defer ku.wg.Done()
-	imgID := imgIDFromContentID(contentID)
-	imgDir := path.Join(ku.bkRootDir, ku.genImageDirPath(imgID))
-	_, libFullSize, libGridSize := ku.device.CoverSize()
 
+	img, err := imaging.Decode(base64.NewDecoder(base64.StdEncoding, strings.NewReader(imgB64)))
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	sz := img.Bounds().Size()
+
+	imgDir := ".kobo-images"
+	if ku.useSDCard {
+		imgDir = "koboExtStorage/images-cache"
+	}
 	if err := os.MkdirAll(imgDir, 0755); err != nil {
 		log.Println(err)
 		return
 	}
 
-	imgBin, err := base64.StdEncoding.DecodeString(imgB64)
-	if err != nil {
-		return
-	}
+	imgID := imgIDFromContentID(contentID)
 
-	// Now we do our resizing
-	origCover, err := imaging.Decode(bytes.NewReader(imgBin))
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	var libFW, libFH, gridFW, gridFH int
-	if (float64(size.X) / float64(size.Y)) < 1.0 {
-		libFH, gridFH = libFullSize.Y, libGridSize.Y
-	} else {
-		libFW, gridFW = libFullSize.X, libGridSize.X
-	}
-
-	// No need to perform any image processing for the library thumb if it meets all our requirements
-	// Note, we asked Calibre to give us a thumbnail with a given height...
-	if size.X <= libFullSize.X {
-		err = ioutil.WriteFile(path.Join(imgDir, imgID+string(libFull)), imgBin, 0644)
-		if err != nil {
-			log.Println(err)
-		}
-	} else {
-		libImg := imaging.Resize(origCover, libFW, libFH, imaging.Linear)
-		lc, err := os.OpenFile(path.Join(imgDir, imgID+string(libFull)), os.O_WRONLY|os.O_CREATE, 0644)
-		if err == nil {
-			defer lc.Close()
-			imaging.Encode(lc, libImg, imaging.JPEG)
-		} else {
-			log.Println(err)
-		}
-	}
-
-	// And finally, the "library grid" image
-	gridImg := imaging.Resize(origCover, gridFW, gridFH, imaging.Linear)
-	gc, err := os.OpenFile(path.Join(imgDir, imgID+string(libGrid)), os.O_WRONLY|os.O_CREATE, 0644)
+	// N3_LIBRARY_FULL
+	lfsz := resizeKeepAspectRatioByExpanding(sz, libFull.Size(ku.device))
+	lfimg := imaging.Resize(img, lfsz.X, lfsz.Y, imaging.Linear)
+	lf, err := os.OpenFile(filepath.Join(imgDir, libFull.RelPath(imgID)), os.O_WRONLY|os.O_CREATE, 0644)
 	if err == nil {
-		defer gc.Close()
-		imaging.Encode(gc, gridImg, imaging.JPEG)
+		defer lf.Close()
+		imaging.Encode(lf, lfimg, imaging.JPEG)
+	} else {
+		log.Println(err)
+	}
+
+	// N3_GRID
+	lgsz := resizeKeepAspectRatioByExpanding(sz, libGrid.Size(ku.device))
+	lgimg := imaging.Resize(img, lgsz.X, lgsz.Y, imaging.Linear)
+	lg, err := os.OpenFile(filepath.Join(imgDir, libGrid.RelPath(imgID)), os.O_WRONLY|os.O_CREATE, 0644)
+	if err == nil {
+		defer lg.Close()
+		imaging.Encode(lg, lgimg, imaging.JPEG)
 	} else {
 		log.Println(err)
 	}
@@ -610,7 +572,7 @@ func (ku *KoboUncaged) GetClientOptions() uc.ClientOptions {
 	opts.SupportedExt = append(opts.SupportedExt, ext...)
 	opts.DeviceName = "Kobo"
 	opts.DeviceModel = ku.device.Model()
-	_, lf, _ := ku.device.CoverSize()
+	lf := libFull.Size(ku.device)
 	opts.CoverDims.Width, opts.CoverDims.Height = lf.X, lf.Y
 	return opts
 }

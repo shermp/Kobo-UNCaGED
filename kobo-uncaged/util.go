@@ -87,3 +87,17 @@ func resizeKeepAspectRatioByExpanding(sz image.Point, bounds image.Point) image.
 	}
 	return image.Pt(bounds.X, bounds.Y*sz.Y/sz.X)
 }
+
+// hashedImageParts returns the parts needed for constructing the path to the
+// cached image. The result can be applied like:
+// .kobo-images/{dir1}/{dir2}/{basename} - N3_SOMETHING.jpg
+func hashedImageParts(imageID string) (dir1, dir2, basename string) {
+	imgID := []byte(imageID)
+	h := uint32(0x00000000)
+	for _, x := range imgID {
+		h = (h << 4) + uint32(x)
+		h ^= (h & 0xf0000000) >> 23
+		h &= 0x0fffffff
+	}
+	return dir1, dir2, imageID
+}
