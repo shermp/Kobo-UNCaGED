@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"image"
 	"os"
 	"path/filepath"
 	"strings"
@@ -73,4 +74,16 @@ func readJSON(fn string, out interface{}) (emptyOrNotExist bool, err error) {
 	}
 
 	return false, json.NewDecoder(f).Decode(out)
+}
+
+// resizeKeepAspectRatioByExpanding resizes a sz to fill bounds while keeping
+// the aspect ratio. It is based on Qt::KeepAspectRatioByExpanding.
+func resizeKeepAspectRatioByExpanding(sz image.Point, bounds image.Point) image.Point {
+	if sz.X == 0 || sz.Y == 0 {
+		return sz
+	}
+	if rw := bounds.Y * sz.X / sz.Y; rw >= bounds.X {
+		return image.Pt(rw, bounds.Y)
+	}
+	return image.Pt(bounds.X, bounds.Y*sz.Y/sz.X)
 }
