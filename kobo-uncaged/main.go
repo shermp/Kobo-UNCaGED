@@ -505,7 +505,7 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64
 		if !sz.Eq(nsz) {
 			nimg = imaging.Resize(nimg, nsz.X, nsz.Y, imaging.Linear)
 		} else {
-			log.Printf(" -- Skipped resize: already correct size")
+			log.Println(" -- Skipped resize: already correct size")
 		}
 
 		if err := os.MkdirAll(filepath.Dir(nfn), 0755); err != nil {
