@@ -25,6 +25,8 @@ func TestResizeKeepAspectRatioByExpanding(t *testing.T) {
 		{image.Pt(4, 2), image.Pt(6, 6), image.Pt(12, 6)},
 		{image.Pt(9, 6), image.Pt(3, 2), image.Pt(3, 2)},
 		{image.Pt(12, 6), image.Pt(4, 2), image.Pt(4, 2)},
+		// fractional stuff
+		{image.Pt(1391, 2200), image.Pt(355, 530), image.Pt(355, 561)},
 	} {
 		if rz := resizeKeepAspectRatio(tc.sz, tc.bounds, true); !rz.Eq(tc.res) {
 			t.Errorf("resize %s to %s: expected %s, got %s", tc.sz, tc.bounds, tc.res, rz)
