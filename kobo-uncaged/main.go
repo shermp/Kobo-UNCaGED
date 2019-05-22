@@ -491,6 +491,7 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64
 	if ku.useSDCard {
 		imgDir = "koboExtStorage/images-cache"
 	}
+	imgDir = filepath.Join(ku.bkRootDir, imgDir)
 
 	imgID := imgIDFromContentID(contentID)
 
