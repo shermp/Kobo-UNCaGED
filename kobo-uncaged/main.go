@@ -500,6 +500,8 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64
 		nimg := imaging.Resize(img, nsz.X, nsz.Y, imaging.Linear)
 		nfn := filepath.Join(imgDir, cover.RelPath(imgID))
 
+		log.Printf("Resized %s cover to %s (target %s) for %s\n", sz, nsz, cover.Size(ku.device), cover)
+
 		if err := os.MkdirAll(filepath.Dir(nfn), 0755); err != nil {
 			log.Println(err)
 			continue
