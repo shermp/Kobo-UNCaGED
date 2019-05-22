@@ -178,6 +178,19 @@ func (k koboCover) String() string {
 	}
 }
 
+// Resize returnes the dimensions to resize sz to for the cover type.
+func (k koboCover) Resize(d koboDevice, sz image.Point) image.Point {
+	switch k {
+	case fullCover:
+		return resizeKeepAspectRatio(sz, k.Size(d), false)
+	case libFull, libGrid:
+		return resizeKeepAspectRatio(sz, k.Size(d), true)
+	default:
+		panic("unknown cover type")
+	}
+}
+
+// Size gets the target image size for the cover type.
 func (k koboCover) Size(d koboDevice) image.Point {
 	switch k {
 	case fullCover:

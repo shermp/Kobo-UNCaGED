@@ -70,16 +70,27 @@ func readJSON(fn string, out interface{}) (emptyOrNotExist bool, err error) {
 	return false, json.NewDecoder(f).Decode(out)
 }
 
-// resizeKeepAspectRatioByExpanding resizes a sz to fill bounds while keeping
-// the aspect ratio. It is based on Qt::KeepAspectRatioByExpanding.
-func resizeKeepAspectRatioByExpanding(sz image.Point, bounds image.Point) image.Point {
+// resizeKeepAspectRatio resizes a sz to fill bounds while keeping the aspect
+// ratio. It is based on the code for QSize::scaled with the modes
+// Qt::KeepAspectRatio and Qt::KeepAspectRatioByExpanding.
+func resizeKeepAspectRatio(sz image.Point, bounds image.Point, expand bool) image.Point {
 	if sz.X == 0 || sz.Y == 0 {
 		return sz
 	}
-	if rw := bounds.Y * sz.X / sz.Y; rw >= bounds.X {
+
+	var useHeight bool
+	rw := bounds.Y * sz.X / sz.Y
+
+	if !expand {
+		useHeight = rw <= bounds.X
+	} else {
+		useHeight = rw >= bounds.X
+	}
+
+	if useHeight {
 		return image.Pt(rw, bounds.Y)
 	}
-	return image.Pt(bounds.X, bounds.Y*sz.Y/sz.X)
+	return image.Pt(bounds.X, bounds.X*sz.Y/sz.X)
 }
 
 // hashedImageParts returns the parts needed for constructing the path to the

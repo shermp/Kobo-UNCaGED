@@ -496,7 +496,7 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64
 	imgID := imgIDFromContentID(contentID)
 
 	for _, cover := range []koboCover{fullCover, libFull, libGrid} {
-		nsz := resizeKeepAspectRatioByExpanding(sz, cover.Size(ku.device))
+		nsz := cover.Resize(ku.device, sz)
 		nimg := imaging.Resize(img, nsz.X, nsz.Y, imaging.Linear)
 		nfn := filepath.Join(imgDir, cover.RelPath(imgID))
 
