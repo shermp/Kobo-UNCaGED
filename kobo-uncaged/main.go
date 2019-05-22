@@ -497,10 +497,16 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64
 
 	for _, cover := range []koboCover{fullCover, libFull, libGrid} {
 		nsz := cover.Resize(ku.device, sz)
-		nimg := imaging.Resize(img, nsz.X, nsz.Y, imaging.Linear)
 		nfn := filepath.Join(imgDir, cover.RelPath(imgID))
 
-		log.Printf("Resized %s cover to %s (target %s) for %s\n", sz, nsz, cover.Size(ku.device), cover)
+		log.Printf("Resizing %s cover to %s (target %s) for %s\n", sz, nsz, cover.Size(ku.device), cover)
+
+		nimg := img
+		if !sz.Eq(nsz) {
+			nimg = imaging.Resize(nimg, nsz.X, nsz.Y, imaging.Linear)
+		} else {
+			log.Printf(" -- Skipped resize: already correct size")
+		}
 
 		if err := os.MkdirAll(filepath.Dir(nfn), 0755); err != nil {
 			log.Println(err)
