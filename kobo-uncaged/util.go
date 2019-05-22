@@ -79,7 +79,7 @@ func resizeKeepAspectRatio(sz image.Point, bounds image.Point, expand bool) imag
 	}
 
 	var useHeight bool
-	rw := bounds.Y * sz.X / sz.Y
+	rw := int(float64(bounds.Y) * float64(sz.X) / float64(sz.Y))
 
 	if !expand {
 		useHeight = rw <= bounds.X
@@ -90,7 +90,7 @@ func resizeKeepAspectRatio(sz image.Point, bounds image.Point, expand bool) imag
 	if useHeight {
 		return image.Pt(rw, bounds.Y)
 	}
-	return image.Pt(bounds.X, bounds.X*sz.Y/sz.X)
+	return image.Pt(bounds.X, int(float64(bounds.X)*float64(sz.Y)/float64(sz.X)))
 }
 
 // hashedImageParts returns the parts needed for constructing the path to the
