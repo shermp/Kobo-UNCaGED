@@ -862,7 +862,6 @@ func mainWithErrCode() returnCode {
 		}
 		log.Println("Starting Calibre Connection")
 		ku.kup.kuPrintln(body, "Finishing up")
-		ku.wg.Wait()
 		err = cc.Start()
 		if err != nil {
 			if err.Error() == "no password entered" {
@@ -872,6 +871,9 @@ func mainWithErrCode() returnCode {
 			log.Print(err)
 			return kuError
 		}
+		// Wait for thumbnail generation to complete
+		ku.kup.kuPrintln(body, "Waiting for thumbnail generation to complete")
+		ku.wg.Wait()
 
 		if len(ku.updatedMetadata) > 0 {
 			ku.kup.kuPrintln(body, "Kobo-UNCaGED will restart automatically to update metadata")
