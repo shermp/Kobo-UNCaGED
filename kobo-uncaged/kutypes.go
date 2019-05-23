@@ -17,11 +17,13 @@
 
 package main
 
-import "image"
+import (
+	"fmt"
+	"image"
+	"path/filepath"
+)
 
 type cidPrefix string
-type koboDevice string
-type koboCoverEnding string
 
 type mboxSection int
 type kuPrinter interface {
@@ -33,12 +35,6 @@ const (
 	header mboxSection = iota
 	body
 	footer
-)
-
-const (
-	fullCover koboCoverEnding = " - N3_FULL.parsed"
-	libFull   koboCoverEnding = " - N3_LIBRARY_FULL.parsed"
-	libGrid   koboCoverEnding = " - N3_LIBRARY_GRID.parsed"
 )
 
 // KoboMetadata contains the metadata for ebooks on kobo devices.
@@ -76,6 +72,8 @@ type KoboMetadata struct {
 	Title           string                 `json:"title" mapstructure:"title"`
 	Identifiers     map[string]string      `json:"identifiers" mapstructure:"identifiers"`
 }
+
+type koboDevice string
 
 // Kobo model ID's from https://github.com/geek1011/KoboStuff/blob/gh-pages/kobofirmware.js#L11
 const (
@@ -131,39 +129,83 @@ func (d koboDevice) Model() string {
 	}
 }
 
-// CoverSize gets the appropriate cover dimensions for the device.
-// These values come from https://github.com/kovidgoyal/calibre/blob/master/src/calibre/devices/kobo/driver.py
-func (d koboDevice) CoverSize() (fullCover, libFull, libGrid image.Point) {
-	var fc, lf, lg image.Point
+// FullCover gets the appropriate cover dimensions for the device. These values
+// come from Image::sizeForType in the Kobo firmware.
+// See https://github.com/shermp/Kobo-UNCaGED/issues/16#issuecomment-494229994
+// for more details.
+func (d koboDevice) FullCover() image.Point {
 	switch d {
-	case glo, aura, auraEd2r1, auraEd2r2:
-		fc = image.Pt(758, 1024)
-		lf = image.Pt(355, 479)
-		lg = image.Pt(149, 201)
-	case gloHD, claraHD:
-		fc = image.Pt(1072, 1448)
-		lf = image.Pt(355, 479)
-		lg = image.Pt(149, 201)
-	case auraHD, auraH2Oed2r1, auraH2Oed2r2:
-		fc = image.Pt(1080, 1440)
-		lf = image.Pt(355, 471)
-		lg = image.Pt(149, 198)
-	case auraH2O:
-		fc = image.Pt(1080, 1429)
-		lf = image.Pt(355, 473)
-		lg = image.Pt(149, 198)
-	case auraOne, auraOneLE:
-		fc = image.Pt(1404, 1872)
-		lf = image.Pt(355, 473)
-		lg = image.Pt(149, 198)
-	case forma, forma32gb:
-		fc = image.Pt(1440, 1920)
-		lf = image.Pt(398, 530)
-		lg = image.Pt(167, 223)
-	default:
-		fc = image.Pt(600, 800)
-		lf = image.Pt(355, 473)
-		lg = image.Pt(149, 198)
+	case auraOne, auraOneLE: // daylight
+		return image.Pt(1404, 1872)
+	case gloHD, claraHD: // alyssum, nova
+		return image.Pt(1072, 1448)
+	case auraHD, auraH2O, auraH2Oed2r1, auraH2Oed2r2: // dragon
+		if d == auraH2O {
+			// Nickel's behaviour is incorrect as of 4.14.12777.
+			// See https://github.com/shermp/Kobo-UNCaGED/pull/17#pullrequestreview-240281740
+			return image.Pt(1080, 1429)
+		}
+		return image.Pt(1080, 1440)
+	case glo, auraEd2r1, auraEd2r2: // kraken, star
+		return image.Pt(758, 1024)
+	case aura: // phoenix
+		return image.Pt(758, 1014)
+	case forma, forma32gb: // frost
+		return image.Pt(1440, 1920)
+	default: // KoboWifi, KoboTouch, trilogy, KoboTouch2
+		return image.Pt(600, 800)
 	}
-	return fc, lf, lg
+}
+
+type koboCover int
+
+const (
+	fullCover koboCover = iota
+	libFull
+	libGrid
+)
+
+func (k koboCover) String() string {
+	switch k {
+	case fullCover:
+		return "N3_FULL"
+	case libFull:
+		return "N3_LIBRARY_FULL"
+	case libGrid:
+		return "N3_LIBRARY_GRID"
+	default:
+		panic("unknown cover type")
+	}
+}
+
+// Resize returnes the dimensions to resize sz to for the cover type.
+func (k koboCover) Resize(d koboDevice, sz image.Point) image.Point {
+	switch k {
+	case fullCover:
+		return resizeKeepAspectRatio(sz, k.Size(d), false)
+	case libFull, libGrid:
+		return resizeKeepAspectRatio(sz, k.Size(d), true)
+	default:
+		panic("unknown cover type")
+	}
+}
+
+// Size gets the target image size for the cover type.
+func (k koboCover) Size(d koboDevice) image.Point {
+	switch k {
+	case fullCover:
+		return d.FullCover()
+	case libFull:
+		return image.Pt(355, 530)
+	case libGrid:
+		return image.Pt(149, 223)
+	default:
+		panic("unknown cover type")
+	}
+}
+
+// RelPath gets the path to the cover file relative to the images dir.
+func (k koboCover) RelPath(imageID string) string {
+	dir1, dir2, basename := hashedImageParts(imageID)
+	return filepath.Join(dir1, dir2, fmt.Sprintf("%s - %s.parsed", basename, k.String()))
 }
