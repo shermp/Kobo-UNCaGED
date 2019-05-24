@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"html"
 	"image"
+	"image/jpeg"
 	"io"
 	"io/ioutil"
 	"log"
@@ -38,7 +39,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/disintegration/imaging"
+	"github.com/bamiaux/rez"
 	"github.com/gofrs/uuid"
 	"github.com/kapmahc/epub"
 	_ "github.com/mattn/go-sqlite3"
@@ -480,7 +481,7 @@ func (ku *KoboUncaged) saveDeviceInfo() error {
 func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64 string) {
 	defer ku.wg.Done()
 
-	img, err := imaging.Decode(base64.NewDecoder(base64.StdEncoding, strings.NewReader(imgB64)))
+	img, _, err := image.Decode(base64.NewDecoder(base64.StdEncoding, strings.NewReader(imgB64)))
 	if err != nil {
 		log.Println(err)
 		return
@@ -492,8 +493,8 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64
 		imgDir = "koboExtStorage/images-cache"
 	}
 	imgDir = filepath.Join(ku.bkRootDir, imgDir)
-
 	imgID := imgIDFromContentID(contentID)
+	jpegOpts := jpeg.Options{Quality: 90}
 
 	for _, cover := range []koboCover{fullCover, libFull, libGrid} {
 		nsz := cover.Resize(ku.device, sz)
@@ -501,10 +502,12 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64
 
 		log.Printf("Resizing %s cover to %s (target %s) for %s\n", sz, nsz, cover.Size(ku.device), cover)
 
-		nimg := img
+		var nimg image.Image
 		if !sz.Eq(nsz) {
-			nimg = imaging.Resize(nimg, nsz.X, nsz.Y, imaging.Linear)
+			nimg = image.NewYCbCr(image.Rect(0, 0, nsz.X, nsz.Y), img.(*image.YCbCr).SubsampleRatio)
+			rez.Convert(nimg, img, rez.NewBicubicFilter())
 		} else {
+			nimg = img
 			log.Println(" -- Skipped resize: already correct size")
 		}
 
@@ -519,7 +522,7 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64
 			continue
 		}
 
-		if err := imaging.Encode(lf, nimg, imaging.JPEG); err != nil {
+		if err := jpeg.Encode(lf, nimg, &jpegOpts); err != nil {
 			log.Println(err)
 			lf.Close()
 		}
