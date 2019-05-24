@@ -510,6 +510,10 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64
 			nimg = img
 			log.Println(" -- Skipped resize: already correct size")
 		}
+		// Optimization. No need to resize libGrid from the full cover size...
+		if cover == libFull {
+			img = nimg
+		}
 
 		if err := os.MkdirAll(filepath.Dir(nfn), 0755); err != nil {
 			log.Println(err)
