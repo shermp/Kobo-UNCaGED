@@ -21,6 +21,9 @@ import (
 	"fmt"
 	"image"
 	"path/filepath"
+	"strings"
+
+	"github.com/bamiaux/rez"
 )
 
 type cidPrefix string
@@ -208,4 +211,60 @@ func (k koboCover) Size(d koboDevice) image.Point {
 func (k koboCover) RelPath(imageID string) string {
 	dir1, dir2, basename := hashedImageParts(imageID)
 	return filepath.Join(dir1, dir2, fmt.Sprintf("%s - %s.parsed", basename, k.String()))
+}
+
+type thumbnailOption struct {
+	GenerateLevel   string
+	ResizeAlgorithm string
+	JpegQuality     int
+	rezFilter       rez.Filter
+}
+
+const (
+	generateAll     string = "all"
+	generatePartial string = "partial"
+	generateNone    string = "none"
+)
+
+const (
+	//resizeNN  string = "nearest"
+	resizeBL  string = "bilinear"
+	resizeBC  string = "bicubic"
+	resizeLC2 string = "lanczos2"
+	resizeLC3 string = "lanczos3"
+)
+
+func (to *thumbnailOption) validate() {
+	switch strings.ToLower(to.GenerateLevel) {
+	case generateAll, generatePartial, generateNone:
+		to.GenerateLevel = strings.ToLower(to.GenerateLevel)
+	default:
+		to.GenerateLevel = generateAll
+	}
+
+	switch strings.ToLower(to.ResizeAlgorithm) {
+	case resizeBL, resizeBC, resizeLC2, resizeLC3:
+		to.ResizeAlgorithm = strings.ToLower(to.ResizeAlgorithm)
+	default:
+		to.ResizeAlgorithm = resizeBC
+	}
+
+	if to.JpegQuality < 1 || to.JpegQuality > 100 {
+		to.JpegQuality = 90
+	}
+}
+
+func (to *thumbnailOption) setRezFilter() {
+	switch to.ResizeAlgorithm {
+	case resizeBL:
+		to.rezFilter = rez.NewBilinearFilter()
+	case resizeBC:
+		to.rezFilter = rez.NewBicubicFilter()
+	case resizeLC2:
+		to.rezFilter = rez.NewLanczosFilter(2)
+	case resizeLC3:
+		to.rezFilter = rez.NewLanczosFilter(3)
+	default:
+		to.rezFilter = rez.NewBicubicFilter()
+	}
 }

@@ -98,6 +98,7 @@ type KoboUncaged struct {
 		PreferKepub  bool
 		PasswordList []string
 		EnableDebug  bool
+		Thumbnail    thumbnailOption
 	}
 	dbRootDir         string
 	bkRootDir         string
@@ -148,6 +149,8 @@ func New(dbRootDir, sdRootDir string, updatingMD bool) (*KoboUncaged, error) {
 		log.Print(err)
 		return nil, err
 	}
+	ku.KuConfig.Thumbnail.validate()
+	ku.KuConfig.Thumbnail.setRezFilter()
 
 	if sdRootDir != "" && ku.KuConfig.PreferSDCard {
 		ku.useSDCard = true
@@ -494,9 +497,18 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64
 	}
 	imgDir = filepath.Join(ku.bkRootDir, imgDir)
 	imgID := imgIDFromContentID(contentID)
-	jpegOpts := jpeg.Options{Quality: 90}
+	jpegOpts := jpeg.Options{Quality: ku.KuConfig.Thumbnail.JpegQuality}
 
-	for _, cover := range []koboCover{fullCover, libFull, libGrid} {
+	var coverEndings []koboCover
+	switch ku.KuConfig.Thumbnail.GenerateLevel {
+	case generateAll:
+		coverEndings = []koboCover{fullCover, libFull, libGrid}
+	case generatePartial:
+		coverEndings = []koboCover{libFull, libGrid}
+	default:
+		coverEndings = nil
+	}
+	for _, cover := range coverEndings {
 		nsz := cover.Resize(ku.device, sz)
 		nfn := filepath.Join(imgDir, cover.RelPath(imgID))
 
@@ -505,7 +517,7 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64
 		var nimg image.Image
 		if !sz.Eq(nsz) {
 			nimg = image.NewYCbCr(image.Rect(0, 0, nsz.X, nsz.Y), img.(*image.YCbCr).SubsampleRatio)
-			rez.Convert(nimg, img, rez.NewBicubicFilter())
+			rez.Convert(nimg, img, ku.KuConfig.Thumbnail.rezFilter)
 		} else {
 			nimg = img
 			log.Println(" -- Skipped resize: already correct size")
@@ -585,8 +597,16 @@ func (ku *KoboUncaged) GetClientOptions() uc.ClientOptions {
 	opts.SupportedExt = append(opts.SupportedExt, ext...)
 	opts.DeviceName = "Kobo"
 	opts.DeviceModel = ku.device.Model()
-	fc := fullCover.Size(ku.device)
-	opts.CoverDims.Width, opts.CoverDims.Height = fc.X, fc.Y
+	var thumbSz image.Point
+	switch ku.KuConfig.Thumbnail.GenerateLevel {
+	case generateAll:
+		thumbSz = fullCover.Size(ku.device)
+	case generatePartial:
+		thumbSz = libFull.Size(ku.device)
+	default:
+		thumbSz = libGrid.Size(ku.device)
+	}
+	opts.CoverDims.Width, opts.CoverDims.Height = thumbSz.X, thumbSz.Y
 	return opts
 }
 
