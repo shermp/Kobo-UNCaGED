@@ -505,8 +505,6 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64
 		coverEndings = []koboCover{fullCover, libFull, libGrid}
 	case generatePartial:
 		coverEndings = []koboCover{libFull, libGrid}
-	default:
-		coverEndings = nil
 	}
 	for _, cover := range coverEndings {
 		nsz := cover.Resize(ku.device, sz)
@@ -889,7 +887,6 @@ func mainWithErrCode() returnCode {
 			return kuError
 		}
 		log.Println("Starting Calibre Connection")
-		ku.kup.kuPrintln(body, "Finishing up")
 		err = cc.Start()
 		if err != nil {
 			if err.Error() == "no password entered" {
