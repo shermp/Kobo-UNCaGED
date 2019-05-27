@@ -68,8 +68,8 @@ Once the prerequisites are met, follow the next steps:
 
 1. `git clone github.com/shermp/Kobo-UNCaGED`
 2. `cd Kobo-UNCaGED`
-3. `./build-ku.sh`. This will download and build all further requirements, and create the necessary directory structure.
-4. Extract `./Build/KoboUncaged.zip` to the root of your Kobo user directory (`/mnt/onboard`).
+3. `./build-ku.sh`. This will download and build all further requirements, and create the necessary directory structure. To create an *upgrade* archive, use `./build-ku.sh upgrade` instead.
+4. Extract `./Build/KoboUncaged-${version}-${build_type}.zip` to the root of your Kobo user directory (`/mnt/onboard`).
 5. Unplug, then reboot your Kobo.
 
 ### Developing
