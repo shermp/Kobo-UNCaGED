@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"html"
 	"image"
+	"image/jpeg"
 	"io"
 	"io/ioutil"
 	"log"
@@ -38,7 +39,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/disintegration/imaging"
+	"github.com/bamiaux/rez"
 	"github.com/gofrs/uuid"
 	"github.com/kapmahc/epub"
 	_ "github.com/mattn/go-sqlite3"
@@ -97,6 +98,7 @@ type KoboUncaged struct {
 		PreferKepub  bool
 		PasswordList []string
 		EnableDebug  bool
+		Thumbnail    thumbnailOption
 	}
 	dbRootDir         string
 	bkRootDir         string
@@ -147,6 +149,8 @@ func New(dbRootDir, sdRootDir string, updatingMD bool) (*KoboUncaged, error) {
 		log.Print(err)
 		return nil, err
 	}
+	ku.KuConfig.Thumbnail.validate()
+	ku.KuConfig.Thumbnail.setRezFilter()
 
 	if sdRootDir != "" && ku.KuConfig.PreferSDCard {
 		ku.useSDCard = true
@@ -480,7 +484,7 @@ func (ku *KoboUncaged) saveDeviceInfo() error {
 func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64 string) {
 	defer ku.wg.Done()
 
-	img, err := imaging.Decode(base64.NewDecoder(base64.StdEncoding, strings.NewReader(imgB64)))
+	img, _, err := image.Decode(base64.NewDecoder(base64.StdEncoding, strings.NewReader(imgB64)))
 	if err != nil {
 		log.Println(err)
 		return
@@ -492,20 +496,34 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64
 		imgDir = "koboExtStorage/images-cache"
 	}
 	imgDir = filepath.Join(ku.bkRootDir, imgDir)
-
 	imgID := imgIDFromContentID(contentID)
+	jpegOpts := jpeg.Options{Quality: ku.KuConfig.Thumbnail.JpegQuality}
 
-	for _, cover := range []koboCover{fullCover, libFull, libGrid} {
+	var coverEndings []koboCover
+	switch ku.KuConfig.Thumbnail.GenerateLevel {
+	case generateAll:
+		coverEndings = []koboCover{fullCover, libFull, libGrid}
+	case generatePartial:
+		coverEndings = []koboCover{libFull, libGrid}
+	}
+	for _, cover := range coverEndings {
 		nsz := cover.Resize(ku.device, sz)
 		nfn := filepath.Join(imgDir, cover.RelPath(imgID))
 
 		log.Printf("Resizing %s cover to %s (target %s) for %s\n", sz, nsz, cover.Size(ku.device), cover)
 
-		nimg := img
+		var nimg image.Image
 		if !sz.Eq(nsz) {
-			nimg = imaging.Resize(nimg, nsz.X, nsz.Y, imaging.Linear)
+			nimg = image.NewYCbCr(image.Rect(0, 0, nsz.X, nsz.Y), img.(*image.YCbCr).SubsampleRatio)
+			rez.Convert(nimg, img, ku.KuConfig.Thumbnail.rezFilter)
+			log.Printf(" -- Resized to %s\n", nimg.Bounds().Size())
 		} else {
+			nimg = img
 			log.Println(" -- Skipped resize: already correct size")
+		}
+		// Optimization. No need to resize libGrid from the full cover size...
+		if cover == libFull {
+			img = nimg
 		}
 
 		if err := os.MkdirAll(filepath.Dir(nfn), 0755); err != nil {
@@ -519,7 +537,7 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64
 			continue
 		}
 
-		if err := imaging.Encode(lf, nimg, imaging.JPEG); err != nil {
+		if err := jpeg.Encode(lf, nimg, &jpegOpts); err != nil {
 			log.Println(err)
 			lf.Close()
 		}
@@ -578,8 +596,16 @@ func (ku *KoboUncaged) GetClientOptions() uc.ClientOptions {
 	opts.SupportedExt = append(opts.SupportedExt, ext...)
 	opts.DeviceName = "Kobo"
 	opts.DeviceModel = ku.device.Model()
-	fc := fullCover.Size(ku.device)
-	opts.CoverDims.Width, opts.CoverDims.Height = fc.X, fc.Y
+	var thumbSz image.Point
+	switch ku.KuConfig.Thumbnail.GenerateLevel {
+	case generateAll:
+		thumbSz = fullCover.Size(ku.device)
+	case generatePartial:
+		thumbSz = libFull.Size(ku.device)
+	default:
+		thumbSz = libGrid.Size(ku.device)
+	}
+	opts.CoverDims.Width, opts.CoverDims.Height = thumbSz.X, thumbSz.Y
 	return opts
 }
 
@@ -861,7 +887,6 @@ func mainWithErrCode() returnCode {
 			return kuError
 		}
 		log.Println("Starting Calibre Connection")
-		ku.kup.kuPrintln(body, "Finishing up")
 		err = cc.Start()
 		if err != nil {
 			if err.Error() == "no password entered" {
