@@ -518,6 +518,7 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64
 		if !sz.Eq(nsz) {
 			nimg = image.NewYCbCr(image.Rect(0, 0, nsz.X, nsz.Y), img.(*image.YCbCr).SubsampleRatio)
 			rez.Convert(nimg, img, ku.KuConfig.Thumbnail.rezFilter)
+			log.Printf(" -- Resized to %s\n", nimg.Bounds().Size())
 		} else {
 			nimg = img
 			log.Println(" -- Skipped resize: already correct size")
