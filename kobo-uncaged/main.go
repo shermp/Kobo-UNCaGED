@@ -46,6 +46,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/pelletier/go-toml"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
+	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/util"
 	"github.com/shermp/UNCaGED/uc"
 )
 
@@ -258,8 +259,8 @@ func (ku *KoboUncaged) getKoboInfo() error {
 // metadata it contains. This is used if the metadata has not yet
 // been cached
 func (ku *KoboUncaged) readEpubMeta(contentID string, md *KoboMetadata) error {
-	lpath := contentIDtoLpath(contentID, string(ku.contentIDprefix))
-	epubPath := contentIDtoBkPath(ku.bkRootDir, contentID, string(ku.contentIDprefix))
+	lpath := util.ContentIDtoLpath(contentID, string(ku.contentIDprefix))
+	epubPath := util.ContentIDtoBkPath(ku.bkRootDir, contentID, string(ku.contentIDprefix))
 	bk, err := epub.Open(epubPath)
 	if err != nil {
 		return err
@@ -332,7 +333,7 @@ func (ku *KoboUncaged) readMDfile() error {
 	log.Println("Reading metadata.calibre")
 
 	var koboMD []KoboMetadata
-	emptyOrNotExist, err := readJSON(filepath.Join(ku.bkRootDir, calibreMDfile), &koboMD)
+	emptyOrNotExist, err := util.ReadJSON(filepath.Join(ku.bkRootDir, calibreMDfile), &koboMD)
 	if emptyOrNotExist {
 		// ignore
 	} else if err != nil {
@@ -345,7 +346,7 @@ func (ku *KoboUncaged) readMDfile() error {
 	// make a temporary map for easy searching later
 	tmpMap := make(map[string]int, len(koboMD))
 	for n, md := range koboMD {
-		contentID := lpathToContentID(lpathKepubConvert(md.Lpath), string(ku.contentIDprefix))
+		contentID := util.LpathToContentID(util.LpathKepubConvert(md.Lpath), string(ku.contentIDprefix))
 		tmpMap[contentID] = n
 	}
 	log.Println("Gathering metadata")
@@ -440,11 +441,11 @@ func (ku *KoboUncaged) writeMDfile() error {
 		metadata[n] = md
 		n++
 	}
-	return writeJSON(filepath.Join(ku.bkRootDir, calibreMDfile), metadata)
+	return util.WriteJSON(filepath.Join(ku.bkRootDir, calibreMDfile), metadata)
 }
 
 func (ku *KoboUncaged) readUpdateMDfile() error {
-	emptyOrNotExist, err := readJSON(filepath.Join(ku.bkRootDir, kuUpdatedMDfile), &ku.updatedMetadata)
+	emptyOrNotExist, err := util.ReadJSON(filepath.Join(ku.bkRootDir, kuUpdatedMDfile), &ku.updatedMetadata)
 	if emptyOrNotExist {
 		// ignore
 	} else if err != nil {
@@ -459,11 +460,11 @@ func (ku *KoboUncaged) writeUpdateMDfile() error {
 	if len(ku.updatedMetadata) == 0 {
 		return nil
 	}
-	return writeJSON(filepath.Join(ku.bkRootDir, kuUpdatedMDfile), ku.updatedMetadata)
+	return util.WriteJSON(filepath.Join(ku.bkRootDir, kuUpdatedMDfile), ku.updatedMetadata)
 }
 
 func (ku *KoboUncaged) loadDeviceInfo() error {
-	emptyOrNotExist, err := readJSON(filepath.Join(ku.bkRootDir, calibreDIfile), &ku.driveInfo.DevInfo)
+	emptyOrNotExist, err := util.ReadJSON(filepath.Join(ku.bkRootDir, calibreDIfile), &ku.driveInfo.DevInfo)
 	if emptyOrNotExist {
 		uuid4, _ := uuid.NewV4()
 		ku.driveInfo.DevInfo.LocationCode = "main"
@@ -479,7 +480,7 @@ func (ku *KoboUncaged) loadDeviceInfo() error {
 }
 
 func (ku *KoboUncaged) saveDeviceInfo() error {
-	return writeJSON(filepath.Join(ku.bkRootDir, calibreDIfile), ku.driveInfo.DevInfo)
+	return util.WriteJSON(filepath.Join(ku.bkRootDir, calibreDIfile), ku.driveInfo.DevInfo)
 }
 
 func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64 string) {
@@ -497,7 +498,7 @@ func (ku *KoboUncaged) saveCoverImage(contentID string, size image.Point, imgB64
 		imgDir = "koboExtStorage/images-cache"
 	}
 	imgDir = filepath.Join(ku.bkRootDir, imgDir)
-	imgID := imgIDFromContentID(contentID)
+	imgID := util.ImgIDFromContentID(contentID)
 	jpegOpts := jpeg.Options{Quality: ku.KuConfig.Thumbnail.JpegQuality}
 
 	var coverEndings []koboCover
@@ -639,7 +640,7 @@ func (ku *KoboUncaged) GetMetadataList(books []uc.BookID) []map[string]interface
 	mdList := []map[string]interface{}{}
 	if len(books) > 0 {
 		for _, bk := range books {
-			cid := lpathToContentID(bk.Lpath, string(ku.contentIDprefix))
+			cid := util.LpathToContentID(bk.Lpath, string(ku.contentIDprefix))
 			fmt.Println(cid)
 			md := map[string]interface{}{}
 			//spew.Dump(ku.metadataMap[cid])
@@ -676,7 +677,7 @@ func (ku *KoboUncaged) UpdateMetadata(mdList []map[string]interface{}) {
 		koboMD := createKoboMetadata()
 		mapstructure.Decode(md, &koboMD)
 		koboMD.Thumbnail = nil
-		cid := lpathToContentID(koboMD.Lpath, string(ku.contentIDprefix))
+		cid := util.LpathToContentID(koboMD.Lpath, string(ku.contentIDprefix))
 		ku.metadataMap[cid] = koboMD
 		ku.updatedMetadata = append(ku.updatedMetadata, cid)
 	}
@@ -716,14 +717,14 @@ func (ku *KoboUncaged) SaveBook(md map[string]interface{}, len int, lastBook boo
 	newLpath = ku.invalidCharsRegex.ReplaceAllString(koboMD.Lpath, "_")
 	// Also, for kepub files, Calibre defaults to using "book/path.kepub"
 	// but we require "book/path.kepub.epub". We change that here if needed.
-	newLpath = lpathKepubConvert(newLpath)
+	newLpath = util.LpathKepubConvert(newLpath)
 	if newLpath != koboMD.Lpath {
 		koboMD.Lpath = newLpath
 	} else {
 		newLpath = ""
 	}
-	cID := lpathToContentID(koboMD.Lpath, string(ku.contentIDprefix))
-	bkPath := contentIDtoBkPath(ku.bkRootDir, cID, string(ku.contentIDprefix))
+	cID := util.LpathToContentID(koboMD.Lpath, string(ku.contentIDprefix))
+	bkPath := util.ContentIDtoBkPath(ku.bkRootDir, cID, string(ku.contentIDprefix))
 	bkDir, _ := filepath.Split(bkPath)
 	err = os.MkdirAll(bkDir, 0777)
 	if err != nil {
@@ -755,8 +756,8 @@ func (ku *KoboUncaged) SaveBook(md map[string]interface{}, len int, lastBook boo
 // NOTE: filePos > 0 is not currently implemented in the Calibre source code, but that could
 // change at any time, so best to handle it anyway.
 func (ku *KoboUncaged) GetBook(book uc.BookID, filePos int64) (io.ReadCloser, int64, error) {
-	cid := lpathToContentID(book.Lpath, string(ku.contentIDprefix))
-	bkPath := contentIDtoBkPath(ku.bkRootDir, cid, string(ku.contentIDprefix))
+	cid := util.LpathToContentID(book.Lpath, string(ku.contentIDprefix))
+	bkPath := util.ContentIDtoBkPath(ku.bkRootDir, cid, string(ku.contentIDprefix))
 	fi, err := os.Stat(bkPath)
 	if err != nil {
 		return nil, 0, err
@@ -771,8 +772,8 @@ func (ku *KoboUncaged) GetBook(book uc.BookID, filePos int64) (io.ReadCloser, in
 func (ku *KoboUncaged) DeleteBook(book uc.BookID) error {
 	// Start with basic book deletion. A more fancy implementation can come later
 	// (eg: removing cover image remnants etc)
-	cid := lpathToContentID(book.Lpath, string(ku.contentIDprefix))
-	bkPath := contentIDtoBkPath(ku.bkRootDir, cid, string(ku.contentIDprefix))
+	cid := util.LpathToContentID(book.Lpath, string(ku.contentIDprefix))
+	bkPath := util.ContentIDtoBkPath(ku.bkRootDir, cid, string(ku.contentIDprefix))
 	dir, _ := filepath.Split(bkPath)
 	dirPath := filepath.Clean(dir)
 	err := os.Remove(bkPath)

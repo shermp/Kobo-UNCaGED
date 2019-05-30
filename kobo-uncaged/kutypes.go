@@ -24,6 +24,7 @@ import (
 	"strings"
 
 	"github.com/bamiaux/rez"
+	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/util"
 )
 
 type cidPrefix string
@@ -173,9 +174,9 @@ func (k koboCover) String() string {
 func (k koboCover) Resize(d koboDevice, sz image.Point) image.Point {
 	switch k {
 	case fullCover:
-		return resizeKeepAspectRatio(sz, k.Size(d), false)
+		return util.ResizeKeepAspectRatio(sz, k.Size(d), false)
 	case libFull, libGrid:
-		return resizeKeepAspectRatio(sz, k.Size(d), true)
+		return util.ResizeKeepAspectRatio(sz, k.Size(d), true)
 	default:
 		panic("unknown cover type")
 	}
@@ -197,7 +198,7 @@ func (k koboCover) Size(d koboDevice) image.Point {
 
 // RelPath gets the path to the cover file relative to the images dir.
 func (k koboCover) RelPath(imageID string) string {
-	dir1, dir2, basename := hashedImageParts(imageID)
+	dir1, dir2, basename := util.HashedImageParts(imageID)
 	return filepath.Join(dir1, dir2, fmt.Sprintf("%s - %s.parsed", basename, k.String()))
 }
 
