@@ -28,18 +28,6 @@ import (
 
 type cidPrefix string
 
-type mboxSection int
-type kuPrinter interface {
-	kuPrintln(section mboxSection, a ...interface{}) (n int, err error)
-	kuClose()
-}
-
-const (
-	header mboxSection = iota
-	body
-	footer
-)
-
 // KoboMetadata contains the metadata for ebooks on kobo devices.
 // It replicates the metadata available in the Kobo USBMS driver.
 // Note, pointers are used where necessary to account for null JSON values

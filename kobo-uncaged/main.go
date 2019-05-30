@@ -46,6 +46,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/pelletier/go-toml"
 	"github.com/shermp/UNCaGED/uc"
+	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
 )
 
 type returnCode int
@@ -90,7 +91,7 @@ func (pw *uncagedPassword) nextPassword() string {
 // KoboUncaged contains the variables and methods required to use
 // the UNCaGED library
 type KoboUncaged struct {
-	kup      kuPrinter
+	kup      kuprint.Printer
 	device   koboDevice
 	fw       [3]int
 	KuConfig struct {
@@ -134,18 +135,18 @@ func New(dbRootDir, sdRootDir string, updatingMD bool) (*KoboUncaged, error) {
 	ku.contentIDprefix = onboardPrefix
 
 	fntPath := filepath.Join(ku.dbRootDir, ".adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf")
-	if ku.kup, err = newKuPrint(fntPath); err != nil {
+	if ku.kup, err = kuprint.NewPrinter(fntPath); err != nil {
 		return nil, err
 	}
 
 	configBytes, err := ioutil.ReadFile(filepath.Join(ku.dbRootDir, ".adds/kobo-uncaged/config/ku.toml"))
 	if err != nil {
-		ku.kup.kuPrintln(body, "Error loading config file")
+		ku.kup.Println(kuprint.Body, "Error loading config file")
 		log.Print(err)
 		return nil, err
 	}
 	if err := toml.Unmarshal(configBytes, &ku.KuConfig); err != nil {
-		ku.kup.kuPrintln(body, "Error reading config file")
+		ku.kup.Println(kuprint.Body, "Error reading config file")
 		log.Print(err)
 		return nil, err
 	}
@@ -166,8 +167,8 @@ func New(dbRootDir, sdRootDir string, updatingMD bool) (*KoboUncaged, error) {
 		headerStr += "\nUsing Internal Storage"
 	}
 
-	ku.kup.kuPrintln(header, headerStr)
-	ku.kup.kuPrintln(body, "Gathering information about your Kobo")
+	ku.kup.Println(kuprint.Header, headerStr)
+	ku.kup.Println(kuprint.Body, "Gathering information about your Kobo")
 	ku.invalidCharsRegex, err = regexp.Compile(`[\\?%\*:;\|\"\'><\$!]`)
 	if err != nil {
 		return nil, err
@@ -818,26 +819,26 @@ func (ku *KoboUncaged) UpdateStatus(status uc.UCStatus, progress int) {
 	case uc.Idle:
 		fallthrough
 	case uc.Connected:
-		ku.kup.kuPrintln(body, "Connected")
-		ku.kup.kuPrintln(footer, footerStr)
+		ku.kup.Println(kuprint.Body, "Connected")
+		ku.kup.Println(kuprint.Footer, footerStr)
 	case uc.Connecting:
-		ku.kup.kuPrintln(body, "Connecting to Calibre")
-		ku.kup.kuPrintln(footer, footerStr)
+		ku.kup.Println(kuprint.Body, "Connecting to Calibre")
+		ku.kup.Println(kuprint.Footer, footerStr)
 	case uc.SearchingCalibre:
-		ku.kup.kuPrintln(body, "Searching for Calibre")
-		ku.kup.kuPrintln(footer, footerStr)
+		ku.kup.Println(kuprint.Body, "Searching for Calibre")
+		ku.kup.Println(kuprint.Footer, footerStr)
 	case uc.Disconnected:
-		ku.kup.kuPrintln(body, "Disconnected")
-		ku.kup.kuPrintln(footer, footerStr)
+		ku.kup.Println(kuprint.Body, "Disconnected")
+		ku.kup.Println(kuprint.Footer, footerStr)
 	case uc.SendingBook:
-		ku.kup.kuPrintln(body, "Sending book to Calibre")
-		ku.kup.kuPrintln(footer, footerStr)
+		ku.kup.Println(kuprint.Body, "Sending book to Calibre")
+		ku.kup.Println(kuprint.Footer, footerStr)
 	case uc.ReceivingBook:
-		ku.kup.kuPrintln(body, "Receiving book(s) from Calibre")
-		ku.kup.kuPrintln(footer, footerStr)
+		ku.kup.Println(kuprint.Body, "Receiving book(s) from Calibre")
+		ku.kup.Println(kuprint.Footer, footerStr)
 	case uc.EmptyPasswordReceived:
-		ku.kup.kuPrintln(body, "No valid password found!")
-		ku.kup.kuPrintln(footer, footerStr)
+		ku.kup.Println(kuprint.Body, "No valid password found!")
+		ku.kup.Println(kuprint.Footer, footerStr)
 	}
 }
 
@@ -864,16 +865,16 @@ func mainWithErrCode() returnCode {
 		log.Print(err)
 		return kuError
 	}
-	defer ku.kup.kuClose()
+	defer ku.kup.Close()
 	if *mdPtr {
 		log.Println("Updating Metadata")
-		ku.kup.kuPrintln(body, "Updating Metadata!")
+		ku.kup.Println(kuprint.Body, "Updating Metadata!")
 		err = ku.updateNickelDB()
 		if err != nil {
 			log.Print(err)
 			return kuError
 		}
-		ku.kup.kuPrintln(body, "Metadata Updated!\n\nReturning to Home screen")
+		ku.kup.Println(kuprint.Body, "Metadata Updated!\n\nReturning to Home screen")
 	} else {
 		log.Println("Preparing Kobo UNCaGED!")
 		cc, err := uc.New(ku, ku.KuConfig.EnableDebug)
@@ -882,7 +883,7 @@ func mainWithErrCode() returnCode {
 			// TODO: Probably need to come up with a set of error codes for
 			//       UNCaGED instead of this string comparison
 			if err.Error() == "calibre server not found" {
-				ku.kup.kuPrintln(body, "Calibre not found!\nHave you enabled the Calibre Wireless service?")
+				ku.kup.Println(kuprint.Body, "Calibre not found!\nHave you enabled the Calibre Wireless service?")
 			}
 			return kuError
 		}
@@ -890,21 +891,21 @@ func mainWithErrCode() returnCode {
 		err = cc.Start()
 		if err != nil {
 			if err.Error() == "no password entered" {
-				ku.kup.kuPrintln(body, "No valid password found!")
+				ku.kup.Println(kuprint.Body, "No valid password found!")
 				return kuPasswordError
 			}
 			log.Print(err)
 			return kuError
 		}
 		// Wait for thumbnail generation to complete
-		ku.kup.kuPrintln(body, "Waiting for thumbnail generation to complete")
+		ku.kup.Println(kuprint.Body, "Waiting for thumbnail generation to complete")
 		ku.wg.Wait()
 
 		if len(ku.updatedMetadata) > 0 {
-			ku.kup.kuPrintln(body, "Kobo-UNCaGED will restart automatically to update metadata")
+			ku.kup.Println(kuprint.Body, "Kobo-UNCaGED will restart automatically to update metadata")
 			return kuSuccessRerun
 		}
-		ku.kup.kuPrintln(body, "Nothing more to do!\n\nReturning to Home screen")
+		ku.kup.Println(kuprint.Body, "Nothing more to do!\n\nReturning to Home screen")
 	}
 
 	return kuSuccessNoAction
