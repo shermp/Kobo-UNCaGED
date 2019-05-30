@@ -45,8 +45,8 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pelletier/go-toml"
-	"github.com/shermp/UNCaGED/uc"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
+	"github.com/shermp/UNCaGED/uc"
 )
 
 type returnCode int
@@ -329,7 +329,7 @@ func (ku *KoboUncaged) readEpubMeta(contentID string, md *KoboMetadata) error {
 // and unmarshals (eventially) to a map of KoboMetadata structs, converting
 // "lpath" to Kobo's "ContentID", and using that as the map keys
 func (ku *KoboUncaged) readMDfile() error {
-	log.Println(body, "Reading metadata.calibre")
+	log.Println("Reading metadata.calibre")
 
 	var koboMD []KoboMetadata
 	emptyOrNotExist, err := readJSON(filepath.Join(ku.bkRootDir, calibreMDfile), &koboMD)
@@ -348,7 +348,7 @@ func (ku *KoboUncaged) readMDfile() error {
 		contentID := lpathToContentID(lpathKepubConvert(md.Lpath), string(ku.contentIDprefix))
 		tmpMap[contentID] = n
 	}
-	log.Println(body, "Gathering metadata")
+	log.Println("Gathering metadata")
 	//spew.Dump(ku.metadataMap)
 	// Now that we have our map, we need to check for any books in the DB not in our
 	// metadata cache, or books that are in our cache but not in the DB
