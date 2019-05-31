@@ -15,19 +15,55 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Kobo UNCaGED.  If not, see <https://www.gnu.org/licenses/>.
 
-package main
+package device
 
 import (
+	"database/sql"
 	"fmt"
 	"image"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"sync"
 
 	"github.com/bamiaux/rez"
+	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/util"
+	"github.com/shermp/UNCaGED/uc"
 )
 
 type cidPrefix string
+
+type kuOptions struct {
+	PreferSDCard bool
+	PreferKepub  bool
+	PasswordList []string
+	Thumbnail    thumbnailOption
+}
+
+// Kobo contains the variables and methods required to use
+// the UNCaGED library
+type Kobo struct {
+	Kup               kuprint.Printer
+	Device            koboDevice
+	fw                [3]int
+	KuConfig          kuOptions
+	DBRootDir         string
+	BKRootDir         string
+	ContentIDprefix   cidPrefix
+	useSDCard         bool
+	MetadataMap       map[string]KoboMetadata
+	UpdatedMetadata   []string
+	Passwords         *uncagedPassword
+	DriveInfo         uc.DeviceInfo
+	nickelDB          *sql.DB
+	Wg                *sync.WaitGroup
+	InvalidCharsRegex *regexp.Regexp
+}
+type uncagedPassword struct {
+	currPassIndex int
+	passwordList  []string
+}
 
 // KoboMetadata contains the metadata for ebooks on kobo devices.
 // It replicates the metadata available in the Kobo USBMS driver.
