@@ -18,7 +18,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/bamiaux/rez"
 	"github.com/gofrs/uuid"
 	"github.com/kapmahc/epub"
@@ -60,33 +59,18 @@ func CreateKoboMetadata() KoboMetadata {
 }
 
 // New creates a Kobo object, ready for use
-func New(dbRootDir, sdRootDir string, updatingMD bool) (*Kobo, error) {
+func New(dbRootDir, sdRootDir string, updatingMD bool, opts *KuOptions) (*Kobo, error) {
 	var err error
 	k := &Kobo{}
 	k.Wg = &sync.WaitGroup{}
 	k.DBRootDir = dbRootDir
 	k.BKRootDir = dbRootDir
 	k.ContentIDprefix = onboardPrefix
-
 	fntPath := filepath.Join(k.DBRootDir, ".adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf")
 	if k.Kup, err = kuprint.NewPrinter(fntPath); err != nil {
 		return nil, err
 	}
-
-	configBytes, err := ioutil.ReadFile(filepath.Join(k.DBRootDir, ".adds/kobo-uncaged/config/k.toml"))
-	if err != nil {
-		k.Kup.Println(kuprint.Body, "Error loading config file")
-		log.Print(err)
-		return nil, err
-	}
-	if err := toml.Unmarshal(configBytes, &k.KuConfig); err != nil {
-		k.Kup.Println(kuprint.Body, "Error reading config file")
-		log.Print(err)
-		return nil, err
-	}
-	k.KuConfig.Thumbnail.validate()
-	k.KuConfig.Thumbnail.setRezFilter()
-
+	k.KuConfig = opts
 	if sdRootDir != "" && k.KuConfig.PreferSDCard {
 		k.useSDCard = true
 		k.BKRootDir = sdRootDir

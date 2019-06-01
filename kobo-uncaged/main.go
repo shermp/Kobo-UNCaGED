@@ -19,15 +19,19 @@ package main
 
 import (
 	"flag"
+	"io/ioutil"
 	"log"
 	"log/syslog"
 	"os"
+	"path/filepath"
 
+	"github.com/BurntSushi/toml"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/device"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kunc"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
 	"github.com/shermp/UNCaGED/uc"
+	"github.com/pkg/errors"
 )
 
 type returnCode int
@@ -42,6 +46,21 @@ const (
 	kuPasswordError   returnCode = 100
 )
 
+func getUserOptions(dbRootDir string) (*device.KuOptions, error) {
+	// Note, we return opts, regardless of whether we successfully read the options file.
+	// Our code can handle the default struct gracefully
+	opts := &device.KuOptions{}
+	configBytes, err := ioutil.ReadFile(filepath.Join(dbRootDir, ".adds/kobo-uncaged/config/ku.toml"))
+	if err != nil {
+		return opts, errors.Wrap(err, "error loading config file")
+	}
+	if err := toml.Unmarshal(configBytes, opts); err != nil {
+		return opts, errors.Wrap(err, "error reading config file")
+	}
+	opts.Thumbnail.Validate()
+	opts.Thumbnail.SetRezFilter()
+	return opts, nil
+}
 func mainWithErrCode() returnCode {
 	w, err := syslog.New(syslog.LOG_DEBUG, "KoboUNCaGED")
 	if err == nil {
@@ -53,14 +72,18 @@ func mainWithErrCode() returnCode {
 
 	flag.Parse()
 	log.Println("Started Kobo-UNCaGED")
-
+	log.Println("Reading options")
+	opts, optErr := getUserOptions(*onboardMntPtr)
 	log.Println("Creating KU object")
-	k, err := device.New(*onboardMntPtr, *sdMntPtr, *mdPtr)
+	k, err := device.New(*onboardMntPtr, *sdMntPtr, *mdPtr, opts)
 	if err != nil {
 		log.Print(err)
 		return kuError
 	}
 	defer k.Close()
+	if optErr != nil {
+		k.Kup.Println(kuprint.Body, optErr.Error())
+	}
 	if *mdPtr {
 		log.Println("Updating Metadata")
 		k.Kup.Println(kuprint.Body, "Updating Metadata!")

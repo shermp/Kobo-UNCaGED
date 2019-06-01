@@ -34,7 +34,7 @@ import (
 
 type cidPrefix string
 
-type kuOptions struct {
+type KuOptions struct {
 	PreferSDCard bool
 	PreferKepub  bool
 	PasswordList []string
@@ -47,7 +47,7 @@ type Kobo struct {
 	Kup               kuprint.Printer
 	Device            koboDevice
 	fw                [3]int
-	KuConfig          kuOptions
+	KuConfig          *KuOptions
 	DBRootDir         string
 	BKRootDir         string
 	ContentIDprefix   cidPrefix
@@ -259,7 +259,7 @@ const (
 	resizeLC3 string = "lanczos3"
 )
 
-func (to *thumbnailOption) validate() {
+func (to *thumbnailOption) Validate() {
 	switch strings.ToLower(to.GenerateLevel) {
 	case generateAll, generatePartial, generateNone:
 		to.GenerateLevel = strings.ToLower(to.GenerateLevel)
@@ -279,7 +279,7 @@ func (to *thumbnailOption) validate() {
 	}
 }
 
-func (to *thumbnailOption) setRezFilter() {
+func (to *thumbnailOption) SetRezFilter() {
 	switch to.ResizeAlgorithm {
 	case resizeBL:
 		to.rezFilter = rez.NewBilinearFilter()
