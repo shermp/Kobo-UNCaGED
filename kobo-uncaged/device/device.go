@@ -522,7 +522,6 @@ func (k *Kobo) UpdateNickelDB() error {
 }
 
 func (k *Kobo) Close() {
-	k.Kup.Println(kuprint.Body, "Waiting for thumbnail generation to complete")
 	k.Wg.Wait()
 	k.Kup.Close()
 	k.nickelDB.Close()
