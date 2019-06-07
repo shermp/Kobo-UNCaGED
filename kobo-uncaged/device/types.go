@@ -33,6 +33,12 @@ import (
 
 type cidPrefix string
 
+type firmwareVersion struct {
+	major int
+	minor int
+	build int
+}
+
 // KuOptions contains some options that are required
 type KuOptions struct {
 	PreferSDCard bool
@@ -45,7 +51,7 @@ type KuOptions struct {
 // the UNCaGED library
 type Kobo struct {
 	Device            koboDevice
-	fw                [3]int
+	fw                firmwareVersion
 	KuConfig          *KuOptions
 	DBRootDir         string
 	BKRootDir         string

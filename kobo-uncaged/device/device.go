@@ -163,9 +163,9 @@ func (k *Kobo) getKoboInfo() error {
 		vers := strings.TrimSpace(string(versInfo))
 		versFields := strings.Split(vers, ",")
 		fwStr := strings.Split(versFields[2], ".")
-		for i, f := range fwStr {
-			k.fw[i], _ = strconv.Atoi(f)
-		}
+		k.fw.major, _ = strconv.Atoi(fwStr[0])
+		k.fw.minor, _ = strconv.Atoi(fwStr[1])
+		k.fw.build, _ = strconv.Atoi(fwStr[2])
 		k.Device = koboDevice(versFields[len(versFields)-1])
 	}
 	return nil
