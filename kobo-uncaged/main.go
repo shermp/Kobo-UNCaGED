@@ -40,10 +40,11 @@ type returnCode int
 var kuVersion string
 
 const (
-	kuError           returnCode = 250
-	kuSuccessNoAction returnCode = 0
-	kuSuccessRerun    returnCode = 1
-	kuPasswordError   returnCode = 100
+	genericError    returnCode = 250
+	successNoAction returnCode = 0
+	successRerun    returnCode = 1
+	passwordError   returnCode = 100
+	calibreNotFound returnCode = 101
 )
 
 func getUserOptions(dbRootDir string) (*device.KuOptions, error) {
@@ -61,6 +62,27 @@ func getUserOptions(dbRootDir string) (*device.KuOptions, error) {
 	opts.Thumbnail.SetRezFilter()
 	return opts, nil
 }
+
+func returncodeFromError(err error) returnCode {
+	rc := successNoAction
+	if err != nil {
+		log.Print(err)
+		// TODO: Probably need to come up with a set of error codes for
+		//       UNCaGED instead of this string comparison
+		switch err.Error() {
+		case "calibre server not found":
+			kuprint.Println(kuprint.Body, "Calibre not found!\nHave you enabled the Calibre Wireless service?")
+			rc = calibreNotFound
+		case "no password entered":
+			kuprint.Println(kuprint.Body, "No valid password found!")
+			rc = passwordError
+		default:
+			kuprint.Println(kuprint.Body, err.Error())
+			rc = genericError
+		}
+	}
+	return rc
+}
 func mainWithErrCode() returnCode {
 	w, err := syslog.New(syslog.LOG_DEBUG, "KoboUNCaGED")
 	if err == nil {
@@ -73,7 +95,7 @@ func mainWithErrCode() returnCode {
 	fntPath := filepath.Join(*onboardMntPtr, ".adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf")
 	if err = kuprint.InitPrinter(fntPath); err != nil {
 		log.Print(err)
-		return kuError
+		return genericError
 	}
 	defer kuprint.Close()
 	log.Println("Started Kobo-UNCaGED")
@@ -82,8 +104,7 @@ func mainWithErrCode() returnCode {
 	log.Println("Creating KU object")
 	k, err := device.New(*onboardMntPtr, *sdMntPtr, *mdPtr, opts)
 	if err != nil {
-		log.Print(err)
-		return kuError
+		return returncodeFromError(err)
 	}
 	defer k.Close()
 	if optErr != nil {
@@ -94,8 +115,7 @@ func mainWithErrCode() returnCode {
 		kuprint.Println(kuprint.Body, "Updating Metadata!")
 		err = k.UpdateNickelDB()
 		if err != nil {
-			log.Print(err)
-			return kuError
+			return returncodeFromError(err)
 		}
 		kuprint.Println(kuprint.Body, "Metadata Updated!\n\nReturning to Home screen")
 	} else {
@@ -103,33 +123,22 @@ func mainWithErrCode() returnCode {
 		ku := kunc.New(k)
 		cc, err := uc.New(ku, true)
 		if err != nil {
-			log.Print(err)
-			// TODO: Probably need to come up with a set of error codes for
-			//       UNCaGED instead of this string comparison
-			if err.Error() == "calibre server not found" {
-				kuprint.Println(kuprint.Body, "Calibre not found!\nHave you enabled the Calibre Wireless service?")
-			}
-			return kuError
+			return returncodeFromError(err)
 		}
 		log.Println("Starting Calibre Connection")
 		err = cc.Start()
 		if err != nil {
-			if err.Error() == "no password entered" {
-				kuprint.Println(kuprint.Body, "No valid password found!")
-				return kuPasswordError
-			}
-			log.Print(err)
-			return kuError
+			return returncodeFromError(err)
 		}
 
 		if len(k.UpdatedMetadata) > 0 {
 			kuprint.Println(kuprint.Body, "Kobo-UNCaGED will restart automatically to update metadata")
-			return kuSuccessRerun
+			return successRerun
 		}
 		kuprint.Println(kuprint.Body, "Nothing more to do!\n\nReturning to Home screen")
 	}
 
-	return kuSuccessNoAction
+	return successNoAction
 }
 func main() {
 	os.Exit(int(mainWithErrCode()))
