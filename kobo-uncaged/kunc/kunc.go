@@ -34,19 +34,19 @@ import (
 	"github.com/shermp/UNCaGED/uc"
 )
 
-type KoboUncaged struct {
+type koboUncaged struct {
 	k *device.Kobo
 }
 
 // New initialises the koboUncaged object that will be passed to UNCaGED
-func New(kobo *device.Kobo) *KoboUncaged {
-	ku := &KoboUncaged{}
+func New(kobo *device.Kobo) *koboUncaged {
+	ku := &koboUncaged{}
 	ku.k = kobo
 	return ku
 }
 
 // GetClientOptions returns all the client specific options required for UNCaGED
-func (ku *KoboUncaged) GetClientOptions() uc.ClientOptions {
+func (ku *koboUncaged) GetClientOptions() uc.ClientOptions {
 	opts := uc.ClientOptions{}
 	opts.ClientName = "Kobo UNCaGED " // + kuVersion
 	var ext []string
@@ -60,7 +60,7 @@ func (ku *KoboUncaged) GetClientOptions() uc.ClientOptions {
 
 // GetDeviceBookList returns a slice of all the books currently on the device
 // A nil slice is interpreted has having no books on the device
-func (ku *KoboUncaged) GetDeviceBookList() []uc.BookCountDetails {
+func (ku *koboUncaged) GetDeviceBookList() []uc.BookCountDetails {
 	bc := []uc.BookCountDetails{}
 	for _, md := range ku.k.MetadataMap {
 		lastMod := time.Now()
@@ -81,7 +81,7 @@ func (ku *KoboUncaged) GetDeviceBookList() []uc.BookCountDetails {
 
 // GetMetadataList sends complete metadata for the books listed in lpaths, or for
 // all books on device if lpaths is empty
-func (ku *KoboUncaged) GetMetadataList(books []uc.BookID) []map[string]interface{} {
+func (ku *koboUncaged) GetMetadataList(books []uc.BookID) []map[string]interface{} {
 	//spew.Dump(ku.k.MetadataMap)
 	//spew.Dump(books)
 	mdList := []map[string]interface{}{}
@@ -106,20 +106,20 @@ func (ku *KoboUncaged) GetMetadataList(books []uc.BookID) []map[string]interface
 }
 
 // GetDeviceInfo asks the client for information about the drive info to use
-func (ku *KoboUncaged) GetDeviceInfo() uc.DeviceInfo {
+func (ku *koboUncaged) GetDeviceInfo() uc.DeviceInfo {
 	return ku.k.DriveInfo
 }
 
 // SetDeviceInfo sets the new device info, as comes from calibre. Only the nested
 // struct DevInfo is modified.
-func (ku *KoboUncaged) SetDeviceInfo(devInfo uc.DeviceInfo) {
+func (ku *koboUncaged) SetDeviceInfo(devInfo uc.DeviceInfo) {
 	ku.k.DriveInfo = devInfo
 	ku.k.SaveDeviceInfo()
 }
 
 // UpdateMetadata instructs the client to update their metadata according to the
 // new slice of metadata maps
-func (ku *KoboUncaged) UpdateMetadata(mdList []map[string]interface{}) {
+func (ku *koboUncaged) UpdateMetadata(mdList []map[string]interface{}) {
 	for _, md := range mdList {
 		koboMD := device.CreateKoboMetadata()
 		mapstructure.Decode(md, &koboMD)
@@ -133,12 +133,12 @@ func (ku *KoboUncaged) UpdateMetadata(mdList []map[string]interface{}) {
 }
 
 // GetPassword gets a password from the user.
-func (ku *KoboUncaged) GetPassword(calibreInfo uc.CalibreInitInfo) string {
+func (ku *koboUncaged) GetPassword(calibreInfo uc.CalibreInitInfo) string {
 	return ku.k.Passwords.NextPassword()
 }
 
 // GetFreeSpace reports the amount of free storage space to Calibre
-func (ku *KoboUncaged) GetFreeSpace() uint64 {
+func (ku *koboUncaged) GetFreeSpace() uint64 {
 	// Note, this method of getting available disk space is Linux specific...
 	// Don't try to run this code on Windows. It will probably fall over
 	var fs syscall.Statfs_t
@@ -156,7 +156,7 @@ func (ku *KoboUncaged) GetFreeSpace() uint64 {
 // lastBook informs the client that this is the last book for this transfer
 // newLpath informs UNCaGED of an Lpath change. Use this if the lpath field in md is
 // not valid (eg filesystem limitations.). Return an empty string if original lpath is valid
-func (ku *KoboUncaged) SaveBook(md map[string]interface{}, len int, lastBook bool) (book io.WriteCloser, newLpath string, err error) {
+func (ku *koboUncaged) SaveBook(md map[string]interface{}, len int, lastBook bool) (book io.WriteCloser, newLpath string, err error) {
 	koboMD := device.CreateKoboMetadata()
 	mapstructure.Decode(md, &koboMD)
 	// The calibre wireless driver does not sanitize the filepath for us. We sanitize it here,
@@ -202,7 +202,7 @@ func (ku *KoboUncaged) SaveBook(md map[string]interface{}, len int, lastBook boo
 // GetBook provides an io.ReadCloser, and the file len, from which UNCaGED can send the requested book to Calibre
 // NOTE: filePos > 0 is not currently implemented in the Calibre source code, but that could
 // change at any time, so best to handle it anyway.
-func (ku *KoboUncaged) GetBook(book uc.BookID, filePos int64) (io.ReadCloser, int64, error) {
+func (ku *koboUncaged) GetBook(book uc.BookID, filePos int64) (io.ReadCloser, int64, error) {
 	cid := util.LpathToContentID(book.Lpath, string(ku.k.ContentIDprefix))
 	bkPath := util.ContentIDtoBkPath(ku.k.BKRootDir, cid, string(ku.k.ContentIDprefix))
 	fi, err := os.Stat(bkPath)
@@ -216,7 +216,7 @@ func (ku *KoboUncaged) GetBook(book uc.BookID, filePos int64) (io.ReadCloser, in
 
 // DeleteBook instructs the client to delete the specified book on the device
 // Error is returned if the book was unable to be deleted
-func (ku *KoboUncaged) DeleteBook(book uc.BookID) error {
+func (ku *koboUncaged) DeleteBook(book uc.BookID) error {
 	// Start with basic book deletion. A more fancy implementation can come later
 	// (eg: removing cover image remnants etc)
 	cid := util.LpathToContentID(book.Lpath, string(ku.k.ContentIDprefix))
@@ -258,7 +258,7 @@ func (ku *KoboUncaged) DeleteBook(book uc.BookID) error {
 }
 
 // UpdateStatus gives status updates from the UNCaGED library
-func (ku *KoboUncaged) UpdateStatus(status uc.UCStatus, progress int) {
+func (ku *koboUncaged) UpdateStatus(status uc.UCStatus, progress int) {
 	footerStr := " "
 	if progress >= 0 && progress <= 100 {
 		footerStr = fmt.Sprintf("%d%%", progress)
@@ -291,6 +291,6 @@ func (ku *KoboUncaged) UpdateStatus(status uc.UCStatus, progress int) {
 }
 
 // LogPrintf instructs the client to log informational and debug info, that aren't errors
-func (ku *KoboUncaged) LogPrintf(logLevel uc.UCLogLevel, format string, a ...interface{}) {
+func (ku *koboUncaged) LogPrintf(logLevel uc.UCLogLevel, format string, a ...interface{}) {
 	log.Printf(format, a...)
 }
