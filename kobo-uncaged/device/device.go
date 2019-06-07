@@ -60,7 +60,7 @@ func CreateKoboMetadata() KoboMetadata {
 }
 
 // New creates a Kobo object, ready for use
-func New(dbRootDir, sdRootDir string, updatingMD bool, opts *KuOptions) (*Kobo, error) {
+func New(dbRootDir, sdRootDir string, updatingMD bool, opts *KuOptions, vers string) (*Kobo, error) {
 	var err error
 	k := &Kobo{}
 	k.Wg = &sync.WaitGroup{}
@@ -76,7 +76,7 @@ func New(dbRootDir, sdRootDir string, updatingMD bool, opts *KuOptions) (*Kobo, 
 	}
 
 	k.Passwords = newUncagedPassword(k.KuConfig.PasswordList)
-	headerStr := "Kobo-UNCaGED"
+	headerStr := "Kobo-UNCaGED " + vers
 	if k.useSDCard {
 		headerStr += "\nUsing SD Card"
 	} else {

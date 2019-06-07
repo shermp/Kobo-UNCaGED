@@ -102,7 +102,7 @@ func mainWithErrCode() returnCode {
 	log.Println("Reading options")
 	opts, optErr := getUserOptions(*onboardMntPtr)
 	log.Println("Creating KU object")
-	k, err := device.New(*onboardMntPtr, *sdMntPtr, *mdPtr, opts)
+	k, err := device.New(*onboardMntPtr, *sdMntPtr, *mdPtr, opts, kuVersion)
 	if err != nil {
 		return returncodeFromError(err)
 	}
