@@ -527,7 +527,5 @@ func (k *Kobo) UpdateNickelDB() error {
 // Close the kobo object when we're finished with it
 func (k *Kobo) Close() {
 	k.Wg.Wait()
-	kuprint.Close()
 	k.nickelDB.Close()
-
 }
