@@ -41,18 +41,15 @@ type koboUncaged struct {
 
 // New initialises the koboUncaged object that will be passed to UNCaGED
 func New(kobo *device.Kobo) *koboUncaged {
-	ku := &koboUncaged{}
-	ku.k = kobo
-	return ku
+	return &koboUncaged{kobo}
 }
 
 // GetClientOptions returns all the client specific options required for UNCaGED
 func (ku *koboUncaged) GetClientOptions() uc.ClientOptions {
-	opts := uc.ClientOptions{}
+	var opts uc.ClientOptions
 	opts.ClientName = "Kobo UNCaGED " // + kuVersion
-	var ext []string
-	var thumbSz image.Point
-	ext, opts.DeviceModel, thumbSz = ku.k.GetDeviceOptions()
+	ext, devModel, thumbSz := ku.k.GetDeviceOptions()
+	opts.DeviceModel = devModel
 	opts.SupportedExt = append(opts.SupportedExt, ext...)
 	opts.DeviceName = "Kobo"
 	opts.CoverDims.Width, opts.CoverDims.Height = thumbSz.X, thumbSz.Y
@@ -165,9 +162,8 @@ func (ku *koboUncaged) SaveBook(md map[string]interface{}, len int, lastBook boo
 	newLpath = ku.k.InvalidCharsRegex.ReplaceAllString(koboMD.Lpath, "_")
 	// Also, for kepub files, Calibre defaults to using "book/path.kepub"
 	// but we require "book/path.kepub.epub". We change that here if needed.
-	newLpath = util.LpathKepubConvert(newLpath)
-	if newLpath != koboMD.Lpath {
-		koboMD.Lpath = newLpath
+	if nlp := util.LpathKepubConvert(newLpath); nlp != koboMD.Lpath {
+		newLpath = nlp
 	} else {
 		newLpath = ""
 	}
