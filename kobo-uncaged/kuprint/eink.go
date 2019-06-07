@@ -152,8 +152,6 @@ func printSection(orient *orientation, section MboxSection, vh uint32) error {
 
 // Println displays a message for the user
 func Println(section MboxSection, a ...interface{}) (n int, err error) {
-	n = 0
-	err = nil
 	// Reset Valign first, otherwise this triggers a nasty bug where button_scan fails
 	einkPrint.fbCfg.Valign = gofbink.None
 	einkPrint.fbink.ReInit(einkPrint.fbCfg)
