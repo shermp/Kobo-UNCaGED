@@ -21,6 +21,7 @@ import (
 	"github.com/bamiaux/rez"
 	"github.com/gofrs/uuid"
 	"github.com/kapmahc/epub"
+	"github.com/pkg/errors"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/util"
 )
@@ -86,30 +87,30 @@ func New(dbRootDir, sdRootDir string, updatingMD bool, opts *KuOptions) (*Kobo, 
 	kuprint.Println(kuprint.Body, "Gathering information about your Kobo")
 	k.InvalidCharsRegex, err = regexp.Compile(`[\\?%\*:;\|\"\'><\$!]`)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "invalid chars regex failed")
 	}
 	log.Println("Opening NickelDB")
 	if err := k.openNickelDB(); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to open Nickel DB")
 	}
 	log.Println("Getting Kobo Info")
 	if err := k.getKoboInfo(); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to get kobo info")
 	}
 	log.Println("Getting Device Info")
 	if err := k.loadDeviceInfo(); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to load device info")
 	}
 	log.Println("Reading Metadata")
 	if err := k.readMDfile(); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to read metadata file")
 	}
 
 	if !updatingMD {
 		return k, nil
 	}
 	if err := k.readUpdateMDfile(); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to read updated metadata file")
 	}
 	return k, nil
 }
@@ -118,7 +119,7 @@ func (k *Kobo) openNickelDB() error {
 	var err error
 	dsn := "file:" + filepath.Join(k.DBRootDir, koboDBpath) + "?cache=shared&mode=rw"
 	k.nickelDB, err = sql.Open("sqlite3", dsn)
-	return err
+	return errors.Wrap(err, "sql open failed")
 }
 
 // UpdateIfExists updates onboard metadata if it exists in the Nickel database
@@ -134,7 +135,7 @@ func (k *Kobo) UpdateIfExists(cID string, len int) error {
 			AND ContentType = 6`
 		err := k.nickelDB.QueryRow(testQuery, cID).Scan(&currSize)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "error querying row")
 		}
 		if currSize != len {
 			updateQuery := `
@@ -144,7 +145,7 @@ func (k *Kobo) UpdateIfExists(cID string, len int) error {
 				AND ContentType = 6`
 			_, err = k.nickelDB.Exec(updateQuery, len, cID)
 			if err != nil {
-				return err
+				return errors.Wrap(err, "error updating filesize field")
 			}
 			log.Println("Updated existing book file length")
 		}
@@ -156,7 +157,7 @@ func (k *Kobo) getKoboInfo() error {
 	// Get the model ID and firmware version from the device
 	versInfo, err := ioutil.ReadFile(filepath.Join(k.DBRootDir, koboVersPath))
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error reading kobo version file")
 	}
 	if len(versInfo) > 0 {
 		vers := strings.TrimSpace(string(versInfo))
@@ -198,7 +199,7 @@ func (k *Kobo) readEpubMeta(contentID string, md *KoboMetadata) error {
 	epubPath := util.ContentIDtoBkPath(k.BKRootDir, contentID, string(k.ContentIDprefix))
 	bk, err := epub.Open(epubPath)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error opening epub for metadata reading")
 	}
 	defer bk.Close()
 	md.Lpath = lpath
@@ -272,7 +273,7 @@ func (k *Kobo) readMDfile() error {
 	if emptyOrNotExist {
 		// ignore
 	} else if err != nil {
-		return err
+		return errors.Wrap(err, "error reading metadata.calibre JSON")
 	}
 
 	// Make the metadatamap here instead of the constructer so we can pre-allocate
@@ -311,13 +312,13 @@ func (k *Kobo) readMDfile() error {
 
 	bkRows, err := k.nickelDB.Query(query)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error getting book rows")
 	}
 	defer bkRows.Close()
 	for bkRows.Next() {
 		err = bkRows.Scan(&dbCID, &dbTitle, &dbAttr, &dbDesc, &dbPublisher, &dbSeries, &dbbSeriesNum, &dbContentType, &dbMimeType)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "row decoding error")
 		}
 		if _, exists := tmpMap[dbCID]; !exists {
 			log.Printf("Book not in cache: %s\n", dbCID)
@@ -359,12 +360,12 @@ func (k *Kobo) readMDfile() error {
 	}
 	err = bkRows.Err()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "bkRows error")
 	}
 	// Hopefully, our metadata is now up to date. Update the cache on disk
 	err = k.WriteMDfile()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error writing metadata to disk")
 	}
 	return nil
 }
@@ -385,8 +386,7 @@ func (k *Kobo) readUpdateMDfile() error {
 	if emptyOrNotExist {
 		// ignore
 	} else if err != nil {
-		log.Println(err)
-		return err
+		return errors.Wrap(err, "error reading update metadata JSON")
 	}
 	return nil
 }
@@ -411,7 +411,7 @@ func (k *Kobo) loadDeviceInfo() error {
 			k.DriveInfo.DevInfo.LocationCode = "A"
 		}
 	} else if err != nil {
-		return err
+		return errors.Wrap(err, "error reading device info JSON")
 	}
 	return nil
 }
@@ -499,10 +499,11 @@ func (k *Kobo) UpdateNickelDB() error {
 		WHERE ContentID=?`
 	stmt, err := k.nickelDB.Prepare(query)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "prepared statement failed")
 	}
 	var desc, series, seriesNum *string
 	var seriesNumFloat *float64
+	var updateErr error
 	for _, cid := range k.UpdatedMetadata {
 		desc, series, seriesNum, seriesNumFloat = nil, nil, nil, nil
 		if k.MetadataMap[cid].Comments != nil && *k.MetadataMap[cid].Comments != "" {
@@ -518,10 +519,10 @@ func (k *Kobo) UpdateNickelDB() error {
 		}
 		_, err = stmt.Exec(desc, series, seriesNum, seriesNumFloat, cid)
 		if err != nil {
-			log.Print(err)
+			updateErr = errors.Wrap(updateErr, err.Error())
 		}
 	}
-	return nil
+	return updateErr
 }
 
 // Close the kobo object when we're finished with it

@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"github.com/mitchellh/mapstructure"
+	"github.com/pkg/errors"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/device"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/util"
@@ -175,11 +176,11 @@ func (ku *koboUncaged) SaveBook(md map[string]interface{}, len int, lastBook boo
 	bkDir, _ := filepath.Split(bkPath)
 	err = os.MkdirAll(bkDir, 0777)
 	if err != nil {
-		return nil, "", err
+		return nil, "", errors.Wrap(err, "error making book directories")
 	}
 	book, err = os.OpenFile(bkPath, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		return nil, "", err
+		return nil, "", errors.Wrap(err, "error opening ebook file")
 	}
 	ku.k.UpdatedMetadata = append(ku.k.UpdatedMetadata, cID)
 	// Note, the JSON format for covers should be in the form 'thumbnail: [w, h, "base64string"]'
@@ -189,14 +190,14 @@ func (ku *koboUncaged) SaveBook(md map[string]interface{}, len int, lastBook boo
 	}
 	err = ku.k.UpdateIfExists(cID, len)
 	if err != nil {
-		log.Print(err)
+		err = errors.Wrap(err, "error updating existing book")
 	}
 	ku.k.MetadataMap[cID] = koboMD
 	if lastBook {
 		ku.k.WriteMDfile()
 		ku.k.WriteUpdateMDfile()
 	}
-	return book, newLpath, nil
+	return book, newLpath, err
 }
 
 // GetBook provides an io.ReadCloser, and the file len, from which UNCaGED can send the requested book to Calibre
@@ -207,7 +208,7 @@ func (ku *koboUncaged) GetBook(book uc.BookID, filePos int64) (io.ReadCloser, in
 	bkPath := util.ContentIDtoBkPath(ku.k.BKRootDir, cid, string(ku.k.ContentIDprefix))
 	fi, err := os.Stat(bkPath)
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, errors.Wrap(err, "error getting book stats")
 	}
 	bookLen := fi.Size()
 	ebook, err := os.OpenFile(bkPath, os.O_RDONLY, 0644)
@@ -225,14 +226,13 @@ func (ku *koboUncaged) DeleteBook(book uc.BookID) error {
 	dirPath := filepath.Clean(dir)
 	err := os.Remove(bkPath)
 	if err != nil {
-		log.Print(err)
-		return err
+		return errors.Wrap(err, "error deleting book")
 	}
 	for dirPath != filepath.Clean(ku.k.BKRootDir) {
 		// Note, os.Remove only removes empty directories, so it should be safe to call
 		err := os.Remove(dirPath)
 		if err != nil {
-			log.Print(err)
+			err = errors.Wrap(err, "error removing parent directories")
 			// We don't consider failure to remove parent directories an error, so
 			// long as the book file itself was deleted.
 			break
@@ -254,7 +254,7 @@ func (ku *koboUncaged) DeleteBook(book uc.BookID) error {
 	// Finally, write the new metadata files
 	ku.k.WriteMDfile()
 	ku.k.WriteUpdateMDfile()
-	return nil
+	return err
 }
 
 // UpdateStatus gives status updates from the UNCaGED library
