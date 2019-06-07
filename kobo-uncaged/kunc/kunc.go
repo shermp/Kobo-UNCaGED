@@ -159,7 +159,7 @@ func (ku *koboUncaged) SaveBook(md map[string]interface{}, len int, lastBook boo
 	mapstructure.Decode(md, &koboMD)
 	// The calibre wireless driver does not sanitize the filepath for us. We sanitize it here,
 	// and if lpath changes, inform Calibre of the new lpath.
-	newLpath = ku.k.InvalidCharsRegex.ReplaceAllString(koboMD.Lpath, "_")
+	newLpath = util.SanitizeFilepath(koboMD.Lpath)
 	// Also, for kepub files, Calibre defaults to using "book/path.kepub"
 	// but we require "book/path.kepub.epub". We change that here if needed.
 	if nlp := util.LpathKepubConvert(newLpath); nlp != koboMD.Lpath {

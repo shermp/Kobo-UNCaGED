@@ -12,7 +12,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -85,34 +84,30 @@ func New(dbRootDir, sdRootDir string, updatingMD bool, opts *KuOptions, vers str
 
 	kuprint.Println(kuprint.Header, headerStr)
 	kuprint.Println(kuprint.Body, "Gathering information about your Kobo")
-	k.InvalidCharsRegex, err = regexp.Compile(`[\\?%\*:;\|\"\'><\$!]`)
-	if err != nil {
-		return nil, errors.Wrap(err, "invalid chars regex failed")
-	}
 	log.Println("Opening NickelDB")
-	if err := k.openNickelDB(); err != nil {
+	if err = k.openNickelDB(); err != nil {
 		return nil, errors.Wrap(err, "failed to open Nickel DB")
 	}
 	log.Println("Getting Kobo Info")
-	if err := k.getKoboInfo(); err != nil {
+	if err = k.getKoboInfo(); err != nil {
 		return nil, errors.Wrap(err, "failed to get kobo info")
 	}
 	log.Println("Getting Device Info")
-	if err := k.loadDeviceInfo(); err != nil {
+	if err = k.loadDeviceInfo(); err != nil {
 		return nil, errors.Wrap(err, "failed to load device info")
 	}
 	log.Println("Reading Metadata")
-	if err := k.readMDfile(); err != nil {
+	if err = k.readMDfile(); err != nil {
 		return nil, errors.Wrap(err, "failed to read metadata file")
 	}
 
 	if !updatingMD {
 		return k, nil
 	}
-	if err := k.readUpdateMDfile(); err != nil {
+	if err = k.readUpdateMDfile(); err != nil {
 		return nil, errors.Wrap(err, "failed to read updated metadata file")
 	}
-	return k, nil
+	return k, err
 }
 
 func (k *Kobo) openNickelDB() error {

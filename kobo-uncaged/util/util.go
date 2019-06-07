@@ -6,8 +6,17 @@ import (
 	"image"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
+
+var invalidCharsRegex = regexp.MustCompile(`[\\?%\*:;\|\"\'><\$!]`)
+
+// SanitizeFilepath replaces all illegal characters for a fat32 filesystem
+// with underscores
+func SanitizeFilepath(filePath string) string {
+	return invalidCharsRegex.ReplaceAllString(filePath, "_")
+}
 
 // ImgIDFromContentID generates an imageID from a contentID, using the
 // the replacement values as found in the Calibre Kobo driver

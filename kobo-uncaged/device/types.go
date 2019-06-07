@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"image"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 
@@ -50,20 +49,19 @@ type KuOptions struct {
 // Kobo contains the variables and methods required to use
 // the UNCaGED library
 type Kobo struct {
-	Device            koboDevice
-	fw                firmwareVersion
-	KuConfig          *KuOptions
-	DBRootDir         string
-	BKRootDir         string
-	ContentIDprefix   cidPrefix
-	useSDCard         bool
-	MetadataMap       map[string]KoboMetadata
-	UpdatedMetadata   []string
-	Passwords         *uncagedPassword
-	DriveInfo         uc.DeviceInfo
-	nickelDB          *sql.DB
-	Wg                *sync.WaitGroup
-	InvalidCharsRegex *regexp.Regexp
+	Device          koboDevice
+	fw              firmwareVersion
+	KuConfig        *KuOptions
+	DBRootDir       string
+	BKRootDir       string
+	ContentIDprefix cidPrefix
+	useSDCard       bool
+	MetadataMap     map[string]KoboMetadata
+	UpdatedMetadata []string
+	Passwords       *uncagedPassword
+	DriveInfo       uc.DeviceInfo
+	nickelDB        *sql.DB
+	Wg              *sync.WaitGroup
 }
 type uncagedPassword struct {
 	currPassIndex int
