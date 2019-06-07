@@ -23,7 +23,7 @@ import "fmt"
 
 var consolePrint int
 
-// NewPrinter returns an object which conforms to the KuPrinter interface
+// InitPrinter returns an object which conforms to the KuPrinter interface
 func InitPrinter(fontPath string) error {
 	return nil
 }

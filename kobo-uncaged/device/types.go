@@ -33,6 +33,7 @@ import (
 
 type cidPrefix string
 
+// KuOptions contains some options that are required
 type KuOptions struct {
 	PreferSDCard bool
 	PreferKepub  bool

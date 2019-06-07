@@ -38,6 +38,7 @@ type KoboUncaged struct {
 	k *device.Kobo
 }
 
+// New initialises the koboUncaged object that will be passed to UNCaGED
 func New(kobo *device.Kobo) *KoboUncaged {
 	ku := &KoboUncaged{}
 	ku.k = kobo

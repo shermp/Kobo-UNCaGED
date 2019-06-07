@@ -47,7 +47,7 @@ func (pw *uncagedPassword) NextPassword() string {
 	return password
 }
 
-// We use a constructor, because nested maps
+// CreateKoboMetadata creates the required nested maps
 func CreateKoboMetadata() KoboMetadata {
 	var md KoboMetadata
 	md.UserMetadata = make(map[string]interface{}, 0)
@@ -121,6 +121,7 @@ func (k *Kobo) openNickelDB() error {
 	return err
 }
 
+// UpdateIfExists updates onboard metadata if it exists in the Nickel database
 func (k *Kobo) UpdateIfExists(cID string, len int) error {
 	if _, exists := k.MetadataMap[cID]; exists {
 		var currSize int
@@ -169,6 +170,7 @@ func (k *Kobo) getKoboInfo() error {
 	return nil
 }
 
+// GetDeviceOptions gets some device options that UNCaGED requires
 func (k *Kobo) GetDeviceOptions() (ext []string, model string, thumbSz image.Point) {
 	if k.KuConfig.PreferKepub {
 		ext = []string{"kepub", "epub", "mobi", "pdf", "cbz", "cbr", "txt", "html", "rtf"}
@@ -367,6 +369,7 @@ func (k *Kobo) readMDfile() error {
 	return nil
 }
 
+// WriteMDfile writes metadata to file
 func (k *Kobo) WriteMDfile() error {
 	var n int
 	metadata := make([]KoboMetadata, len(k.MetadataMap))
@@ -388,6 +391,7 @@ func (k *Kobo) readUpdateMDfile() error {
 	return nil
 }
 
+// WriteUpdateMDfile writes updated metadata to file
 func (k *Kobo) WriteUpdateMDfile() error {
 	// We only write the file if there is new or updated metadata to write
 	if len(k.UpdatedMetadata) == 0 {
@@ -412,10 +416,12 @@ func (k *Kobo) loadDeviceInfo() error {
 	return nil
 }
 
+// SaveDeviceInfo save device info to file
 func (k *Kobo) SaveDeviceInfo() error {
 	return util.WriteJSON(filepath.Join(k.BKRootDir, calibreDIfile), k.DriveInfo.DevInfo)
 }
 
+// SaveCoverImage generates cover image and thumbnails, and save to appropriate locations
 func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string) {
 	defer k.Wg.Done()
 
@@ -480,7 +486,7 @@ func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string)
 	}
 }
 
-// updateNickelDB updates the Nickel database with updated metadata obtained from a previous run
+// UpdateNickelDB updates the Nickel database with updated metadata obtained from a previous run
 func (k *Kobo) UpdateNickelDB() error {
 	// No matter what happens, we remove the 'metadata_update.kobouc' file when we're done
 	defer os.Remove(filepath.Join(k.BKRootDir, kuUpdatedMDfile))
@@ -518,6 +524,7 @@ func (k *Kobo) UpdateNickelDB() error {
 	return nil
 }
 
+// Close the kobo object when we're finished with it
 func (k *Kobo) Close() {
 	k.Wg.Wait()
 	kuprint.Close()
