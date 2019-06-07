@@ -66,10 +66,7 @@ func New(dbRootDir, sdRootDir string, updatingMD bool, opts *KuOptions) (*Kobo, 
 	k.DBRootDir = dbRootDir
 	k.BKRootDir = dbRootDir
 	k.ContentIDprefix = onboardPrefix
-	fntPath := filepath.Join(k.DBRootDir, ".adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf")
-	if k.Kup, err = kuprint.NewPrinter(fntPath); err != nil {
-		return nil, err
-	}
+
 	k.KuConfig = opts
 	if sdRootDir != "" && k.KuConfig.PreferSDCard {
 		k.useSDCard = true
@@ -85,8 +82,8 @@ func New(dbRootDir, sdRootDir string, updatingMD bool, opts *KuOptions) (*Kobo, 
 		headerStr += "\nUsing Internal Storage"
 	}
 
-	k.Kup.Println(kuprint.Header, headerStr)
-	k.Kup.Println(kuprint.Body, "Gathering information about your Kobo")
+	kuprint.Println(kuprint.Header, headerStr)
+	kuprint.Println(kuprint.Body, "Gathering information about your Kobo")
 	k.InvalidCharsRegex, err = regexp.Compile(`[\\?%\*:;\|\"\'><\$!]`)
 	if err != nil {
 		return nil, err
@@ -523,7 +520,7 @@ func (k *Kobo) UpdateNickelDB() error {
 
 func (k *Kobo) Close() {
 	k.Wg.Wait()
-	k.Kup.Close()
+	kuprint.Close()
 	k.nickelDB.Close()
 
 }

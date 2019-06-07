@@ -37,7 +37,7 @@ type orientation struct {
 	xOff, yOff int16
 }
 
-type einkPrint struct {
+var einkPrint struct {
 	fbCfg   *gofbink.FBInkConfig
 	rCfg    *gofbink.RestrictedConfig
 	fbink   *gofbink.FBInk
@@ -50,61 +50,60 @@ type einkPrint struct {
 	headStr, bodyStr, footStr string
 }
 
-// NewPrinter returns an object which conforms to the KuPrinter interface
-func NewPrinter(fontPath string) (Printer, error) {
-	ep := &einkPrint{}
-	ep.fbCfg = &gofbink.FBInkConfig{Valign: gofbink.None, NoRefresh: true, IgnoreAlpha: true}
-	ep.rCfg = &gofbink.RestrictedConfig{IsCentered: true}
-	ep.mbox.landscape.otCfg = gofbink.FBInkOTConfig{SizePt: 10, IsCentred: true}
-	ep.mbox.portrait.otCfg = gofbink.FBInkOTConfig{SizePt: 10, IsCentred: true}
-	ep.fbink = gofbink.New(ep.fbCfg, ep.rCfg)
-	ep.fbink.Init(ep.fbCfg)
-	err := ep.fbink.AddOTfont(fontPath, gofbink.FntRegular)
+// InitPrinter returns an object which conforms to the KuPrinter interface
+func InitPrinter(fontPath string) error {
+	einkPrint.fbCfg = &gofbink.FBInkConfig{Valign: gofbink.None, NoRefresh: true, IgnoreAlpha: true}
+	einkPrint.rCfg = &gofbink.RestrictedConfig{IsCentered: true}
+	einkPrint.mbox.landscape.otCfg = gofbink.FBInkOTConfig{SizePt: 10, IsCentred: true}
+	einkPrint.mbox.portrait.otCfg = gofbink.FBInkOTConfig{SizePt: 10, IsCentred: true}
+	einkPrint.fbink = gofbink.New(einkPrint.fbCfg, einkPrint.rCfg)
+	einkPrint.fbink.Init(einkPrint.fbCfg)
+	err := einkPrint.fbink.AddOTfont(fontPath, gofbink.FntRegular)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	ep.fbState = &gofbink.FBInkState{}
-	ep.fbink.GetState(ep.fbCfg, ep.fbState)
+	einkPrint.fbState = &gofbink.FBInkState{}
+	einkPrint.fbink.GetState(einkPrint.fbCfg, einkPrint.fbState)
 
-	//dpi := ep.fbState.ScreenDPI
-	vw := ep.fbState.ViewWidth
-	vh := ep.fbState.ViewHeight
+	//dpi := einkPrint.fbState.ScreenDPI
+	vw := einkPrint.fbState.ViewWidth
+	vh := einkPrint.fbState.ViewHeight
 	w := vw
 	if w > vh {
 		w = vh // in case we are landscape
 	}
 	w = uint32(float64(w) * 0.7)
-	ep.mbox.hdrH = uint32(float64(w) * 0.2)
-	ep.mbox.bdyH = uint32(float64(w) * 0.6)
-	ep.mbox.ftrH = uint32(float64(w) * 0.2)
-	ep.mbox.mb = createMessageBox(int(w), int(w))
-	ep.setOffsets(int(vw), int(vh))
-	ep.headStr, ep.bodyStr, ep.footStr = " ", " ", " "
-	return ep, nil
+	einkPrint.mbox.hdrH = uint32(float64(w) * 0.2)
+	einkPrint.mbox.bdyH = uint32(float64(w) * 0.6)
+	einkPrint.mbox.ftrH = uint32(float64(w) * 0.2)
+	einkPrint.mbox.mb = createMessageBox(int(w), int(w))
+	setOffsets(int(vw), int(vh))
+	einkPrint.headStr, einkPrint.bodyStr, einkPrint.footStr = " ", " ", " "
+	return nil
 }
 
-func (ep *einkPrint) setOffsets(vw, vh int) {
+func setOffsets(vw, vh int) {
 	// portrait
-	mbW := ep.mbox.mb.Rect.Max.X - ep.mbox.mb.Rect.Min.X
-	mbH := ep.mbox.mb.Rect.Max.Y - ep.mbox.mb.Rect.Min.Y
+	mbW := einkPrint.mbox.mb.Rect.Max.X - einkPrint.mbox.mb.Rect.Min.X
+	mbH := einkPrint.mbox.mb.Rect.Max.Y - einkPrint.mbox.mb.Rect.Min.Y
 	if vh > vw {
-		ep.mbox.portrait.yOff = int16((vh - mbH) / 2)
-		ep.mbox.portrait.xOff = int16((vw - mbW) / 2)
-		ep.mbox.portrait.otCfg.Margins.Left = ep.mbox.portrait.xOff
-		ep.mbox.portrait.otCfg.Margins.Right = ep.mbox.portrait.xOff
-		ep.mbox.portrait.refreshReg.x = uint32(ep.mbox.portrait.xOff)
-		ep.mbox.portrait.refreshReg.y = uint32(ep.mbox.portrait.yOff)
-		ep.mbox.portrait.refreshReg.w = uint32(mbW)
-		ep.mbox.portrait.refreshReg.h = uint32(mbH)
+		einkPrint.mbox.portrait.yOff = int16((vh - mbH) / 2)
+		einkPrint.mbox.portrait.xOff = int16((vw - mbW) / 2)
+		einkPrint.mbox.portrait.otCfg.Margins.Left = einkPrint.mbox.portrait.xOff
+		einkPrint.mbox.portrait.otCfg.Margins.Right = einkPrint.mbox.portrait.xOff
+		einkPrint.mbox.portrait.refreshReg.x = uint32(einkPrint.mbox.portrait.xOff)
+		einkPrint.mbox.portrait.refreshReg.y = uint32(einkPrint.mbox.portrait.yOff)
+		einkPrint.mbox.portrait.refreshReg.w = uint32(mbW)
+		einkPrint.mbox.portrait.refreshReg.h = uint32(mbH)
 	} else {
-		ep.mbox.landscape.yOff = int16((vw - mbH) / 2)
-		ep.mbox.landscape.xOff = int16((vh - mbW) / 2)
-		ep.mbox.landscape.otCfg.Margins.Left = ep.mbox.landscape.xOff
-		ep.mbox.landscape.otCfg.Margins.Right = ep.mbox.landscape.xOff
-		ep.mbox.landscape.refreshReg.x = uint32(ep.mbox.landscape.xOff)
-		ep.mbox.landscape.refreshReg.y = uint32(ep.mbox.landscape.yOff)
-		ep.mbox.landscape.refreshReg.w = uint32(mbW)
-		ep.mbox.landscape.refreshReg.h = uint32(mbH)
+		einkPrint.mbox.landscape.yOff = int16((vw - mbH) / 2)
+		einkPrint.mbox.landscape.xOff = int16((vh - mbW) / 2)
+		einkPrint.mbox.landscape.otCfg.Margins.Left = einkPrint.mbox.landscape.xOff
+		einkPrint.mbox.landscape.otCfg.Margins.Right = einkPrint.mbox.landscape.xOff
+		einkPrint.mbox.landscape.refreshReg.x = uint32(einkPrint.mbox.landscape.xOff)
+		einkPrint.mbox.landscape.refreshReg.y = uint32(einkPrint.mbox.landscape.yOff)
+		einkPrint.mbox.landscape.refreshReg.w = uint32(mbW)
+		einkPrint.mbox.landscape.refreshReg.h = uint32(mbH)
 	}
 
 }
@@ -122,71 +121,71 @@ func createMessageBox(w, h int) *image.RGBA {
 }
 
 // Close safely closes
-func (ep *einkPrint) Close() {
-	ep.fbink.FreeOTfonts()
+func Close() {
+	einkPrint.fbink.FreeOTfonts()
 }
 
-func (ep *einkPrint) printSection(orient *orientation, section MboxSection, vh uint32) error {
+func printSection(orient *orientation, section MboxSection, vh uint32) error {
 	var err error
 	var str string
 	if section == Header {
 		orient.otCfg.Margins.Top = orient.yOff
-		orient.otCfg.Margins.Bottom = int16(vh) - (orient.otCfg.Margins.Top + int16(ep.mbox.hdrH))
+		orient.otCfg.Margins.Bottom = int16(vh) - (orient.otCfg.Margins.Top + int16(einkPrint.mbox.hdrH))
 		orient.otCfg.SizePt = 12
-		str = ep.headStr
+		str = einkPrint.headStr
 	} else if section == Body {
-		orient.otCfg.Margins.Top = orient.yOff + int16(ep.mbox.hdrH)
-		orient.otCfg.Margins.Bottom = int16(vh) - (orient.otCfg.Margins.Top + int16(ep.mbox.bdyH))
+		orient.otCfg.Margins.Top = orient.yOff + int16(einkPrint.mbox.hdrH)
+		orient.otCfg.Margins.Bottom = int16(vh) - (orient.otCfg.Margins.Top + int16(einkPrint.mbox.bdyH))
 		orient.otCfg.SizePt = 11
-		str = ep.bodyStr
+		str = einkPrint.bodyStr
 	} else {
-		orient.otCfg.Margins.Top = orient.yOff + int16(ep.mbox.hdrH) + int16(ep.mbox.bdyH)
-		orient.otCfg.Margins.Bottom = int16(vh) - (orient.otCfg.Margins.Top + int16(ep.mbox.ftrH))
+		orient.otCfg.Margins.Top = orient.yOff + int16(einkPrint.mbox.hdrH) + int16(einkPrint.mbox.bdyH)
+		orient.otCfg.Margins.Bottom = int16(vh) - (orient.otCfg.Margins.Top + int16(einkPrint.mbox.ftrH))
 		orient.otCfg.SizePt = 11
-		str = ep.footStr
+		str = einkPrint.footStr
 	}
 	//log.Printf("Top Margin: %d, Bottom Margin: %d\n", orient.otCfg.Margins.Top, orient.otCfg.Margins.Bottom)
-	ep.fbCfg.Valign = gofbink.Center
-	_, err = ep.fbink.PrintOT(str, &orient.otCfg, ep.fbCfg)
+	einkPrint.fbCfg.Valign = gofbink.Center
+	_, err = einkPrint.fbink.PrintOT(str, &orient.otCfg, einkPrint.fbCfg)
 	return err
 }
 
 // Println displays a message for the user
-func (ep *einkPrint) Println(section MboxSection, a ...interface{}) (n int, err error) {
+func Println(section MboxSection, a ...interface{}) (n int, err error) {
 	n = 0
 	err = nil
 	// Reset Valign first, otherwise this triggers a nasty bug where button_scan fails
-	ep.fbCfg.Valign = gofbink.None
-	ep.fbink.ReInit(ep.fbCfg)
-	ep.fbink.GetState(ep.fbCfg, ep.fbState)
+	einkPrint.fbCfg.Valign = gofbink.None
+	einkPrint.fbink.ReInit(einkPrint.fbCfg)
+	einkPrint.fbink.GetState(einkPrint.fbCfg, einkPrint.fbState)
 	str := fmt.Sprint(a...)
 	if section == Header {
-		ep.headStr = str
+		einkPrint.headStr = str
 	} else if section == Body {
-		ep.bodyStr = str
+		einkPrint.bodyStr = str
 	} else {
-		ep.footStr = str
+		einkPrint.footStr = str
 	}
 	// Determine our orientation
 	var orient *orientation
-	if ep.fbState.ViewHeight > ep.fbState.ViewWidth {
-		orient = &ep.mbox.portrait
+	if einkPrint.fbState.ViewHeight > einkPrint.fbState.ViewWidth {
+		orient = &einkPrint.mbox.portrait
 	} else {
-		orient = &ep.mbox.landscape
+		orient = &einkPrint.mbox.landscape
 	}
 	// Print the messagebox to FB
-	err = ep.fbink.PrintRBGA(orient.xOff, orient.yOff, ep.mbox.mb, ep.fbCfg)
+	err = einkPrint.fbink.PrintRBGA(orient.xOff, orient.yOff, einkPrint.mbox.mb, einkPrint.fbCfg)
 	if err != nil {
 		return 0, err
 	}
 	// Print Header
-	ep.printSection(orient, Header, ep.fbState.ViewHeight)
+	printSection(orient, Header, einkPrint.fbState.ViewHeight)
 	// Then body
-	ep.printSection(orient, Body, ep.fbState.ViewHeight)
+	printSection(orient, Body, einkPrint.fbState.ViewHeight)
 	// Then footer
-	ep.printSection(orient, Footer, ep.fbState.ViewHeight)
+	printSection(orient, Footer, einkPrint.fbState.ViewHeight)
 	// Finally, refresh
-	err = ep.fbink.Refresh(orient.refreshReg.y, orient.refreshReg.x, orient.refreshReg.w, orient.refreshReg.h, gofbink.DitherPassthrough, ep.fbCfg)
+	err = einkPrint.fbink.Refresh(orient.refreshReg.y, orient.refreshReg.x, orient.refreshReg.w, orient.refreshReg.h, gofbink.DitherPassthrough, einkPrint.fbCfg)
 	if err != nil {
 		return 0, err
 	}

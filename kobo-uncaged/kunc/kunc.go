@@ -266,26 +266,26 @@ func (ku *KoboUncaged) UpdateStatus(status uc.UCStatus, progress int) {
 	case uc.Idle:
 		fallthrough
 	case uc.Connected:
-		ku.k.Kup.Println(kuprint.Body, "Connected")
-		ku.k.Kup.Println(kuprint.Footer, footerStr)
+		kuprint.Println(kuprint.Body, "Connected")
+		kuprint.Println(kuprint.Footer, footerStr)
 	case uc.Connecting:
-		ku.k.Kup.Println(kuprint.Body, "Connecting to Calibre")
-		ku.k.Kup.Println(kuprint.Footer, footerStr)
+		kuprint.Println(kuprint.Body, "Connecting to Calibre")
+		kuprint.Println(kuprint.Footer, footerStr)
 	case uc.SearchingCalibre:
-		ku.k.Kup.Println(kuprint.Body, "Searching for Calibre")
-		ku.k.Kup.Println(kuprint.Footer, footerStr)
+		kuprint.Println(kuprint.Body, "Searching for Calibre")
+		kuprint.Println(kuprint.Footer, footerStr)
 	case uc.Disconnected:
-		ku.k.Kup.Println(kuprint.Body, "Disconnected")
-		ku.k.Kup.Println(kuprint.Footer, footerStr)
+		kuprint.Println(kuprint.Body, "Disconnected")
+		kuprint.Println(kuprint.Footer, footerStr)
 	case uc.SendingBook:
-		ku.k.Kup.Println(kuprint.Body, "Sending book to Calibre")
-		ku.k.Kup.Println(kuprint.Footer, footerStr)
+		kuprint.Println(kuprint.Body, "Sending book to Calibre")
+		kuprint.Println(kuprint.Footer, footerStr)
 	case uc.ReceivingBook:
-		ku.k.Kup.Println(kuprint.Body, "Receiving book(s) from Calibre")
-		ku.k.Kup.Println(kuprint.Footer, footerStr)
+		kuprint.Println(kuprint.Body, "Receiving book(s) from Calibre")
+		kuprint.Println(kuprint.Footer, footerStr)
 	case uc.EmptyPasswordReceived:
-		ku.k.Kup.Println(kuprint.Body, "No valid password found!")
-		ku.k.Kup.Println(kuprint.Footer, footerStr)
+		kuprint.Println(kuprint.Body, "No valid password found!")
+		kuprint.Println(kuprint.Footer, footerStr)
 	}
 }
 

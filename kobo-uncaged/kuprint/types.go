@@ -20,15 +20,10 @@ package kuprint
 // MboxSection is a constant which determines which section of the
 // message box to print to
 type MboxSection int
+
 // Definition of MboxSection constants
 const (
 	Header MboxSection = iota
 	Body
 	Footer
 )
-
-// Printer provides functionality to display messages to the user
-type Printer interface {
-	Println(section MboxSection, a ...interface{}) (n int, err error)
-	Close()
-}

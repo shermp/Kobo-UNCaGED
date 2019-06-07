@@ -27,7 +27,6 @@ import (
 	"sync"
 
 	"github.com/bamiaux/rez"
-	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/util"
 	"github.com/shermp/UNCaGED/uc"
 )
@@ -44,7 +43,6 @@ type KuOptions struct {
 // Kobo contains the variables and methods required to use
 // the UNCaGED library
 type Kobo struct {
-	Kup               kuprint.Printer
 	Device            koboDevice
 	fw                [3]int
 	KuConfig          *KuOptions

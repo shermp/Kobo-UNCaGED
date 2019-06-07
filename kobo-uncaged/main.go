@@ -27,11 +27,11 @@ import (
 
 	"github.com/BurntSushi/toml"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/pkg/errors"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/device"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kunc"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
 	"github.com/shermp/UNCaGED/uc"
-	"github.com/pkg/errors"
 )
 
 type returnCode int
@@ -69,8 +69,13 @@ func mainWithErrCode() returnCode {
 	onboardMntPtr := flag.String("onboardmount", "/mnt/onboard", "If changed, specify the new new mountpoint of '/mnt/onboard'")
 	sdMntPtr := flag.String("sdmount", "", "If changed, specify the new new mountpoint of '/mnt/sd'")
 	mdPtr := flag.Bool("metadata", false, "Updates the Kobo DB with new metadata")
-
 	flag.Parse()
+	fntPath := filepath.Join(*onboardMntPtr, ".adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf")
+	if err = kuprint.InitPrinter(fntPath); err != nil {
+		log.Print(err)
+		return kuError
+	}
+	defer kuprint.Close()
 	log.Println("Started Kobo-UNCaGED")
 	log.Println("Reading options")
 	opts, optErr := getUserOptions(*onboardMntPtr)
@@ -82,17 +87,17 @@ func mainWithErrCode() returnCode {
 	}
 	defer k.Close()
 	if optErr != nil {
-		k.Kup.Println(kuprint.Body, optErr.Error())
+		kuprint.Println(kuprint.Body, optErr.Error())
 	}
 	if *mdPtr {
 		log.Println("Updating Metadata")
-		k.Kup.Println(kuprint.Body, "Updating Metadata!")
+		kuprint.Println(kuprint.Body, "Updating Metadata!")
 		err = k.UpdateNickelDB()
 		if err != nil {
 			log.Print(err)
 			return kuError
 		}
-		k.Kup.Println(kuprint.Body, "Metadata Updated!\n\nReturning to Home screen")
+		kuprint.Println(kuprint.Body, "Metadata Updated!\n\nReturning to Home screen")
 	} else {
 		log.Println("Preparing Kobo UNCaGED!")
 		ku := kunc.New(k)
@@ -102,7 +107,7 @@ func mainWithErrCode() returnCode {
 			// TODO: Probably need to come up with a set of error codes for
 			//       UNCaGED instead of this string comparison
 			if err.Error() == "calibre server not found" {
-				k.Kup.Println(kuprint.Body, "Calibre not found!\nHave you enabled the Calibre Wireless service?")
+				kuprint.Println(kuprint.Body, "Calibre not found!\nHave you enabled the Calibre Wireless service?")
 			}
 			return kuError
 		}
@@ -110,7 +115,7 @@ func mainWithErrCode() returnCode {
 		err = cc.Start()
 		if err != nil {
 			if err.Error() == "no password entered" {
-				k.Kup.Println(kuprint.Body, "No valid password found!")
+				kuprint.Println(kuprint.Body, "No valid password found!")
 				return kuPasswordError
 			}
 			log.Print(err)
@@ -118,10 +123,10 @@ func mainWithErrCode() returnCode {
 		}
 
 		if len(k.UpdatedMetadata) > 0 {
-			k.Kup.Println(kuprint.Body, "Kobo-UNCaGED will restart automatically to update metadata")
+			kuprint.Println(kuprint.Body, "Kobo-UNCaGED will restart automatically to update metadata")
 			return kuSuccessRerun
 		}
-		k.Kup.Println(kuprint.Body, "Nothing more to do!\n\nReturning to Home screen")
+		kuprint.Println(kuprint.Body, "Nothing more to do!\n\nReturning to Home screen")
 	}
 
 	return kuSuccessNoAction

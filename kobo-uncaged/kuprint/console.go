@@ -21,20 +21,18 @@ package kuprint
 
 import "fmt"
 
-type consolePrint struct {
-}
+var consolePrint int
 
 // NewPrinter returns an object which conforms to the KuPrinter interface
-func NewPrinter(fontPath string) (Printer, error) {
-	cp := &consolePrint{}
-	return cp, nil
+func InitPrinter(fontPath string) error {
+	return nil
 }
 
 // Println displays a message for the user
-func (cp *consolePrint) Println(section MboxSection, a ...interface{}) (n int, err error) {
+func Println(section MboxSection, a ...interface{}) (n int, err error) {
 	return fmt.Println(a...)
 }
 
 // Close safely closes
-func (cp *consolePrint) Close() {
+func Close() {
 }
