@@ -17,21 +17,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Kobo UNCaGED.  If not, see <https://www.gnu.org/licenses/>.
 
-package main
+package kuprint
 
 import "fmt"
 
-type kuUserPrint struct {
+var consolePrint int
+
+// InitPrinter returns an object which conforms to the KuPrinter interface
+func InitPrinter(fontPath string) error {
+	return nil
 }
 
-func newKuPrint(fontPath string) (*kuUserPrint, error) {
-	kup := &kuUserPrint{}
-	return kup, nil
-}
-
-func (kup *kuUserPrint) kuPrintln(section mboxSection, a ...interface{}) (n int, err error) {
+// Println displays a message for the user
+func Println(section MboxSection, a ...interface{}) (n int, err error) {
 	return fmt.Println(a...)
 }
 
-func (kup *kuUserPrint) kuClose() {
+// Close safely closes
+func Close() {
 }

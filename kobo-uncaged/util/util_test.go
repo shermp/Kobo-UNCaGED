@@ -1,4 +1,4 @@
-package main
+package util
 
 import (
 	"image"
@@ -28,7 +28,7 @@ func TestResizeKeepAspectRatioByExpanding(t *testing.T) {
 		// fractional stuff
 		{image.Pt(1391, 2200), image.Pt(355, 530), image.Pt(355, 561)},
 	} {
-		if rz := resizeKeepAspectRatio(tc.sz, tc.bounds, true); !rz.Eq(tc.res) {
+		if rz := ResizeKeepAspectRatio(tc.sz, tc.bounds, true); !rz.Eq(tc.res) {
 			t.Errorf("resize %s to %s: expected %s, got %s", tc.sz, tc.bounds, tc.res, rz)
 		}
 	}
@@ -62,7 +62,7 @@ func TestHashedImageParts(t *testing.T) {
 		{"file____mnt_onboard_perftesting_book920_kepub_epub", "146", "158"},
 		{"file____mnt_onboard_perftesting_book960_kepub_epub", "178", "158"},
 	} {
-		d1, d2, bn := hashedImageParts(tc.id)
+		d1, d2, bn := HashedImageParts(tc.id)
 		if d1 != tc.dir1 {
 			t.Errorf("unexpected dir1 for %#v, expected %#v, got %#v", tc.id, tc.dir1, d1)
 		}

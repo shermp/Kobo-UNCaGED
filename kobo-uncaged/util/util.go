@@ -1,4 +1,4 @@
-package main
+package util
 
 import (
 	"encoding/json"
@@ -6,40 +6,56 @@ import (
 	"image"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
-// imgIDFromContentID generates an imageID from a contentID, using the
+var invalidCharsRegex = regexp.MustCompile(`[\\?%\*:;\|\"\'><\$!]`)
+
+// SanitizeFilepath replaces all illegal characters for a fat32 filesystem
+// with underscores
+func SanitizeFilepath(filePath string) string {
+	return invalidCharsRegex.ReplaceAllString(filePath, "_")
+}
+
+// ImgIDFromContentID generates an imageID from a contentID, using the
 // the replacement values as found in the Calibre Kobo driver
-func imgIDFromContentID(contentID string) string {
+func ImgIDFromContentID(contentID string) string {
 	r := strings.NewReplacer("/", "_", " ", "_", ":", "_", ".", "_")
 	return r.Replace(contentID)
 }
 
-func contentIDtoBkPath(rootDir, cid, cidPrefix string) string {
+// ContentIDtoBkPath converts the kobo content ID to a file path
+func ContentIDtoBkPath(rootDir, cid, cidPrefix string) string {
 	return filepath.Join(rootDir, strings.TrimPrefix(cid, cidPrefix))
 }
 
-func lpathIsKepub(lpath string) bool {
+// LpathIsKepub tests if the provided Lpath is a kepub file
+func LpathIsKepub(lpath string) bool {
 	return strings.HasSuffix(lpath, ".kepub")
 }
 
-func lpathKepubConvert(lpath string) string {
-	if lpathIsKepub(lpath) {
+// LpathKepubConvert converts a kepub lpath from calibre, to one
+// we can use on a kobo
+func LpathKepubConvert(lpath string) string {
+	if LpathIsKepub(lpath) {
 		lpath += ".epub"
 	}
 	return lpath
 }
 
-func lpathToContentID(lpath, cidPrefix string) string {
+// LpathToContentID converts an lpath from Calibre to a Kobo content ID
+func LpathToContentID(lpath, cidPrefix string) string {
 	return cidPrefix + strings.TrimPrefix(lpath, "/")
 }
 
-func contentIDtoLpath(cid, cidPrefix string) string {
+// ContentIDtoLpath converts a Kobo content ID to calibre lpath
+func ContentIDtoLpath(cid, cidPrefix string) string {
 	return strings.TrimPrefix(cid, cidPrefix)
 }
 
-func writeJSON(fn string, v interface{}) error {
+// WriteJSON is a helper function to write JSON to a file
+func WriteJSON(fn string, v interface{}) error {
 	f, err := os.OpenFile(fn, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
@@ -51,7 +67,8 @@ func writeJSON(fn string, v interface{}) error {
 	return enc.Encode(v)
 }
 
-func readJSON(fn string, out interface{}) (emptyOrNotExist bool, err error) {
+// ReadJSON is a helper function to read JSON from a file
+func ReadJSON(fn string, out interface{}) (emptyOrNotExist bool, err error) {
 	f, err := os.Open(fn)
 	if os.IsNotExist(err) {
 		return true, nil
@@ -70,10 +87,10 @@ func readJSON(fn string, out interface{}) (emptyOrNotExist bool, err error) {
 	return false, json.NewDecoder(f).Decode(out)
 }
 
-// resizeKeepAspectRatio resizes a sz to fill bounds while keeping the aspect
+// ResizeKeepAspectRatio resizes a sz to fill bounds while keeping the aspect
 // ratio. It is based on the code for QSize::scaled with the modes
 // Qt::KeepAspectRatio and Qt::KeepAspectRatioByExpanding.
-func resizeKeepAspectRatio(sz image.Point, bounds image.Point, expand bool) image.Point {
+func ResizeKeepAspectRatio(sz image.Point, bounds image.Point, expand bool) image.Point {
 	if sz.X == 0 || sz.Y == 0 {
 		return sz
 	}
@@ -94,10 +111,10 @@ func resizeKeepAspectRatio(sz image.Point, bounds image.Point, expand bool) imag
 	return image.Pt(bounds.X, int(float64(bounds.X)/ar))
 }
 
-// hashedImageParts returns the parts needed for constructing the path to the
+// HashedImageParts returns the parts needed for constructing the path to the
 // cached image. The result can be applied like:
 // .kobo-images/{dir1}/{dir2}/{basename} - N3_SOMETHING.jpg
-func hashedImageParts(imageID string) (dir1, dir2, basename string) {
+func HashedImageParts(imageID string) (dir1, dir2, basename string) {
 	imgID := []byte(imageID)
 	h := uint32(0x00000000)
 	for _, x := range imgID {

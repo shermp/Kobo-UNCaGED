@@ -15,30 +15,58 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with Kobo UNCaGED.  If not, see <https://www.gnu.org/licenses/>.
 
-package main
+package device
 
 import (
+	"database/sql"
 	"fmt"
 	"image"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/bamiaux/rez"
+	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/util"
+	"github.com/shermp/UNCaGED/uc"
 )
 
 type cidPrefix string
 
-type mboxSection int
-type kuPrinter interface {
-	kuPrintln(section mboxSection, a ...interface{}) (n int, err error)
-	kuClose()
+type firmwareVersion struct {
+	major int
+	minor int
+	build int
 }
 
-const (
-	header mboxSection = iota
-	body
-	footer
-)
+// KuOptions contains some options that are required
+type KuOptions struct {
+	PreferSDCard bool
+	PreferKepub  bool
+	PasswordList []string
+	Thumbnail    thumbnailOption
+}
+
+// Kobo contains the variables and methods required to use
+// the UNCaGED library
+type Kobo struct {
+	Device          koboDevice
+	fw              firmwareVersion
+	KuConfig        *KuOptions
+	DBRootDir       string
+	BKRootDir       string
+	ContentIDprefix cidPrefix
+	useSDCard       bool
+	MetadataMap     map[string]KoboMetadata
+	UpdatedMetadata []string
+	Passwords       *uncagedPassword
+	DriveInfo       uc.DeviceInfo
+	nickelDB        *sql.DB
+	Wg              *sync.WaitGroup
+}
+type uncagedPassword struct {
+	currPassIndex int
+	passwordList  []string
+}
 
 // KoboMetadata contains the metadata for ebooks on kobo devices.
 // It replicates the metadata available in the Kobo USBMS driver.
@@ -185,9 +213,9 @@ func (k koboCover) String() string {
 func (k koboCover) Resize(d koboDevice, sz image.Point) image.Point {
 	switch k {
 	case fullCover:
-		return resizeKeepAspectRatio(sz, k.Size(d), false)
+		return util.ResizeKeepAspectRatio(sz, k.Size(d), false)
 	case libFull, libGrid:
-		return resizeKeepAspectRatio(sz, k.Size(d), true)
+		return util.ResizeKeepAspectRatio(sz, k.Size(d), true)
 	default:
 		panic("unknown cover type")
 	}
@@ -209,7 +237,7 @@ func (k koboCover) Size(d koboDevice) image.Point {
 
 // RelPath gets the path to the cover file relative to the images dir.
 func (k koboCover) RelPath(imageID string) string {
-	dir1, dir2, basename := hashedImageParts(imageID)
+	dir1, dir2, basename := util.HashedImageParts(imageID)
 	return filepath.Join(dir1, dir2, fmt.Sprintf("%s - %s.parsed", basename, k.String()))
 }
 
@@ -234,7 +262,7 @@ const (
 	resizeLC3 string = "lanczos3"
 )
 
-func (to *thumbnailOption) validate() {
+func (to *thumbnailOption) Validate() {
 	switch strings.ToLower(to.GenerateLevel) {
 	case generateAll, generatePartial, generateNone:
 		to.GenerateLevel = strings.ToLower(to.GenerateLevel)
@@ -254,7 +282,7 @@ func (to *thumbnailOption) validate() {
 	}
 }
 
-func (to *thumbnailOption) setRezFilter() {
+func (to *thumbnailOption) SetRezFilter() {
 	switch to.ResizeAlgorithm {
 	case resizeBL:
 		to.rezFilter = rez.NewBilinearFilter()
