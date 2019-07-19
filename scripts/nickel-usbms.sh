@@ -144,6 +144,9 @@ enable_wifi() {
         || env -u LD_LIBRARY_PATH \
             wpa_supplicant -D wext -s -i "${INTERFACE}" -O /var/run/wpa_supplicant -c /etc/wpa_supplicant/wpa_supplicant.conf -B
     
+    # Before obtaining an IP address via DHCP, we should determine whether wpa_supplicant connects successfully or not.
+    # We use the wpa_cli application to do this, checking 'wpa_state' for 'COMPLETED'. Some other states I've seen
+    # are DISCONNECTED, SCANNING and ASSOCIATING. There are probably others.
     WIFI_TIMEOUT=0
     while ! wpa_cli status | grep -q "wpa_state=COMPLETED"; do
         # If wpa_supplicant hasn't connected within 5 seconds, we couldn't connect to the Wifi network
@@ -154,7 +157,7 @@ enable_wifi() {
         usleep 250000
         WIFI_TIMEOUT=$(( WIFI_TIMEOUT + 1 ))
     done
-    
+
     # Obtain an IP address
     logmsg "I" "Acquiring IP"
     obtain_ip
