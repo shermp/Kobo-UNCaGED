@@ -16,6 +16,11 @@ passwordList = []
 # Provide more verbose logging
 enableDebug = false
 
+# Enable the following option to allow Kobo-UNCaGED to launch with a USB cable connected.
+# Useful if you want to use KU while connected to a USB power source such as AC outlet or powerbank.
+# This is disabled by default to avoid mistakingly launching KU while connected to a PC.
+allowUSBPower = false
+
 # The following options tweak aspects of the thumbnail generation process
 [thumbnail]
     # Choose what level of thumbnails you want generated. Options are "all", "partial", "none"
