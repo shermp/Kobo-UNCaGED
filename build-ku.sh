@@ -104,7 +104,7 @@ cp ../scripts/nickel-usbms.sh ./onboard/.adds/kobo-uncaged/scripts/nickel-usbms.
 # Default config file
 cp ../kobo-uncaged/ku.toml ./onboard/.adds/kobo-uncaged/config/ku.toml.default
 
-if [ -z BUILD_UPGRADE ]; then
+if [ -z $BUILD_UPGRADE ]; then
     # FBInk binaries
     cp ./prerequisites/output/fbink ./onboard/.adds/kobo-uncaged/bin/fbink
     cp ./prerequisites/output/button_scan ./onboard/.adds/kobo-uncaged/bin/button_scan
