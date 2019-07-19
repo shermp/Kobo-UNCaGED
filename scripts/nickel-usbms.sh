@@ -143,7 +143,18 @@ enable_wifi() {
     pidof wpa_supplicant >/dev/null \
         || env -u LD_LIBRARY_PATH \
             wpa_supplicant -D wext -s -i "${INTERFACE}" -O /var/run/wpa_supplicant -c /etc/wpa_supplicant/wpa_supplicant.conf -B
-
+    
+    WIFI_TIMEOUT=0
+    while ! wpa_cli status | grep -q "wpa_state=COMPLETED"; do
+        # If wpa_supplicant hasn't connected within 5 seconds, we couldn't connect to the Wifi network
+        if [ ${WIFI_TIMEOUT} -ge 20 ]; then
+            logmsg "E" "wpa_supplicant failed to connect"
+            return 1
+        fi
+        usleep 250000
+        WIFI_TIMEOUT=$(( WIFI_TIMEOUT + 1 ))
+    done
+    
     # Obtain an IP address
     logmsg "I" "Acquiring IP"
     obtain_ip
