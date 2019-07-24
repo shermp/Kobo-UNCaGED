@@ -152,6 +152,8 @@ enable_wifi() {
         # If wpa_supplicant hasn't connected within 5 seconds, we couldn't connect to the Wifi network
         if [ ${WIFI_TIMEOUT} -ge 20 ]; then
             logmsg "E" "wpa_supplicant failed to connect"
+            # Disable the Wifi stuff we have enabled before exiting...
+            disable_wifi
             return 1
         fi
         usleep 250000
