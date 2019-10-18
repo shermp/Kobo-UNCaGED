@@ -126,6 +126,7 @@ const (
 	claraHD      koboDevice = "00000000-0000-0000-0000-000000000376"
 	forma        koboDevice = "00000000-0000-0000-0000-000000000377"
 	forma32gb    koboDevice = "00000000-0000-0000-0000-000000000380"
+	libra        koboDevice = "00000000-0000-0000-0000-000000000384"
 )
 
 // Model returns the model name for the device.
@@ -155,6 +156,8 @@ func (d koboDevice) Model() string {
 		return "Clara HD"
 	case forma, forma32gb:
 		return "Forma"
+	case libra:
+		return "Libra H2O"
 	default:
 		return "Unknown Kobo"
 	}
@@ -183,6 +186,8 @@ func (d koboDevice) FullCover() image.Point {
 		return image.Pt(758, 1014)
 	case forma, forma32gb: // frost
 		return image.Pt(1440, 1920)
+	case libra: // storm
+		return image.Pt(1264, 1680)
 	default: // KoboWifi, KoboTouch, trilogy, KoboTouch2
 		return image.Pt(600, 800)
 	}
