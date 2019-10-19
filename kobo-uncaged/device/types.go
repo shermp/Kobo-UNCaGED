@@ -88,7 +88,7 @@ type KoboMetadata struct {
 	Rights          *string                `json:"rights" mapstructure:"rights"`
 	DbID            interface{}            `json:"db_id" mapstructure:"db_id"`
 	Cover           *string                `json:"cover" mapstructure:"cover"`
-	ApplicationID   int                    `json:"application_id" mapstructure:"application_id"`
+	ApplicationID   interface{}            `json:"application_id" mapstructure:"application_id"`
 	BookProducer    *string                `json:"book_producer" mapstructure:"book_producer"`
 	Size            int                    `json:"size" mapstructure:"size"`
 	AuthorSortMap   map[string]string      `json:"author_sort_map" mapstructure:"author_sort_map"`
