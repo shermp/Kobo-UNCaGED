@@ -14,5 +14,5 @@ github.com/pkg/errors v0.8.1 h1:iURUrRGxPUNPdy5/HRSm+Yj6okJ6UtLINN0Q9M4+h3I=
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/shermp/UNCaGED/uc v0.2.0 h1:SeN0ZY6blq4IRaBAmK2wkvOJN3OPpRaxM2oLq3zX3zg=
 github.com/shermp/UNCaGED/uc v0.2.0/go.mod h1:y9yAhXj5BN5S2EC8GTGlnUo0gX1q4JhkDQ70zRQGGSE=
-github.com/shermp/go-fbink-v2 v1.15.1 h1:CvLsaXxpKF1nYnqRvU7QKAjooZvCM/HhyjkLV7LsMjg=
-github.com/shermp/go-fbink-v2 v1.15.1/go.mod h1:88bOAwruwze/4JB/KW8uoyPtWm5OPa1BZEraFMHJgpQ=
+github.com/shermp/go-fbink-v2 v1.20.2 h1:EtRKDZwrc8fkNGDZppsYB2nxcMosYU7hqYLovMP78/4=
+github.com/shermp/go-fbink-v2 v1.20.2/go.mod h1:88bOAwruwze/4JB/KW8uoyPtWm5OPa1BZEraFMHJgpQ=

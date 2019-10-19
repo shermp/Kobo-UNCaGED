@@ -11,3 +11,5 @@ require (
 	github.com/shermp/UNCaGED/uc v0.2.0
 	github.com/shermp/go-fbink-v2 v1.20.2
 )
+
+go 1.13
