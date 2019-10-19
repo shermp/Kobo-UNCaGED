@@ -17,13 +17,13 @@ if [ "$1" = "upgrade" ] || [ "$1" = "UPGRADE" ]; then
 fi
 
 # Check if the user has set their ARM toolchain name
-if [ -z "$CROSS_TC" ]; then
-    printf "%bCROSS_TC variable is not set! Please set it before running this script! Eg: CROSS_TC=\"arm-kobo-linux-gnueabihf\"%b\n" "${RED}" "${END}"
+if [ -z "$CROSS_TC" ] && [ -z "$CROSS_COMPILE" ]; then
+    printf "%bCROSS_TC or CROSS_COMPILE variable is not set! Please set it before running this script!\nEg:\nCROSS_TC=\"arm-kobo-linux-gnueabihf\" or\nCROSS_COMPILE=\"arm-kobo-linux-gnueabihf-\"%b\n" "${RED}" "${END}"
     exit 1
 fi
 
 # Then check if the toolchain is in the $PATH
-if ! command -v "${CROSS_TC}-gcc"; then
+if ! command -v "${CROSS_TC}-gcc" && ! command -v "${CROSS_COMPILE}gcc"; then
     printf "%bARM toolchain not found! Please add to PATH\n%b\n" "${RED}" "${END}"
     exit 1
 fi
@@ -32,8 +32,13 @@ export GOOS=linux
 export GOARCH=arm
 export CGO_ENABLED=1
 
-export CC="${CROSS_TC}-gcc"
-export CXX="${CROSS_TC}-g++"
+if [ -z "$CROSS_COMPILE" ]; then
+    export CC="${CROSS_TC}-gcc"
+    export CXX="${CROSS_TC}-g++"
+else
+    export CC="${CROSS_COMPILE}gcc"
+    export CXX="${CROSS_COMPILE}g++"
+fi
 
 # Setup out directory structure
 mkdir -p ./Build/prerequisites/output
@@ -53,23 +58,17 @@ cd ./Build/prerequisites || exit 1
 if [ ! -f ./output/fbink ] && [ ! -f ./output/button_scan ]; then
     printf "%bFBInk binaries not found. Building from source%b\n" "${YELLOW}" "${END}"
     if [ ! -d ./FBInk ]; then
-        git clone --recursive --branch master https://github.com/NiLuJe/FBInk.git
+        git clone --recursive --branch v1.20.2 https://github.com/NiLuJe/FBInk.git
     fi
     cd ./FBInk || exit 1
     make clean
-    # Build the standard build first for button_scan
-    if ! make; then
-        printf "%bMake failed to build 'button_scan'. Aborting%b\n" "${RED}" "${END}"
-        exit 1
-    fi
-    cp ./Release/button_scan ../output/button_scan
-    # Clean for minimal build
-    make clean
-    if ! make MINIMAL=1; then
+    # Recent versions of FBInk allow building a minimal version with button_scan
+    if ! make MINIMAL=1 BUTTON_SCAN=1; then
         printf "%bMake failed to build 'fbink'. Aborting%b\n" "${RED}" "${END}"
         exit 1
     fi
     cp ./Release/fbink ../output/fbink
+    cp ./Release/button_scan ../output/button_scan
     cd -
     printf "%bFBInk binaries built%b\n" "${GREEN}" "${END}"
 fi
