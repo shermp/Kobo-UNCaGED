@@ -64,21 +64,26 @@ type Kobo struct {
 	Wg              *sync.WaitGroup
 }
 
+// MetaIterator Kobo UNCaGED to lazy load book metadata
 type MetaIterator struct {
 	k        *Kobo
 	cidList  []string
 	cidIndex int
 }
 
+// NewMetaIter creates a new MetaIterator for use
 func NewMetaIter(k *Kobo) *MetaIterator {
 	iter := MetaIterator{k: k, cidIndex: -1}
 	iter.cidList = make([]string, 0)
 	return &iter
 }
 
+// Add a client ID to the iterator
 func (m *MetaIterator) Add(cid string) {
 	m.cidList = append(m.cidList, cid)
 }
+
+// Next advances the iterator
 func (m *MetaIterator) Next() bool {
 	m.cidIndex++
 	if m.cidIndex < len(m.cidList) {
@@ -86,9 +91,13 @@ func (m *MetaIterator) Next() bool {
 	}
 	return false
 }
+
+// Count gets the number items in the iterator
 func (m *MetaIterator) Count() int {
 	return len(m.cidList)
 }
+
+// Get the metadata of the current iteration
 func (m *MetaIterator) Get() (uc.CalibreBookMeta, error) {
 	if m.Count() > 0 && m.cidIndex >= 0 {
 		if md, exists := m.k.MetadataMap[m.cidList[m.cidIndex]]; exists {
