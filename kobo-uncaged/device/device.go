@@ -139,7 +139,7 @@ func (k *Kobo) UpdateIfExists(cID string, len int) error {
 				SET ___FileSize = ? 
 				WHERE ContentId = ? 
 				AND ContentType = 6`
-			if _, err = k.nickelDB.Exec(updateQuery, len, cID); err != nil {
+			if _, err := k.nickelDB.Exec(updateQuery, len, cID); err != nil {
 				return fmt.Errorf("UpdateIfExists: error updating filesize field: %w", err)
 			}
 			log.Println("Updated existing book file length")
