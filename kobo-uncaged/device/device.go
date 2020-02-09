@@ -8,7 +8,6 @@ import (
 	"html"
 	"image"
 	"image/jpeg"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -18,6 +17,7 @@ import (
 	"time"
 
 	"github.com/bamiaux/rez"
+	"github.com/geek1011/koboutils/v2/kobo"
 	"github.com/gofrs/uuid"
 	"github.com/kapmahc/epub"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
@@ -149,20 +149,19 @@ func (k *Kobo) UpdateIfExists(cID string, len int) error {
 }
 
 func (k *Kobo) getKoboInfo() error {
-	// Get the model ID and firmware version from the device
-	versInfo, err := ioutil.ReadFile(filepath.Join(k.DBRootDir, koboVersPath))
+	_, vers, id, err := kobo.ParseKoboVersion(k.DBRootDir)
 	if err != nil {
-		return fmt.Errorf("getKoboInfo: error reading kobo version file: %w", err)
+		return fmt.Errorf("New: %w", err)
 	}
-	if len(versInfo) > 0 {
-		vers := strings.TrimSpace(string(versInfo))
-		versFields := strings.Split(vers, ",")
-		fwStr := strings.Split(versFields[2], ".")
-		k.fw.major, _ = strconv.Atoi(fwStr[0])
-		k.fw.minor, _ = strconv.Atoi(fwStr[1])
-		k.fw.build, _ = strconv.Atoi(fwStr[2])
-		k.Device = koboDevice(versFields[len(versFields)-1])
+	if dev, ok := kobo.DeviceByID(id); ok {
+		k.Device = dev
+	} else {
+		return fmt.Errorf("New: unknown device")
 	}
+	fwStr := strings.Split(vers, ".")
+	k.fw.major, _ = strconv.Atoi(fwStr[0])
+	k.fw.minor, _ = strconv.Atoi(fwStr[1])
+	k.fw.build, _ = strconv.Atoi(fwStr[2])
 	return nil
 }
 
@@ -173,14 +172,14 @@ func (k *Kobo) GetDeviceOptions() (ext []string, model string, thumbSz image.Poi
 	} else {
 		ext = []string{"epub", "kepub", "mobi", "pdf", "cbz", "cbr", "txt", "html", "rtf"}
 	}
-	model = k.Device.Model()
+	model = k.Device.Family()
 	switch k.KuConfig.Thumbnail.GenerateLevel {
 	case generateAll:
-		thumbSz = fullCover.Size(k.Device)
+		thumbSz = k.Device.CoverSize(kobo.CoverTypeFull)
 	case generatePartial:
-		thumbSz = libFull.Size(k.Device)
+		thumbSz = k.Device.CoverSize(kobo.CoverTypeLibFull)
 	default:
-		thumbSz = libGrid.Size(k.Device)
+		thumbSz = k.Device.CoverSize(kobo.CoverTypeLibGrid)
 	}
 
 	return ext, model, thumbSz
@@ -409,7 +408,7 @@ func (k *Kobo) loadDeviceInfo() error {
 	if emptyOrNotExist {
 		uuid4, _ := uuid.NewV4()
 		k.DriveInfo.DevInfo.LocationCode = "main"
-		k.DriveInfo.DevInfo.DeviceName = "Kobo " + k.Device.Model()
+		k.DriveInfo.DevInfo.DeviceName = k.Device.Family()
 		k.DriveInfo.DevInfo.DeviceStoreUUID = uuid4.String()
 		if k.useSDCard {
 			k.DriveInfo.DevInfo.LocationCode = "A"
@@ -440,26 +439,22 @@ func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string)
 	}
 	sz := img.Bounds().Size()
 
-	imgDir := ".kobo-images"
-	if k.useSDCard {
-		imgDir = "koboExtStorage/images-cache"
-	}
-	imgDir = filepath.Join(k.BKRootDir, imgDir)
-	imgID := util.ImgIDFromContentID(contentID)
+	imgID := kobo.ContentIDToImageID(contentID)
+	//fmt.Printf("Image ID is: %s\n", imgID)
 	jpegOpts := jpeg.Options{Quality: k.KuConfig.Thumbnail.JpegQuality}
 
-	var coverEndings []koboCover
+	var coverEndings []kobo.CoverType
 	switch k.KuConfig.Thumbnail.GenerateLevel {
 	case generateAll:
-		coverEndings = []koboCover{fullCover, libFull, libGrid}
+		coverEndings = []kobo.CoverType{kobo.CoverTypeFull, kobo.CoverTypeLibFull, kobo.CoverTypeLibGrid}
 	case generatePartial:
-		coverEndings = []koboCover{libFull, libGrid}
+		coverEndings = []kobo.CoverType{kobo.CoverTypeLibFull, kobo.CoverTypeLibGrid}
 	}
 	for _, cover := range coverEndings {
-		nsz := cover.Resize(k.Device, sz)
-		nfn := filepath.Join(imgDir, cover.RelPath(imgID))
-
-		log.Printf("Resizing %s cover to %s (target %s) for %s\n", sz, nsz, cover.Size(k.Device), cover)
+		nsz := k.Device.CoverSized(cover, sz)
+		nfn := filepath.Join(k.BKRootDir, cover.GeneratePath(k.useSDCard, imgID))
+		//fmt.Printf("Cover file path is: %s\n", nfn)
+		log.Printf("Resizing %s cover to %s (target %s) for %s\n", sz, nsz, k.Device.CoverSize(cover), cover)
 
 		var nimg image.Image
 		if !sz.Eq(nsz) {
@@ -471,7 +466,7 @@ func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string)
 			log.Println(" -- Skipped resize: already correct size")
 		}
 		// Optimization. No need to resize libGrid from the full cover size...
-		if cover == libFull {
+		if cover == kobo.CoverTypeLibFull {
 			img = nimg
 		}
 
