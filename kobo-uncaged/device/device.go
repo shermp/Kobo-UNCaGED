@@ -23,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/util"
+	"github.com/shermp/UNCaGED/uc"
 )
 
 const koboDBpath = ".kobo/KoboReader.sqlite"
@@ -48,8 +49,8 @@ func (pw *uncagedPassword) NextPassword() string {
 }
 
 // CreateKoboMetadata creates the required nested maps
-func CreateKoboMetadata() KoboMetadata {
-	var md KoboMetadata
+func CreateCalibreMetadata() uc.CalibreBookMeta {
+	var md uc.CalibreBookMeta
 	md.UserMetadata = make(map[string]interface{}, 0)
 	md.UserCategories = make(map[string]interface{}, 0)
 	md.AuthorSortMap = make(map[string]string, 0)
@@ -189,7 +190,7 @@ func (k *Kobo) GetDeviceOptions() (ext []string, model string, thumbSz image.Poi
 // readEpubMeta opens an epub (or kepub), and attempts to read the
 // metadata it contains. This is used if the metadata has not yet
 // been cached
-func (k *Kobo) readEpubMeta(contentID string, md *KoboMetadata) error {
+func (k *Kobo) readEpubMeta(contentID string, md *uc.CalibreBookMeta) error {
 	lpath := util.ContentIDtoLpath(contentID, string(k.ContentIDprefix))
 	epubPath := util.ContentIDtoBkPath(k.BKRootDir, contentID, string(k.ContentIDprefix))
 	bk, err := epub.Open(epubPath)
@@ -238,7 +239,7 @@ func (k *Kobo) readEpubMeta(contentID string, md *KoboMetadata) error {
 	for _, m := range bk.Opf.Metadata.Meta {
 		switch m.Name {
 		case "calibre:timestamp":
-			timeStamp := m.Content
+			timeStamp, _ := time.Parse(time.RFC3339, m.Content)
 			md.Timestamp = &timeStamp
 		case "calibre:series":
 			series := m.Content
@@ -263,7 +264,7 @@ func (k *Kobo) readEpubMeta(contentID string, md *KoboMetadata) error {
 func (k *Kobo) readMDfile() error {
 	log.Println("Reading metadata.calibre")
 
-	var koboMD []KoboMetadata
+	var koboMD []uc.CalibreBookMeta
 	emptyOrNotExist, err := util.ReadJSON(filepath.Join(k.BKRootDir, calibreMDfile), &koboMD)
 	if emptyOrNotExist {
 		// ignore
@@ -273,7 +274,7 @@ func (k *Kobo) readMDfile() error {
 
 	// Make the metadatamap here instead of the constructer so we can pre-allocate
 	// the memory with the right size.
-	k.MetadataMap = make(map[string]KoboMetadata, len(koboMD))
+	k.MetadataMap = make(map[string]uc.CalibreBookMeta, len(koboMD))
 	// make a temporary map for easy searching later
 	tmpMap := make(map[string]int, len(koboMD))
 	for n, md := range koboMD {
@@ -317,7 +318,7 @@ func (k *Kobo) readMDfile() error {
 		}
 		if _, exists := tmpMap[dbCID]; !exists {
 			log.Printf("Book not in cache: %s\n", dbCID)
-			bkMD := CreateKoboMetadata()
+			bkMD := CreateCalibreMetadata()
 			bkMD.Comments, bkMD.Publisher, bkMD.Series = dbDesc, dbPublisher, dbSeries
 			if dbTitle != nil {
 				bkMD.Title = *dbTitle
@@ -343,7 +344,7 @@ func (k *Kobo) readMDfile() error {
 			fi, err := os.Stat(filepath.Join(k.BKRootDir, bkMD.Lpath))
 			if err == nil {
 				bkSz := fi.Size()
-				lastMod := fi.ModTime().Format(time.RFC3339)
+				lastMod := fi.ModTime()
 				bkMD.LastModified = &lastMod
 				bkMD.Size = int(bkSz)
 			}
@@ -368,7 +369,7 @@ func (k *Kobo) readMDfile() error {
 // WriteMDfile writes metadata to file
 func (k *Kobo) WriteMDfile() error {
 	var n int
-	metadata := make([]KoboMetadata, len(k.MetadataMap))
+	metadata := make([]uc.CalibreBookMeta, len(k.MetadataMap))
 	for _, md := range k.MetadataMap {
 		metadata[n] = md
 		n++

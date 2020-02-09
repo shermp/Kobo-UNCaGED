@@ -26,6 +26,7 @@ import (
 	"sync"
 
 	"github.com/bamiaux/rez"
+	"github.com/pkg/errors"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/util"
 	"github.com/shermp/UNCaGED/uc"
 )
@@ -56,52 +57,51 @@ type Kobo struct {
 	BKRootDir       string
 	ContentIDprefix cidPrefix
 	useSDCard       bool
-	MetadataMap     map[string]KoboMetadata
+	MetadataMap     map[string]uc.CalibreBookMeta
 	UpdatedMetadata []string
 	Passwords       *uncagedPassword
 	DriveInfo       uc.DeviceInfo
 	nickelDB        *sql.DB
 	Wg              *sync.WaitGroup
 }
+
+type MetaIterator struct {
+	k        *Kobo
+	cidList  []string
+	cidIndex int
+}
+
+func NewMetaIter(k *Kobo) *MetaIterator {
+	iter := MetaIterator{k: k}
+	iter.cidList = make([]string, 0)
+	return &iter
+}
+
+func (m *MetaIterator) Add(cid string) {
+	m.cidList = append(m.cidList, cid)
+}
+func (m *MetaIterator) Next() bool {
+	m.cidIndex++
+	if m.cidIndex < len(m.cidList) {
+		return true
+	}
+	return false
+}
+func (m *MetaIterator) Count() int {
+	return len(m.cidList)
+}
+func (m *MetaIterator) Get() (uc.CalibreBookMeta, error) {
+	if m.Count() > 0 {
+		if md, exists := m.k.MetadataMap[m.cidList[m.cidIndex]]; exists {
+			return md, nil
+		}
+	}
+	return uc.CalibreBookMeta{}, errors.New("no metadata to get")
+}
+
 type uncagedPassword struct {
 	currPassIndex int
 	passwordList  []string
-}
-
-// KoboMetadata contains the metadata for ebooks on kobo devices.
-// It replicates the metadata available in the Kobo USBMS driver.
-// Note, pointers are used where necessary to account for null JSON values
-type KoboMetadata struct {
-	Authors         []string               `json:"authors" mapstructure:"authors"`
-	Languages       []string               `json:"languages" mapstructure:"languages"`
-	UserMetadata    map[string]interface{} `json:"user_metadata" mapstructure:"user_metadata"`
-	UserCategories  map[string]interface{} `json:"user_categories" mapstructure:"user_categories"`
-	Comments        *string                `json:"comments" mapstructure:"comments"`
-	Tags            []string               `json:"tags" mapstructure:"tags"`
-	Pubdate         *string                `json:"pubdate" mapstructure:"pubdate"`
-	SeriesIndex     *float64               `json:"series_index" mapstructure:"series_index"`
-	Thumbnail       []interface{}          `json:"thumbnail" mapstructure:"thumbnail"`
-	PublicationType *string                `json:"publication_type" mapstructure:"publication_type"`
-	Mime            *string                `json:"mime" mapstructure:"mime"`
-	AuthorSort      string                 `json:"author_sort" mapstructure:"author_sort"`
-	Series          *string                `json:"series" mapstructure:"series"`
-	Rights          *string                `json:"rights" mapstructure:"rights"`
-	DbID            interface{}            `json:"db_id" mapstructure:"db_id"`
-	Cover           *string                `json:"cover" mapstructure:"cover"`
-	ApplicationID   interface{}            `json:"application_id" mapstructure:"application_id"`
-	BookProducer    *string                `json:"book_producer" mapstructure:"book_producer"`
-	Size            int                    `json:"size" mapstructure:"size"`
-	AuthorSortMap   map[string]string      `json:"author_sort_map" mapstructure:"author_sort_map"`
-	Rating          *float64               `json:"rating" mapstructure:"rating"`
-	Lpath           string                 `json:"lpath" mapstructure:"lpath"`
-	Publisher       *string                `json:"publisher" mapstructure:"publisher"`
-	Timestamp       *string                `json:"timestamp" mapstructure:"timestamp"`
-	LastModified    *string                `json:"last_modified" mapstructure:"last_modified"`
-	UUID            string                 `json:"uuid" mapstructure:"uuid"`
-	TitleSort       string                 `json:"title_sort" mapstructure:"title_sort"`
-	AuthorLinkMap   map[string]string      `json:"author_link_map" mapstructure:"author_link_map"`
-	Title           string                 `json:"title" mapstructure:"title"`
-	Identifiers     map[string]string      `json:"identifiers" mapstructure:"identifiers"`
 }
 
 type koboDevice string
