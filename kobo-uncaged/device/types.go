@@ -26,7 +26,6 @@ import (
 	"sync"
 
 	"github.com/bamiaux/rez"
-	"github.com/pkg/errors"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/util"
 	"github.com/shermp/UNCaGED/uc"
 )
@@ -96,7 +95,7 @@ func (m *MetaIterator) Get() (uc.CalibreBookMeta, error) {
 			return md, nil
 		}
 	}
-	return uc.CalibreBookMeta{}, errors.New("no metadata to get")
+	return uc.CalibreBookMeta{}, fmt.Errorf("no metadata to get")
 }
 
 type uncagedPassword struct {

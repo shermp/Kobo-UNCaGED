@@ -18,7 +18,9 @@
 package main
 
 import (
+	"errors"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"log/syslog"
@@ -27,7 +29,6 @@ import (
 
 	"github.com/BurntSushi/toml"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/pkg/errors"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/device"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kunc"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
@@ -53,10 +54,10 @@ func getUserOptions(dbRootDir string) (*device.KuOptions, error) {
 	opts := &device.KuOptions{}
 	configBytes, err := ioutil.ReadFile(filepath.Join(dbRootDir, ".adds/kobo-uncaged/config/ku.toml"))
 	if err != nil {
-		return opts, errors.Wrap(err, "error loading config file")
+		return opts, fmt.Errorf("error loading config file: %w", err)
 	}
 	if err := toml.Unmarshal(configBytes, opts); err != nil {
-		return opts, errors.Wrap(err, "error reading config file")
+		return opts, fmt.Errorf("error reading config file: %w", err)
 	}
 	opts.Thumbnail.Validate()
 	opts.Thumbnail.SetRezFilter()
@@ -66,20 +67,23 @@ func getUserOptions(dbRootDir string) (*device.KuOptions, error) {
 func returncodeFromError(err error) returnCode {
 	rc := successNoAction
 	if err != nil {
+		var calErr uc.CalError
 		log.Print(err)
-		// TODO: Probably need to come up with a set of error codes for
-		//       UNCaGED instead of this string comparison
-		switch err.Error() {
-		case "calibre server not found":
-			kuprint.Println(kuprint.Body, "Calibre not found!\nHave you enabled the Calibre Wireless service?")
-			rc = calibreNotFound
-		case "no password entered":
-			kuprint.Println(kuprint.Body, "No valid password found!")
-			rc = passwordError
-		default:
-			kuprint.Println(kuprint.Body, err.Error())
-			rc = genericError
+		if errors.As(err, &calErr) {
+			switch calErr {
+			case uc.CalibreNotFound:
+				kuprint.Println(kuprint.Body, "Calibre not found!\nHave you enabled the Calibre Wireless service?")
+				rc = calibreNotFound
+			case uc.NoPassword:
+				kuprint.Println(kuprint.Body, "No valid password found!")
+				rc = passwordError
+			default:
+				kuprint.Println(kuprint.Body, calErr.Error())
+				rc = genericError
+			}
 		}
+		kuprint.Println(kuprint.Body, err.Error())
+		rc = genericError
 	}
 	return rc
 }

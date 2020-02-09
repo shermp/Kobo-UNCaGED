@@ -56,15 +56,19 @@ func ContentIDtoLpath(cid, cidPrefix string) string {
 
 // WriteJSON is a helper function to write JSON to a file
 func WriteJSON(fn string, v interface{}) error {
+	var err error
 	f, err := os.OpenFile(fn, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		return err
+		return fmt.Errorf("WriteJSON OpenFile: %w", err)
 	}
 	defer f.Close()
 
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "    ")
-	return enc.Encode(v)
+	if err = enc.Encode(v); err != nil {
+		err = fmt.Errorf("WriteJSON Encode: %w", err)
+	}
+	return err
 }
 
 // ReadJSON is a helper function to read JSON from a file
@@ -73,18 +77,20 @@ func ReadJSON(fn string, out interface{}) (emptyOrNotExist bool, err error) {
 	if os.IsNotExist(err) {
 		return true, nil
 	} else if err != nil {
-		return false, err
+		return false, fmt.Errorf("ReadJSON Open: %w", err)
 	}
 	defer f.Close()
 
 	fi, err := f.Stat()
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("ReadJSON Stat: %w", err)
 	} else if fi.Size() == 0 {
 		return true, nil
 	}
-
-	return false, json.NewDecoder(f).Decode(out)
+	if err = json.NewDecoder(f).Decode(out); err != nil {
+		err = fmt.Errorf("ReadJSON Decode: %w", err)
+	}
+	return false, err
 }
 
 // ResizeKeepAspectRatio resizes a sz to fill bounds while keeping the aspect

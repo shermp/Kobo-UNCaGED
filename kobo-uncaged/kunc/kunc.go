@@ -27,7 +27,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/device"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/util"
@@ -79,32 +78,6 @@ func (ku *koboUncaged) GetDeviceBookList() ([]uc.BookCountDetails, error) {
 	//spew.Dump(bc)
 	return bc, nil
 }
-
-// // GetMetadataList sends complete metadata for the books listed in lpaths, or for
-// // all books on device if lpaths is empty
-// func (ku *koboUncaged) GetMetadataList(books []uc.BookID) []map[string]interface{} {
-// 	//spew.Dump(ku.k.MetadataMap)
-// 	//spew.Dump(books)
-// 	mdList := []map[string]interface{}{}
-// 	if len(books) > 0 {
-// 		for _, bk := range books {
-// 			cid := util.LpathToContentID(bk.Lpath, string(ku.k.ContentIDprefix))
-// 			fmt.Println(cid)
-// 			md := map[string]interface{}{}
-// 			//spew.Dump(ku.k.MetadataMap[cid])
-// 			mapstructure.Decode(ku.k.MetadataMap[cid], &md)
-// 			mdList = append(mdList, md)
-// 		}
-// 	} else {
-// 		for _, kmd := range ku.k.MetadataMap {
-// 			md := map[string]interface{}{}
-// 			//spew.Dump(kmd)
-// 			mapstructure.Decode(kmd, &md)
-// 			mdList = append(mdList, md)
-// 		}
-// 	}
-// 	return mdList
-// }
 
 func (ku *koboUncaged) GetMetadataIter(books []uc.BookID) uc.MetadataIter {
 	iter := device.NewMetaIter(ku.k)
@@ -190,13 +163,13 @@ func (ku *koboUncaged) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, 
 	bkDir, _ := filepath.Split(bkPath)
 	err = os.MkdirAll(bkDir, 0777)
 	if err != nil {
-		return errors.Wrap(err, "error making book directories")
+		return fmt.Errorf("SaveBook: error making book directories: %w", err)
 	}
 	destBook, err := os.OpenFile(bkPath, os.O_WRONLY|os.O_CREATE, 0644)
-	defer destBook.Close()
 	if err != nil {
-		return errors.Wrap(err, "error opening ebook file")
+		return fmt.Errorf("SaveBook: error opening ebook file: %w", err)
 	}
+	defer destBook.Close()
 	ku.k.UpdatedMetadata = append(ku.k.UpdatedMetadata, cID)
 	// Note, the JSON format for covers should be in the form 'thumbnail: [w, h, "base64string"]'
 	if md.Thumbnail.Exists() {
@@ -206,12 +179,9 @@ func (ku *koboUncaged) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, 
 	}
 	n, err := io.CopyN(destBook, book, int64(len))
 	if n != int64(len) || err != nil {
-		err = errors.Wrap(err, "error writing to ebook file")
+		return fmt.Errorf("SaveBook: error writing ebook to file: %w", err)
 	}
-	err = ku.k.UpdateIfExists(cID, len)
-	if err != nil {
-		err = errors.Wrap(err, "error updating existing book")
-	}
+	ku.k.UpdateIfExists(cID, len)
 	ku.k.MetadataMap[cID] = md
 	if lastBook {
 		ku.k.WriteMDfile()
@@ -228,31 +198,32 @@ func (ku *koboUncaged) GetBook(book uc.BookID, filePos int64) (io.ReadCloser, in
 	bkPath := util.ContentIDtoBkPath(ku.k.BKRootDir, cid, string(ku.k.ContentIDprefix))
 	fi, err := os.Stat(bkPath)
 	if err != nil {
-		return nil, 0, errors.Wrap(err, "error getting book stats")
+		return nil, 0, fmt.Errorf("GetBook: error getting book stats: %w", err)
 	}
 	bookLen := fi.Size()
 	ebook, err := os.OpenFile(bkPath, os.O_RDONLY, 0644)
+	if err != nil {
+		err = fmt.Errorf("GetBook: error opening book file: %w", err)
+	}
 	return ebook, bookLen, err
 }
 
 // DeleteBook instructs the client to delete the specified book on the device
 // Error is returned if the book was unable to be deleted
 func (ku *koboUncaged) DeleteBook(book uc.BookID) error {
+	var err error
 	// Start with basic book deletion. A more fancy implementation can come later
 	// (eg: removing cover image remnants etc)
 	cid := util.LpathToContentID(book.Lpath, string(ku.k.ContentIDprefix))
 	bkPath := util.ContentIDtoBkPath(ku.k.BKRootDir, cid, string(ku.k.ContentIDprefix))
 	dir, _ := filepath.Split(bkPath)
 	dirPath := filepath.Clean(dir)
-	err := os.Remove(bkPath)
-	if err != nil {
-		return errors.Wrap(err, "error deleting book")
+	if err = os.Remove(bkPath); err != nil {
+		return fmt.Errorf("DeleteBook: error deleting file: %w", err)
 	}
 	for dirPath != filepath.Clean(ku.k.BKRootDir) {
 		// Note, os.Remove only removes empty directories, so it should be safe to call
-		err := os.Remove(dirPath)
-		if err != nil {
-			err = errors.Wrap(err, "error removing parent directories")
+		if err = os.Remove(dirPath); err != nil {
 			// We don't consider failure to remove parent directories an error, so
 			// long as the book file itself was deleted.
 			break
