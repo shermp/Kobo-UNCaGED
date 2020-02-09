@@ -62,7 +62,8 @@ func (ku *koboUncaged) GetClientOptions() (uc.ClientOptions, error) {
 // A nil slice is interpreted has having no books on the device
 func (ku *koboUncaged) GetDeviceBookList() ([]uc.BookCountDetails, error) {
 	bc := []uc.BookCountDetails{}
-	for _, md := range ku.k.MetadataMap {
+	for k, md := range ku.k.MetadataMap {
+		fmt.Println(k)
 		lastMod := time.Now()
 		if md.LastModified != nil {
 			lastMod = *md.LastModified

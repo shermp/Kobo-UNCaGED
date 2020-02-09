@@ -71,7 +71,7 @@ type MetaIterator struct {
 }
 
 func NewMetaIter(k *Kobo) *MetaIterator {
-	iter := MetaIterator{k: k}
+	iter := MetaIterator{k: k, cidIndex: -1}
 	iter.cidList = make([]string, 0)
 	return &iter
 }
@@ -90,7 +90,7 @@ func (m *MetaIterator) Count() int {
 	return len(m.cidList)
 }
 func (m *MetaIterator) Get() (uc.CalibreBookMeta, error) {
-	if m.Count() > 0 {
+	if m.Count() > 0 && m.cidIndex >= 0 {
 		if md, exists := m.k.MetadataMap[m.cidList[m.cidIndex]]; exists {
 			return md, nil
 		}

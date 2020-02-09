@@ -318,6 +318,9 @@ func (k *Kobo) readMDfile() error {
 		if _, exists := tmpMap[dbCID]; !exists {
 			log.Printf("Book not in cache: %s\n", dbCID)
 			bkMD := CreateCalibreMetadata()
+			bkMD.Lpath = util.ContentIDtoLpath(dbCID, string(onboardPrefix))
+			uuidV4, _ := uuid.NewV4()
+			bkMD.UUID = uuidV4.String()
 			bkMD.Comments, bkMD.Publisher, bkMD.Series = dbDesc, dbPublisher, dbSeries
 			if dbTitle != nil {
 				bkMD.Title = *dbTitle
