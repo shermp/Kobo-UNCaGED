@@ -38,10 +38,11 @@ type firmwareVersion struct {
 
 // KuOptions contains some options that are required
 type KuOptions struct {
-	PreferSDCard bool
-	PreferKepub  bool
-	PasswordList []string
-	Thumbnail    thumbnailOption
+	PreferSDCard         bool
+	PreferKepub          bool
+	PasswordList         []string
+	AddMetadataByTrigger bool
+	Thumbnail            thumbnailOption
 }
 
 // Kobo contains the variables and methods required to use

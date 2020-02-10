@@ -21,6 +21,12 @@ enableDebug = false
 # This is disabled by default to avoid mistakingly launching KU while connected to a PC.
 allowUSBPower = false
 
+# Add book metadata, including series description, via a database trigger. This means that
+# Kobo UNCaGED will not need to run a second time to update this metadata. This option
+# still requires a second fake USBMS connection for Nickle to parse the new metadata from the DB.
+# Note, this option adds a new table to your Kobo's database, and also creates a trigger
+addMetadataByTrigger = false
+
 # The following options tweak aspects of the thumbnail generation process
 [thumbnail]
     # Choose what level of thumbnails you want generated. Options are "all", "partial", "none"

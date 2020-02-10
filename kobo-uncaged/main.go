@@ -44,6 +44,7 @@ const (
 	genericError    returnCode = 250
 	successNoAction returnCode = 0
 	successRerun    returnCode = 1
+	successUSBMS    returnCode = 10
 	passwordError   returnCode = 100
 	calibreNotFound returnCode = 101
 )
@@ -136,6 +137,14 @@ func mainWithErrCode() returnCode {
 		}
 
 		if len(k.UpdatedMetadata) > 0 {
+			if k.KuConfig.AddMetadataByTrigger {
+				if err = k.AddMetaByTrigger(); err != nil {
+					kuprint.Println(kuprint.Body, "Updating metadata by DB trigger failed")
+					return genericError
+				}
+				kuprint.Println(kuprint.Body, "Metadata added to DB")
+				return successUSBMS
+			}
 			kuprint.Println(kuprint.Body, "Kobo-UNCaGED will restart automatically to update metadata")
 			return successRerun
 		}

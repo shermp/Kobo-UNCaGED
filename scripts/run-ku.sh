@@ -99,7 +99,7 @@ logmsg "I" "Waiting for content processing"
 ./button_scan -w -u -q
 BS_RES=$?
 # Note, KU may have updated metadata, even if no new books are added
-if [ $KU_RES -eq 1 ] || [ $BS_RES -eq 0 ]; then
+if [ $KU_RES -eq 1 ] || [ $KU_RES -eq 10 ] || [ $BS_RES -eq 0 ]; then
     logmsg "N" "Updating metadata . . ."
     logmsg "I" "Entering USBMS mode . . ."
     insert_usb
@@ -116,40 +116,45 @@ if [ $KU_RES -eq 1 ] || [ $BS_RES -eq 0 ]; then
         BS_TIMEOUT=$(( BS_TIMEOUT + 1 ))
     done
 
-    logmsg "I" "(Re)mounting onboard"
-    mount_onboard
-    ret=$?
-    if [ ${ret} -ne 0 ]; then
-        logmsg "C" "Onboard did not remount (${ret}). Aborting!"
-        remove_usb
-        exit 1
-    fi
-    logmsg "I" "Remounting SD card"
-    mount_sd
-    ret=$?
-    if [ ${ret} -ne 0 ]; then
-        logmsg "C" "SD card did not Remount (${ret}). Aborting!"
-        remove_usb
-        exit 1
-    fi
+    if [ $KU_RES -ne 10 ]; then
+        logmsg "I" "(Re)mounting onboard"
+        mount_onboard
+        ret=$?
+        if [ ${ret} -ne 0 ]; then
+            logmsg "C" "Onboard did not remount (${ret}). Aborting!"
+            remove_usb
+            exit 1
+        fi
+        logmsg "I" "Remounting SD card"
+        mount_sd
+        ret=$?
+        if [ ${ret} -ne 0 ]; then
+            logmsg "C" "SD card did not Remount (${ret}). Aborting!"
+            remove_usb
+            exit 1
+        fi
 
-    logmsg "I" "Running Kobo-UNCaGED"
-    if [ -z "$MNT_SD_NEW" ]; then
-        $KU_BIN -onboardmount="${MNT_ONBOARD_NEW}" -metadata
+        logmsg "I" "Running Kobo-UNCaGED"
+        if [ -z "$MNT_SD_NEW" ]; then
+            $KU_BIN -onboardmount="${MNT_ONBOARD_NEW}" -metadata
+        else
+            $KU_BIN -onboardmount="${MNT_ONBOARD_NEW}" -sdmount="${MNT_SD_NEW}" -metadata
+        fi
+
+        logmsg "I" "Unmounting onboard"
+        unmount_onboard
+        ret=$?
+        logmsg "N" "Onboard unmounted (${ret}) . . ."
+
+        logmsg "I" "Unmounting SD card"
+        unmount_sd
+        ret=$?
+        logmsg "N" "SD card unmounted (${ret}) . . ."
     else
-        $KU_BIN -onboardmount="${MNT_ONBOARD_NEW}" -sdmount="${MNT_SD_NEW}" -metadata
+        # Wait a little before "unplugging"
+        sleep 1
+        logmsg "I" "All Done!"
     fi
-
-    logmsg "I" "Unmounting onboard"
-    unmount_onboard
-    ret=$?
-    logmsg "N" "Onboard unmounted (${ret}) . . ."
-
-    logmsg "I" "Unmounting SD card"
-    unmount_sd
-    ret=$?
-    logmsg "N" "SD card unmounted (${ret}) . . ."
-
     logmsg "I" "Going back to Nickel"
     remove_usb
 elif [ $KU_RES -eq 100 ]; then
