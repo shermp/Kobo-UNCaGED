@@ -344,6 +344,11 @@ func (k *Kobo) readMDfile() error {
 	if err = bkRows.Err(); err != nil {
 		return fmt.Errorf("readMDfile: bkRows error: %w", err)
 	}
+	// Finally, store a snapshot of books in database before we make any additions/deletions
+	k.BooksInDB = make(map[string]bool, len(k.MetadataMap))
+	for cid := range k.MetadataMap {
+		k.BooksInDB[cid] = true
+	}
 	// Hopefully, our metadata is now up to date. Update the cache on disk
 	if err = k.WriteMDfile(); err != nil {
 		return fmt.Errorf("readMDfile: error writing metadata to disk: %w", err)
@@ -479,104 +484,102 @@ func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string)
 	}
 }
 
-// AddMetaByTrigger allows KU to use a DB trigger to update book metadata
-// when Nickel imports book content
-func (k *Kobo) AddMetaByTrigger() error {
+// UpdateNickelDB updates the Nickel database with updated metadata obtained from a previous run,
+// or this run if updating via triggers
+func (k *Kobo) UpdateNickelDB() error {
+	if !k.KuConfig.AddMetadataByTrigger {
+		// No matter what happens, we remove the 'metadata_update.kobouc' file when we're done
+		defer os.Remove(filepath.Join(k.BKRootDir, kuUpdatedMDfile))
+	}
 	var err error
-	// Table to hold temporary metadata for the trigger to use
-	metaTableQuery := `
-		CREATE TABLE IF NOT EXISTS _ku_meta (
-			ContentID    TEXT NOT NULL UNIQUE,
-			Description  TEXT,
-			Series       TEXT,
-			SeriesNumber TEXT,
-			PRIMARY KEY(ContentID)
-		);`
-	if _, err = k.nickelDB.Exec(metaTableQuery); err != nil {
-		return fmt.Errorf("AddMetaByTrigger: Create table error: %w", err)
+	// Add trigger and temporary table if adding metadata by trigger
+	if k.KuConfig.AddMetadataByTrigger {
+		// Table to hold temporary metadata for the trigger to use
+		metaTableQuery := `
+			CREATE TABLE IF NOT EXISTS _ku_meta (
+				ContentID    TEXT NOT NULL UNIQUE,
+				Description  TEXT,
+				Series       TEXT,
+				SeriesNumber TEXT,
+				PRIMARY KEY(ContentID)
+			);`
+		if _, err = k.nickelDB.Exec(metaTableQuery); err != nil {
+			return fmt.Errorf("UpdateNickelDB: Create _ku_meta table error: %w", err)
+		}
+		// Trigger fired when Nickel inserts a book into the content table
+		// It replaces and/or adds metadata after the record has been inserted
+		triggerQuery := `
+			DROP TRIGGER IF EXISTS _ku_meta_content_insert;
+			CREATE TRIGGER _ku_meta_content_insert
+				AFTER INSERT ON content WHEN
+					(new.ImageId LIKE "file____mnt_%") AND
+					(SELECT count() FROM _ku_meta WHERE ContentID = new.ContentID)
+				BEGIN
+					UPDATE content
+					SET
+						Description  = (SELECT Description  FROM _ku_meta WHERE ContentID = new.ContentID),
+						Series       = (SELECT Series       FROM _ku_meta WHERE ContentID = new.ContentID),
+						SeriesNumber = (SELECT SeriesNumber FROM _ku_meta WHERE ContentID = new.ContentID)
+					WHERE ContentID = new.ContentID;
+					DELETE FROM _ku_meta WHERE ContentID = new.ContentID;
+				END;`
+		if _, err = k.nickelDB.Exec(triggerQuery); err != nil {
+			return fmt.Errorf("UpdateNickelDB: Create trigger error: %w", err)
+		}
+		// Make sure the _ku_meta has no existing records before beginning. Makes sure we aren't
+		// adding a duplicate row
+		if _, err = k.nickelDB.Exec(`DELETE FROM _ku_meta;`); err != nil {
+			return fmt.Errorf("UpdateNickelDB: Delete rows error: %w", err)
+		}
 	}
-	// Trigger fired when Nickel inserts a book into the content table
-	// It replaces and/or adds metadata after the record has been inserted
-	triggerQuery := `
-		DROP TRIGGER IF EXISTS _ku_meta_content_insert;
-		CREATE TRIGGER _ku_meta_content_insert
-			AFTER INSERT ON content WHEN
-				(new.ImageId LIKE "file____mnt_%") AND
-				(SELECT count() FROM _ku_meta WHERE ContentID = new.ContentID)
-			BEGIN
-				UPDATE content
-				SET
-					Description  = (SELECT Description  FROM _ku_meta WHERE ContentID = new.ContentID),
-					Series       = (SELECT Series       FROM _ku_meta WHERE ContentID = new.ContentID),
-					SeriesNumber = (SELECT SeriesNumber FROM _ku_meta WHERE ContentID = new.ContentID)
-				WHERE ContentID = new.ContentID;
-				DELETE FROM _ku_meta WHERE ContentID = new.ContentID;
-			END;`
-	if _, err = k.nickelDB.Exec(triggerQuery); err != nil {
-		return fmt.Errorf("AddMetaByTrigger: Create trigger error: %w", err)
-	}
-	// Make sure the _ku_meta has no existing records before beginning. Makes sure we aren't
-	// adding a duplicate row
-	if _, err = k.nickelDB.Exec(`DELETE FROM _ku_meta;`); err != nil {
-		return fmt.Errorf("AddMetaByTrigger: Delete rows error: %w", err)
-	}
-	// And finally insert the metadata to update
+	// Insert prepared statement if using triggers
 	insertQuery := `
 		INSERT INTO _ku_meta (ContentID, Description, Series, SeriesNumber)
-		VALUES (?, ?, ?, ?)`
-	stmt, err := k.nickelDB.Prepare(insertQuery)
+		VALUES (?, ?, ?, ?);`
+	insertStmt, err := k.nickelDB.Prepare(insertQuery)
 	if err != nil {
 		return fmt.Errorf("AddMetaByTrigger: prepared insert statement failed: %w", err)
 	}
-	var insertErr error
-	for _, cid := range k.UpdatedMetadata {
-		desc, series, seriesNum, _ := k.getUpdateMetaValues(cid)
-		_, err = stmt.Exec(cid, desc, series, seriesNum)
-		if err != nil {
-			insertErr = fmt.Errorf("AddMetaByTrigger: %w", err)
-		}
-	}
-	return insertErr
-}
-
-func (k *Kobo) getUpdateMetaValues(cid string) (desc, series, seriesNum *string, seriesNumFloat *float64) {
-	desc, series, seriesNum, seriesNumFloat = nil, nil, nil, nil
-	if k.MetadataMap[cid].Comments != nil && *k.MetadataMap[cid].Comments != "" {
-		desc = k.MetadataMap[cid].Comments
-	}
-	if k.MetadataMap[cid].Series != nil && *k.MetadataMap[cid].Series != "" {
-		series = k.MetadataMap[cid].Series
-	}
-	if k.MetadataMap[cid].SeriesIndex != nil && *k.MetadataMap[cid].SeriesIndex != 0.0 {
-		sn := strconv.FormatFloat(*k.MetadataMap[cid].SeriesIndex, 'f', -1, 64)
-		seriesNum = &sn
-		seriesNumFloat = k.MetadataMap[cid].SeriesIndex
-	}
-	return
-}
-
-// UpdateNickelDB updates the Nickel database with updated metadata obtained from a previous run
-func (k *Kobo) UpdateNickelDB() error {
-	// No matter what happens, we remove the 'metadata_update.kobouc' file when we're done
-	defer os.Remove(filepath.Join(k.BKRootDir, kuUpdatedMDfile))
-	query := `
+	// Update statment for books already in the content table
+	updateQuery := `
 		UPDATE content SET 
 		Description=?,
 		Series=?,
 		SeriesNumber=?,
 		SeriesNumberFloat=? 
-		WHERE ContentID=?`
-	stmt, err := k.nickelDB.Prepare(query)
+		WHERE ContentID=?;`
+	updateStmt, err := k.nickelDB.Prepare(updateQuery)
 	if err != nil {
 		return fmt.Errorf("UpdateNickelDB: prepared statement failed: %w", err)
 	}
 	var updateErr error
+	var desc, series, seriesNum *string
+	var seriesNumFloat *float64
 	for _, cid := range k.UpdatedMetadata {
-		desc, series, seriesNum, seriesNumFloat := k.getUpdateMetaValues(cid)
-		_, err = stmt.Exec(desc, series, seriesNum, seriesNumFloat, cid)
-		if err != nil {
-			updateErr = fmt.Errorf("UpdateNickelDB: %w", err)
+		desc, series, seriesNum, seriesNumFloat = nil, nil, nil, nil
+		if k.MetadataMap[cid].Comments != nil && *k.MetadataMap[cid].Comments != "" {
+			desc = k.MetadataMap[cid].Comments
 		}
+		if k.MetadataMap[cid].Series != nil && *k.MetadataMap[cid].Series != "" {
+			series = k.MetadataMap[cid].Series
+		}
+		if k.MetadataMap[cid].SeriesIndex != nil && *k.MetadataMap[cid].SeriesIndex != 0.0 {
+			sn := strconv.FormatFloat(*k.MetadataMap[cid].SeriesIndex, 'f', -1, 64)
+			seriesNum = &sn
+			seriesNumFloat = k.MetadataMap[cid].SeriesIndex
+		}
+		if k.BooksInDB[cid] {
+			_, err = updateStmt.Exec(desc, series, seriesNum, seriesNumFloat, cid)
+			if err != nil {
+				updateErr = fmt.Errorf("UpdateNickelDB: %w", err)
+			}
+		} else if k.KuConfig.AddMetadataByTrigger {
+			_, err = insertStmt.Exec(cid, desc, series, seriesNum)
+			if err != nil {
+				updateErr = fmt.Errorf("AddMetaByTrigger: %w", err)
+			}
+		}
+
 	}
 	return updateErr
 }

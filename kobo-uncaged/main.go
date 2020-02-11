@@ -138,11 +138,11 @@ func mainWithErrCode() returnCode {
 
 		if len(k.UpdatedMetadata) > 0 {
 			if k.KuConfig.AddMetadataByTrigger {
-				if err = k.AddMetaByTrigger(); err != nil {
+				if err = k.UpdateNickelDB(); err != nil {
 					kuprint.Println(kuprint.Body, "Updating metadata by DB trigger failed")
 					return genericError
 				}
-				kuprint.Println(kuprint.Body, "Metadata added to DB")
+				kuprint.Println(kuprint.Body, "Metadata added to DB\n\nYour Kobo will perform another USB connect after content import")
 				return successUSBMS
 			}
 			kuprint.Println(kuprint.Body, "Kobo-UNCaGED will restart automatically to update metadata")
