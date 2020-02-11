@@ -14,8 +14,8 @@ KU_TMP_DIR="$2"
 # Abort if the device is currently plugged in, as that's liable to confuse Nickel into actually starting a real USBMS session!
 # Which'd probably ultimately cause a crash with our shenanigans...
 # Except if we've specified 'allowUSBPower = true' in our ku.toml file
-if ! grep -qi "^[[:blank:]]*allowUSBPower[[:blank:]]*=[[:blank:]]*true" "/mnt/onboard/${KU_DIR}/config/ku.toml"; then 
-    if [ $(cat /sys/devices/platform/pmic_battery.1/power_supply/mc13892_charger/online) -ne 0 ]; then
+if ! grep -qi "^[[:blank:]]*allowUSBPower[[:blank:]]*=[[:blank:]]*true" "/mnt/onboard/${KU_DIR}/config/ku.toml"; then
+    if [ "$(cat /sys/devices/platform/pmic_battery.1/power_supply/mc13892_charger/online)" -ne 0 ]; then
         # Sleep a bit to lose the race with Nickel's opening of our image
         sleep 2
         logmsg "C" "Device is currently plugged in. Aborting!"
@@ -30,8 +30,12 @@ insert_usb
 logmsg "I" "Scanning for Button"
 BS_TIMEOUT=0
 while ! ./button_scan -p; do
+    ret=$?
     # If the button scan hasn't succeeded in 5 seconds, assume it's not going to...
     if [ $BS_TIMEOUT -ge 20 ]; then
+        # 'Unplug' on failure
+        logmsg "C" "Failed to find/press the Connect button (${ret}). Aborting!"
+        remove_usb
         exit 1
     fi
     # Button scan hasn't succeeded yet. wait a bit (250ms), then try again
@@ -107,8 +111,12 @@ if [ $KU_RES -eq 1 ] || [ $KU_RES -eq 10 ] || [ $BS_RES -eq 0 ]; then
     logmsg "I" "Scanning for Button"
     BS_TIMEOUT=0
     while ! ./button_scan -p -q; do
+        ret=$?
         # If the button scan hasn't succeeded in 5 seconds, assume it's not going to...
         if [ $BS_TIMEOUT -ge 20 ]; then
+            # 'Unplug' on failure
+            logmsg "C" "Failed to find/press the Connect button (${ret}). Aborting!"
+            remove_usb
             exit 1
         fi
         # Button scan hasn't succeeded yet. wait a bit (250ms), then try again
