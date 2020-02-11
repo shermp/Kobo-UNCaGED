@@ -7,7 +7,7 @@ require (
 	github.com/gofrs/uuid v3.2.0+incompatible
 	github.com/kapmahc/epub v0.1.1
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
-	github.com/shermp/UNCaGED v0.3.0
+	github.com/shermp/UNCaGED v0.5.0
 	github.com/shermp/go-fbink-v2/v2 v2.21.0
 )
 

@@ -65,8 +65,8 @@ func (ku *koboUncaged) GetDeviceBookList() ([]uc.BookCountDetails, error) {
 	for k, md := range ku.k.MetadataMap {
 		fmt.Println(k)
 		lastMod := time.Now()
-		if md.LastModified != nil {
-			lastMod = *md.LastModified
+		if md.LastModified.GetTime() != nil {
+			lastMod = *md.LastModified.GetTime()
 		}
 		bcd := uc.BookCountDetails{
 			UUID:         md.UUID,

@@ -14,7 +14,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/bamiaux/rez"
 	"github.com/geek1011/koboutils/v2/kobo"
@@ -45,17 +44,6 @@ func (pw *uncagedPassword) NextPassword() string {
 		pw.currPassIndex++
 	}
 	return password
-}
-
-// CreateCalibreMetadata creates the required nested maps
-func CreateCalibreMetadata() uc.CalibreBookMeta {
-	var md uc.CalibreBookMeta
-	md.UserMetadata = make(map[string]interface{}, 0)
-	md.UserCategories = make(map[string]interface{}, 0)
-	md.AuthorSortMap = make(map[string]string, 0)
-	md.AuthorLinkMap = make(map[string]string, 0)
-	md.Identifiers = make(map[string]string, 0)
-	return md
 }
 
 // New creates a Kobo object, ready for use
@@ -231,14 +219,12 @@ func (k *Kobo) readEpubMeta(contentID string, md *uc.CalibreBookMeta) error {
 		md.Publisher = &pub
 	}
 	if len(bk.Opf.Metadata.Date) > 0 {
-		pubDate := bk.Opf.Metadata.Date[0].Data
-		md.Pubdate = &pubDate
+		md.Pubdate = uc.ParseTime(bk.Opf.Metadata.Date[0].Data)
 	}
 	for _, m := range bk.Opf.Metadata.Meta {
 		switch m.Name {
 		case "calibre:timestamp":
-			timeStamp, _ := time.Parse(time.RFC3339, m.Content)
-			md.Timestamp = &timeStamp
+			md.Timestamp = uc.ParseTime(m.Content)
 		case "calibre:series":
 			series := m.Content
 			md.Series = &series
@@ -316,7 +302,7 @@ func (k *Kobo) readMDfile() error {
 		}
 		if _, exists := tmpMap[dbCID]; !exists {
 			log.Printf("Book not in cache: %s\n", dbCID)
-			bkMD := CreateCalibreMetadata()
+			bkMD := uc.CalibreBookMeta{}
 			bkMD.Lpath = util.ContentIDtoLpath(dbCID, string(onboardPrefix))
 			uuidV4, _ := uuid.NewV4()
 			bkMD.UUID = uuidV4.String()
@@ -345,7 +331,7 @@ func (k *Kobo) readMDfile() error {
 			fi, err := os.Stat(filepath.Join(k.BKRootDir, bkMD.Lpath))
 			if err == nil {
 				bkSz := fi.Size()
-				lastMod := fi.ModTime()
+				lastMod := uc.ConvertTime(fi.ModTime())
 				bkMD.LastModified = &lastMod
 				bkMD.Size = int(bkSz)
 			}
