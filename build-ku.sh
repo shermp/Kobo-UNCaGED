@@ -58,7 +58,7 @@ cd ./Build/prerequisites || exit 1
 if [ ! -f ./output/fbink ] && [ ! -f ./output/button_scan ]; then
     printf "%bFBInk binaries not found. Building from source%b\n" "${YELLOW}" "${END}"
     if [ ! -d ./FBInk ]; then
-        git clone --recursive --branch v1.20.2 https://github.com/NiLuJe/FBInk.git
+        git clone --recursive --branch v1.21.0 https://github.com/NiLuJe/FBInk.git
     fi
     cd ./FBInk || exit 1
     make clean
