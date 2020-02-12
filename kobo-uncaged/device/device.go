@@ -89,12 +89,24 @@ func New(dbRootDir, sdRootDir string, updatingMD bool, opts *KuOptions, vers str
 		return nil, fmt.Errorf("New: failed to read metadata file: %w", err)
 	}
 
+	if k.KuConfig.AddMetadataByTrigger {
+		if err = k.setupMetaTrigger(); err != nil {
+			return nil, fmt.Errorf("New: failed to setup metadata trigger: %w", err)
+		}
+	} else {
+		// clean up after ourselves by not leaving an unwanted table and trigger lingering
+		// in the Nickel DB
+		if err = k.removeMetaTrigger(); err != nil {
+			return nil, fmt.Errorf("New: failed to remove metadata trigger: %w", err)
+		}
+	}
 	if !updatingMD {
 		return k, nil
 	}
 	if err = k.readUpdateMDfile(); err != nil {
 		return nil, fmt.Errorf("New: failed to read updated metadata file: %w", err)
 	}
+
 	return k, err
 }
 
@@ -105,6 +117,78 @@ func (k *Kobo) openNickelDB() error {
 		err = fmt.Errorf("openNickelDB: sql open failed: %w", err)
 	}
 	return err
+}
+
+func (k *Kobo) setupMetaTrigger() error {
+	var err error
+	tx, err := k.nickelDB.Begin()
+	if err != nil {
+		return fmt.Errorf("setupMetaTrigger: Error beginning transaction: %w", err)
+	}
+	// Table to hold temporary metadata for the trigger to use
+	metaTableQuery := `
+	CREATE TABLE IF NOT EXISTS _ku_meta (
+		ContentID    TEXT NOT NULL UNIQUE,
+		Description  TEXT,
+		Series       TEXT,
+		SeriesNumber TEXT,
+		PRIMARY KEY(ContentID)
+	);`
+	if _, err = tx.Exec(metaTableQuery); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("setupMetaTrigger: Create _ku_meta table error: %w", err)
+	}
+	// Trigger fired when Nickel inserts a book into the content table
+	// It replaces and/or adds metadata after the record has been inserted
+	triggerQuery := `
+	DROP TRIGGER IF EXISTS _ku_meta_content_insert;
+	CREATE TRIGGER _ku_meta_content_insert
+		AFTER INSERT ON content WHEN
+			(new.ImageId LIKE "file____mnt_%") AND
+			(SELECT count() FROM _ku_meta WHERE ContentID = new.ContentID)
+		BEGIN
+			UPDATE content
+			SET
+				Description  = (SELECT Description  FROM _ku_meta WHERE ContentID = new.ContentID),
+				Series       = (SELECT Series       FROM _ku_meta WHERE ContentID = new.ContentID),
+				SeriesNumber = (SELECT SeriesNumber FROM _ku_meta WHERE ContentID = new.ContentID)
+			WHERE ContentID = new.ContentID;
+			DELETE FROM _ku_meta WHERE ContentID = new.ContentID;
+		END;`
+	if _, err = tx.Exec(triggerQuery); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("setupMetaTrigger: Create trigger error: %w", err)
+	}
+	// Make sure the _ku_meta has no existing records before beginning. Makes sure we aren't
+	// adding a duplicate row
+	if _, err = tx.Exec(`DELETE FROM _ku_meta;`); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("setupMetaTrigger: Delete rows error: %w", err)
+	}
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("setupMetaTrigger: Error committing transaction: %w", err)
+	}
+	return nil
+}
+
+func (k *Kobo) removeMetaTrigger() error {
+	var err error
+	tx, err := k.nickelDB.Begin()
+	if err != nil {
+		return fmt.Errorf("removeMetaTrigger: Error beginning transaction: %w", err)
+	}
+	if _, err = tx.Exec(`DROP TABLE IF EXISTS _ku_meta;`); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("removeMetaTrigger: drop _ku_meta error: %w", err)
+	}
+	if _, err = tx.Exec(`DROP TRIGGER IF EXISTS _ku_meta_content_insert;`); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("removeMetaTrigger: drop _ku_meta_content_insert error: %w", err)
+	}
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("removeMetaTrigger: Error committing transaction: %w", err)
+	}
+	return nil
 }
 
 // UpdateIfExists updates onboard metadata if it exists in the Nickel database
@@ -492,53 +576,21 @@ func (k *Kobo) UpdateNickelDB() error {
 		defer os.Remove(filepath.Join(k.BKRootDir, kuUpdatedMDfile))
 	}
 	var err error
-	// Add trigger and temporary table if adding metadata by trigger
-	if k.KuConfig.AddMetadataByTrigger {
-		// Table to hold temporary metadata for the trigger to use
-		metaTableQuery := `
-			CREATE TABLE IF NOT EXISTS _ku_meta (
-				ContentID    TEXT NOT NULL UNIQUE,
-				Description  TEXT,
-				Series       TEXT,
-				SeriesNumber TEXT,
-				PRIMARY KEY(ContentID)
-			);`
-		if _, err = k.nickelDB.Exec(metaTableQuery); err != nil {
-			return fmt.Errorf("UpdateNickelDB: Create _ku_meta table error: %w", err)
-		}
-		// Trigger fired when Nickel inserts a book into the content table
-		// It replaces and/or adds metadata after the record has been inserted
-		triggerQuery := `
-			DROP TRIGGER IF EXISTS _ku_meta_content_insert;
-			CREATE TRIGGER _ku_meta_content_insert
-				AFTER INSERT ON content WHEN
-					(new.ImageId LIKE "file____mnt_%") AND
-					(SELECT count() FROM _ku_meta WHERE ContentID = new.ContentID)
-				BEGIN
-					UPDATE content
-					SET
-						Description  = (SELECT Description  FROM _ku_meta WHERE ContentID = new.ContentID),
-						Series       = (SELECT Series       FROM _ku_meta WHERE ContentID = new.ContentID),
-						SeriesNumber = (SELECT SeriesNumber FROM _ku_meta WHERE ContentID = new.ContentID)
-					WHERE ContentID = new.ContentID;
-					DELETE FROM _ku_meta WHERE ContentID = new.ContentID;
-				END;`
-		if _, err = k.nickelDB.Exec(triggerQuery); err != nil {
-			return fmt.Errorf("UpdateNickelDB: Create trigger error: %w", err)
-		}
-		// Make sure the _ku_meta has no existing records before beginning. Makes sure we aren't
-		// adding a duplicate row
-		if _, err = k.nickelDB.Exec(`DELETE FROM _ku_meta;`); err != nil {
-			return fmt.Errorf("UpdateNickelDB: Delete rows error: %w", err)
-		}
+	tx, err := k.nickelDB.Begin()
+	if err != nil {
+		return fmt.Errorf("UpdateNickelDB: Error beginning transaction: %w", err)
 	}
 	// Insert prepared statement if using triggers
-	insertQuery := `
+	var insertStmt *sql.Stmt
+	if k.KuConfig.AddMetadataByTrigger {
+		insertQuery := `
 		INSERT INTO _ku_meta (ContentID, Description, Series, SeriesNumber)
 		VALUES (?, ?, ?, ?);`
-	insertStmt, err := k.nickelDB.Prepare(insertQuery)
-	if err != nil {
-		return fmt.Errorf("AddMetaByTrigger: prepared insert statement failed: %w", err)
+		insertStmt, err = tx.Prepare(insertQuery)
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("UpdateNickelDB: prepared insert statement failed: %w", err)
+		}
 	}
 	// Update statment for books already in the content table
 	updateQuery := `
@@ -548,8 +600,9 @@ func (k *Kobo) UpdateNickelDB() error {
 		SeriesNumber=?,
 		SeriesNumberFloat=? 
 		WHERE ContentID=?;`
-	updateStmt, err := k.nickelDB.Prepare(updateQuery)
+	updateStmt, err := tx.Prepare(updateQuery)
 	if err != nil {
+		tx.Rollback()
 		return fmt.Errorf("UpdateNickelDB: prepared statement failed: %w", err)
 	}
 	var updateErr error
@@ -568,6 +621,8 @@ func (k *Kobo) UpdateNickelDB() error {
 			seriesNum = &sn
 			seriesNumFloat = k.MetadataMap[cid].SeriesIndex
 		}
+		// Note, not rolling back transaction on error. Is this allowed?
+		// Don't want one bad update to derail the whole thing, hence avoiding rollback
 		if k.BooksInDB[cid] {
 			_, err = updateStmt.Exec(desc, series, seriesNum, seriesNumFloat, cid)
 			if err != nil {
@@ -576,10 +631,12 @@ func (k *Kobo) UpdateNickelDB() error {
 		} else if k.KuConfig.AddMetadataByTrigger {
 			_, err = insertStmt.Exec(cid, desc, series, seriesNum)
 			if err != nil {
-				updateErr = fmt.Errorf("AddMetaByTrigger: %w", err)
+				updateErr = fmt.Errorf("UpdateNickelDB: %w", err)
 			}
 		}
-
+	}
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("UpdateNickelDB: Error committing transaction: %w", err)
 	}
 	return updateErr
 }
