@@ -41,6 +41,7 @@ type KuOptions struct {
 	PreferSDCard         bool
 	PreferKepub          bool
 	PasswordList         []string
+	EnableDebug          bool
 	AddMetadataByTrigger bool
 	Thumbnail            thumbnailOption
 }
