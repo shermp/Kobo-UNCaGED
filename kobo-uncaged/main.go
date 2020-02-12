@@ -109,6 +109,7 @@ func mainWithErrCode() returnCode {
 	log.Println("Creating KU object")
 	k, err := device.New(*onboardMntPtr, *sdMntPtr, *mdPtr, opts, kuVersion)
 	if err != nil {
+		log.Print(err)
 		return returncodeFromError(err)
 	}
 	defer k.Close()
@@ -120,19 +121,22 @@ func mainWithErrCode() returnCode {
 		kuprint.Println(kuprint.Body, "Updating Metadata!")
 		err = k.UpdateNickelDB()
 		if err != nil {
+			log.Print(err)
 			return returncodeFromError(err)
 		}
 		kuprint.Println(kuprint.Body, "Metadata Updated!\n\nReturning to Home screen")
 	} else {
 		log.Println("Preparing Kobo UNCaGED!")
 		ku := kunc.New(k)
-		cc, err := uc.New(ku, true)
+		cc, err := uc.New(ku, k.KuConfig.EnableDebug)
 		if err != nil {
+			log.Print(err)
 			return returncodeFromError(err)
 		}
 		log.Println("Starting Calibre Connection")
 		err = cc.Start()
 		if err != nil {
+			log.Print(err)
 			return returncodeFromError(err)
 		}
 
@@ -140,6 +144,7 @@ func mainWithErrCode() returnCode {
 			if k.KuConfig.AddMetadataByTrigger {
 				if err = k.UpdateNickelDB(); err != nil {
 					kuprint.Println(kuprint.Body, "Updating metadata by DB trigger failed")
+					log.Print(err)
 					return genericError
 				}
 				kuprint.Println(kuprint.Body, "Metadata added to DB\n\nYour Kobo will perform another USB connect after content import")
