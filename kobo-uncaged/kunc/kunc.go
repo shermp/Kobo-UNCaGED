@@ -219,6 +219,9 @@ func (ku *koboUncaged) DeleteBook(book uc.BookID) error {
 	bkPath := util.ContentIDtoBkPath(ku.k.BKRootDir, cid, string(ku.k.ContentIDprefix))
 	dir, _ := filepath.Split(bkPath)
 	dirPath := filepath.Clean(dir)
+	if ku.k.KuConfig.EnableDebug {
+		log.Printf("[DEBUG] CID: %s, bkPath: %s, dir: %s, dirPath: %s\n", cid, bkPath, dir, dirPath)
+	}
 	if err = os.Remove(bkPath); err != nil {
 		return fmt.Errorf("DeleteBook: error deleting file: %w", err)
 	}
@@ -244,9 +247,13 @@ func (ku *koboUncaged) DeleteBook(book uc.BookID) error {
 		}
 	}
 	// Finally, write the new metadata files
-	ku.k.WriteMDfile()
-	ku.k.WriteUpdateMDfile()
-	return err
+	if err = ku.k.WriteMDfile(); err != nil {
+		return fmt.Errorf("DeleteBook: error writing metadata file: %w", err)
+	}
+	if err = ku.k.WriteUpdateMDfile(); err != nil {
+		return fmt.Errorf("DeleteBook: error writing updated metadata file: %w", err)
+	}
+	return nil
 }
 
 // UpdateStatus gives status updates from the UNCaGED library
