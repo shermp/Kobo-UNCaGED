@@ -1,4 +1,4 @@
-// Copyright 2019 Sherman Perry
+// Copyright 2019-2020 Sherman Perry
 
 // This file is part of Kobo UNCaGED.
 
@@ -27,8 +27,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/mitchellh/mapstructure"
-	"github.com/pkg/errors"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/device"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/util"
@@ -44,8 +42,12 @@ func New(kobo *device.Kobo) *koboUncaged {
 	return &koboUncaged{kobo}
 }
 
+func (ku *koboUncaged) SelectCalibreInstance(calInstances []uc.CalInstance) uc.CalInstance {
+	return calInstances[0]
+}
+
 // GetClientOptions returns all the client specific options required for UNCaGED
-func (ku *koboUncaged) GetClientOptions() uc.ClientOptions {
+func (ku *koboUncaged) GetClientOptions() (uc.ClientOptions, error) {
 	var opts uc.ClientOptions
 	opts.ClientName = "Kobo UNCaGED " // + kuVersion
 	ext, devModel, thumbSz := ku.k.GetDeviceOptions()
@@ -53,17 +55,18 @@ func (ku *koboUncaged) GetClientOptions() uc.ClientOptions {
 	opts.SupportedExt = append(opts.SupportedExt, ext...)
 	opts.DeviceName = "Kobo"
 	opts.CoverDims.Width, opts.CoverDims.Height = thumbSz.X, thumbSz.Y
-	return opts
+	return opts, nil
 }
 
 // GetDeviceBookList returns a slice of all the books currently on the device
 // A nil slice is interpreted has having no books on the device
-func (ku *koboUncaged) GetDeviceBookList() []uc.BookCountDetails {
+func (ku *koboUncaged) GetDeviceBookList() ([]uc.BookCountDetails, error) {
 	bc := []uc.BookCountDetails{}
-	for _, md := range ku.k.MetadataMap {
+	for k, md := range ku.k.MetadataMap {
+		fmt.Println(k)
 		lastMod := time.Now()
-		if md.LastModified != nil {
-			lastMod, _ = time.Parse(time.RFC3339, *md.LastModified)
+		if md.LastModified.GetTime() != nil {
+			lastMod = *md.LastModified.GetTime()
 		}
 		bcd := uc.BookCountDetails{
 			UUID:         md.UUID,
@@ -74,65 +77,54 @@ func (ku *koboUncaged) GetDeviceBookList() []uc.BookCountDetails {
 		bc = append(bc, bcd)
 	}
 	//spew.Dump(bc)
-	return bc
+	return bc, nil
 }
 
-// GetMetadataList sends complete metadata for the books listed in lpaths, or for
-// all books on device if lpaths is empty
-func (ku *koboUncaged) GetMetadataList(books []uc.BookID) []map[string]interface{} {
-	//spew.Dump(ku.k.MetadataMap)
-	//spew.Dump(books)
-	mdList := []map[string]interface{}{}
+func (ku *koboUncaged) GetMetadataIter(books []uc.BookID) uc.MetadataIter {
+	iter := device.NewMetaIter(ku.k)
 	if len(books) > 0 {
 		for _, bk := range books {
 			cid := util.LpathToContentID(bk.Lpath, string(ku.k.ContentIDprefix))
-			fmt.Println(cid)
-			md := map[string]interface{}{}
-			//spew.Dump(ku.k.MetadataMap[cid])
-			mapstructure.Decode(ku.k.MetadataMap[cid], &md)
-			mdList = append(mdList, md)
+			iter.Add(cid)
 		}
 	} else {
-		for _, kmd := range ku.k.MetadataMap {
-			md := map[string]interface{}{}
-			//spew.Dump(kmd)
-			mapstructure.Decode(kmd, &md)
-			mdList = append(mdList, md)
+		for cid := range ku.k.MetadataMap {
+			iter.Add(cid)
 		}
 	}
-	return mdList
+	return iter
 }
 
 // GetDeviceInfo asks the client for information about the drive info to use
-func (ku *koboUncaged) GetDeviceInfo() uc.DeviceInfo {
-	return ku.k.DriveInfo
+func (ku *koboUncaged) GetDeviceInfo() (uc.DeviceInfo, error) {
+	return ku.k.DriveInfo, nil
 }
 
 // SetDeviceInfo sets the new device info, as comes from calibre. Only the nested
 // struct DevInfo is modified.
-func (ku *koboUncaged) SetDeviceInfo(devInfo uc.DeviceInfo) {
+func (ku *koboUncaged) SetDeviceInfo(devInfo uc.DeviceInfo) error {
 	ku.k.DriveInfo = devInfo
 	ku.k.SaveDeviceInfo()
+	return nil
 }
 
 // UpdateMetadata instructs the client to update their metadata according to the
 // new slice of metadata maps
-func (ku *koboUncaged) UpdateMetadata(mdList []map[string]interface{}) {
+func (ku *koboUncaged) UpdateMetadata(mdList []uc.CalibreBookMeta) error {
 	for _, md := range mdList {
-		koboMD := device.CreateKoboMetadata()
-		mapstructure.Decode(md, &koboMD)
-		koboMD.Thumbnail = nil
-		cid := util.LpathToContentID(koboMD.Lpath, string(ku.k.ContentIDprefix))
-		ku.k.MetadataMap[cid] = koboMD
+		md.Thumbnail = nil
+		cid := util.LpathToContentID(md.Lpath, string(ku.k.ContentIDprefix))
+		ku.k.MetadataMap[cid] = md
 		ku.k.UpdatedMetadata = append(ku.k.UpdatedMetadata, cid)
 	}
 	ku.k.WriteMDfile()
 	ku.k.WriteUpdateMDfile()
+	return nil
 }
 
 // GetPassword gets a password from the user.
-func (ku *koboUncaged) GetPassword(calibreInfo uc.CalibreInitInfo) string {
-	return ku.k.Passwords.NextPassword()
+func (ku *koboUncaged) GetPassword(calibreInfo uc.CalibreInitInfo) (string, error) {
+	return ku.k.Passwords.NextPassword(), nil
 }
 
 // GetFreeSpace reports the amount of free storage space to Calibre
@@ -149,51 +141,53 @@ func (ku *koboUncaged) GetFreeSpace() uint64 {
 	return fs.Bavail * uint64(fs.Bsize)
 }
 
+// CheckLpath asks the client to verify a provided Lpath, and change it if required
+// Return the original string if the Lpath does not need changing
+func (ku *koboUncaged) CheckLpath(lpath string) (newLpath string) {
+	// The calibre wireless driver does not sanitize the filepath for us. We sanitize it here,
+	// and if lpath changes, inform Calibre of the new lpath.
+	newLpath = util.SanitizeFilepath(lpath)
+	// Also, for kepub files, Calibre defaults to using "book/path.kepub"
+	// but we require "book/path.kepub.epub". We change that here if needed.
+	newLpath = util.LpathKepubConvert(newLpath)
+	return newLpath
+}
+
 // SaveBook saves a book with the provided metadata to the disk.
 // Implementations return an io.WriteCloser (book) for UNCaGED to write the ebook to
 // lastBook informs the client that this is the last book for this transfer
 // newLpath informs UNCaGED of an Lpath change. Use this if the lpath field in md is
 // not valid (eg filesystem limitations.). Return an empty string if original lpath is valid
-func (ku *koboUncaged) SaveBook(md map[string]interface{}, len int, lastBook bool) (book io.WriteCloser, newLpath string, err error) {
-	koboMD := device.CreateKoboMetadata()
-	mapstructure.Decode(md, &koboMD)
-	// The calibre wireless driver does not sanitize the filepath for us. We sanitize it here,
-	// and if lpath changes, inform Calibre of the new lpath.
-	newLpath = util.SanitizeFilepath(koboMD.Lpath)
-	// Also, for kepub files, Calibre defaults to using "book/path.kepub"
-	// but we require "book/path.kepub.epub". We change that here if needed.
-	if nlp := util.LpathKepubConvert(newLpath); nlp != koboMD.Lpath {
-		newLpath = nlp
-	} else {
-		newLpath = ""
-	}
-	cID := util.LpathToContentID(koboMD.Lpath, string(ku.k.ContentIDprefix))
+func (ku *koboUncaged) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, lastBook bool) (err error) {
+	cID := util.LpathToContentID(md.Lpath, string(ku.k.ContentIDprefix))
 	bkPath := util.ContentIDtoBkPath(ku.k.BKRootDir, cID, string(ku.k.ContentIDprefix))
 	bkDir, _ := filepath.Split(bkPath)
 	err = os.MkdirAll(bkDir, 0777)
 	if err != nil {
-		return nil, "", errors.Wrap(err, "error making book directories")
+		return fmt.Errorf("SaveBook: error making book directories: %w", err)
 	}
-	book, err = os.OpenFile(bkPath, os.O_WRONLY|os.O_CREATE, 0644)
+	destBook, err := os.OpenFile(bkPath, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
-		return nil, "", errors.Wrap(err, "error opening ebook file")
+		return fmt.Errorf("SaveBook: error opening ebook file: %w", err)
 	}
+	defer destBook.Close()
 	ku.k.UpdatedMetadata = append(ku.k.UpdatedMetadata, cID)
 	// Note, the JSON format for covers should be in the form 'thumbnail: [w, h, "base64string"]'
-	if kt := koboMD.Thumbnail; kt != nil {
+	if md.Thumbnail.Exists() {
+		w, h := md.Thumbnail.Dimensions()
 		ku.k.Wg.Add(1)
-		go ku.k.SaveCoverImage(cID, image.Pt(int(kt[0].(float64)), int(kt[1].(float64))), kt[2].(string))
+		go ku.k.SaveCoverImage(cID, image.Pt(w, h), md.Thumbnail.ImgBase64())
 	}
-	err = ku.k.UpdateIfExists(cID, len)
-	if err != nil {
-		err = errors.Wrap(err, "error updating existing book")
+	if _, err = io.CopyN(destBook, book, int64(len)); err != nil {
+		return fmt.Errorf("SaveBook: error writing ebook to file: %w", err)
 	}
-	ku.k.MetadataMap[cID] = koboMD
+	ku.k.UpdateIfExists(cID, len)
+	ku.k.MetadataMap[cID] = md
 	if lastBook {
 		ku.k.WriteMDfile()
 		ku.k.WriteUpdateMDfile()
 	}
-	return book, newLpath, err
+	return err
 }
 
 // GetBook provides an io.ReadCloser, and the file len, from which UNCaGED can send the requested book to Calibre
@@ -204,31 +198,35 @@ func (ku *koboUncaged) GetBook(book uc.BookID, filePos int64) (io.ReadCloser, in
 	bkPath := util.ContentIDtoBkPath(ku.k.BKRootDir, cid, string(ku.k.ContentIDprefix))
 	fi, err := os.Stat(bkPath)
 	if err != nil {
-		return nil, 0, errors.Wrap(err, "error getting book stats")
+		return nil, 0, fmt.Errorf("GetBook: error getting book stats: %w", err)
 	}
 	bookLen := fi.Size()
 	ebook, err := os.OpenFile(bkPath, os.O_RDONLY, 0644)
+	if err != nil {
+		err = fmt.Errorf("GetBook: error opening book file: %w", err)
+	}
 	return ebook, bookLen, err
 }
 
 // DeleteBook instructs the client to delete the specified book on the device
 // Error is returned if the book was unable to be deleted
 func (ku *koboUncaged) DeleteBook(book uc.BookID) error {
+	var err error
 	// Start with basic book deletion. A more fancy implementation can come later
 	// (eg: removing cover image remnants etc)
 	cid := util.LpathToContentID(book.Lpath, string(ku.k.ContentIDprefix))
 	bkPath := util.ContentIDtoBkPath(ku.k.BKRootDir, cid, string(ku.k.ContentIDprefix))
 	dir, _ := filepath.Split(bkPath)
 	dirPath := filepath.Clean(dir)
-	err := os.Remove(bkPath)
-	if err != nil {
-		return errors.Wrap(err, "error deleting book")
+	if ku.k.KuConfig.EnableDebug {
+		log.Printf("[DEBUG] CID: %s, bkPath: %s, dir: %s, dirPath: %s\n", cid, bkPath, dir, dirPath)
+	}
+	if err = os.Remove(bkPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("DeleteBook: error deleting file: %w", err)
 	}
 	for dirPath != filepath.Clean(ku.k.BKRootDir) {
 		// Note, os.Remove only removes empty directories, so it should be safe to call
-		err := os.Remove(dirPath)
-		if err != nil {
-			err = errors.Wrap(err, "error removing parent directories")
+		if err = os.Remove(dirPath); err != nil {
 			// We don't consider failure to remove parent directories an error, so
 			// long as the book file itself was deleted.
 			break
@@ -248,13 +246,17 @@ func (ku *koboUncaged) DeleteBook(book uc.BookID) error {
 		}
 	}
 	// Finally, write the new metadata files
-	ku.k.WriteMDfile()
-	ku.k.WriteUpdateMDfile()
-	return err
+	if err = ku.k.WriteMDfile(); err != nil {
+		return fmt.Errorf("DeleteBook: error writing metadata file: %w", err)
+	}
+	if err = ku.k.WriteUpdateMDfile(); err != nil {
+		return fmt.Errorf("DeleteBook: error writing updated metadata file: %w", err)
+	}
+	return nil
 }
 
 // UpdateStatus gives status updates from the UNCaGED library
-func (ku *koboUncaged) UpdateStatus(status uc.UCStatus, progress int) {
+func (ku *koboUncaged) UpdateStatus(status uc.Status, progress int) {
 	footerStr := " "
 	if progress >= 0 && progress <= 100 {
 		footerStr = fmt.Sprintf("%d%%", progress)
@@ -287,6 +289,6 @@ func (ku *koboUncaged) UpdateStatus(status uc.UCStatus, progress int) {
 }
 
 // LogPrintf instructs the client to log informational and debug info, that aren't errors
-func (ku *koboUncaged) LogPrintf(logLevel uc.UCLogLevel, format string, a ...interface{}) {
+func (ku *koboUncaged) LogPrintf(logLevel uc.LogLevel, format string, a ...interface{}) {
 	log.Printf(format, a...)
 }

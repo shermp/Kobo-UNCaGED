@@ -1,6 +1,6 @@
 // +build linux,arm
 
-// Copyright 2019 Sherman Perry
+// Copyright 2019-2020 Sherman Perry
 
 // This file is part of Kobo UNCaGED.
 
@@ -24,7 +24,7 @@ import (
 	"image"
 	"image/color"
 
-	"github.com/shermp/go-fbink-v2/gofbink"
+	"github.com/shermp/go-fbink-v2/v2/gofbink"
 )
 
 type region struct {
@@ -52,15 +52,14 @@ var einkPrint struct {
 
 // InitPrinter returns an object which conforms to the KuPrinter interface
 func InitPrinter(fontPath string) error {
-	einkPrint.fbCfg = &gofbink.FBInkConfig{Valign: gofbink.None, NoRefresh: true, IgnoreAlpha: true}
+	einkPrint.fbCfg = &gofbink.FBInkConfig{Valign: gofbink.AlignNone, NoRefresh: true, IgnoreAlpha: true}
 	einkPrint.rCfg = &gofbink.RestrictedConfig{IsCentered: true}
 	einkPrint.mbox.landscape.otCfg = gofbink.FBInkOTConfig{SizePt: 10, IsCentred: true}
 	einkPrint.mbox.portrait.otCfg = gofbink.FBInkOTConfig{SizePt: 10, IsCentred: true}
 	einkPrint.fbink = gofbink.New(einkPrint.fbCfg, einkPrint.rCfg)
 	einkPrint.fbink.Init(einkPrint.fbCfg)
-	err := einkPrint.fbink.AddOTfont(fontPath, gofbink.FntRegular)
-	if err != nil {
-		return err
+	if err := einkPrint.fbink.AddOTfont(fontPath, gofbink.FntRegular); err != nil {
+		return fmt.Errorf("InitPrinter: AddOTfont: %w", err)
 	}
 	einkPrint.fbState = &gofbink.FBInkState{}
 	einkPrint.fbink.GetState(einkPrint.fbCfg, einkPrint.fbState)
@@ -146,14 +145,16 @@ func printSection(orient *orientation, section MboxSection, vh uint32) error {
 	}
 	//log.Printf("Top Margin: %d, Bottom Margin: %d\n", orient.otCfg.Margins.Top, orient.otCfg.Margins.Bottom)
 	einkPrint.fbCfg.Valign = gofbink.Center
-	_, err = einkPrint.fbink.PrintOT(str, &orient.otCfg, einkPrint.fbCfg)
+	if _, err = einkPrint.fbink.PrintOT(str, &orient.otCfg, einkPrint.fbCfg); err != nil {
+		err = fmt.Errorf("printSection: PrintOT: %w", err)
+	}
 	return err
 }
 
 // Println displays a message for the user
 func Println(section MboxSection, a ...interface{}) (n int, err error) {
 	// Reset Valign first, otherwise this triggers a nasty bug where button_scan fails
-	einkPrint.fbCfg.Valign = gofbink.None
+	einkPrint.fbCfg.Valign = gofbink.AlignNone
 	einkPrint.fbink.ReInit(einkPrint.fbCfg)
 	einkPrint.fbink.GetState(einkPrint.fbCfg, einkPrint.fbState)
 	str := fmt.Sprint(a...)
@@ -172,9 +173,8 @@ func Println(section MboxSection, a ...interface{}) (n int, err error) {
 		orient = &einkPrint.mbox.landscape
 	}
 	// Print the messagebox to FB
-	err = einkPrint.fbink.PrintRBGA(orient.xOff, orient.yOff, einkPrint.mbox.mb, einkPrint.fbCfg)
-	if err != nil {
-		return 0, err
+	if err = einkPrint.fbink.PrintRBGA(orient.xOff, orient.yOff, einkPrint.mbox.mb, einkPrint.fbCfg); err != nil {
+		return 0, fmt.Errorf("Println: PrintRGBA: %w", err)
 	}
 	// Print Header
 	printSection(orient, Header, einkPrint.fbState.ViewHeight)
@@ -183,9 +183,8 @@ func Println(section MboxSection, a ...interface{}) (n int, err error) {
 	// Then footer
 	printSection(orient, Footer, einkPrint.fbState.ViewHeight)
 	// Finally, refresh
-	err = einkPrint.fbink.Refresh(orient.refreshReg.y, orient.refreshReg.x, orient.refreshReg.w, orient.refreshReg.h, gofbink.DitherPassthrough, einkPrint.fbCfg)
-	if err != nil {
-		return 0, err
+	if err = einkPrint.fbink.Refresh(orient.refreshReg.y, orient.refreshReg.x, orient.refreshReg.w, orient.refreshReg.h, einkPrint.fbCfg); err != nil {
+		return 0, fmt.Errorf("Println: Refresh: %w", err)
 	}
 	return n, err
 }

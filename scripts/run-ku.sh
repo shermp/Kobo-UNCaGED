@@ -14,8 +14,8 @@ KU_TMP_DIR="$2"
 # Abort if the device is currently plugged in, as that's liable to confuse Nickel into actually starting a real USBMS session!
 # Which'd probably ultimately cause a crash with our shenanigans...
 # Except if we've specified 'allowUSBPower = true' in our ku.toml file
-if ! grep -qi "^[[:blank:]]*allowUSBPower[[:blank:]]*=[[:blank:]]*true" "/mnt/onboard/${KU_DIR}/config/ku.toml"; then 
-    if [ $(cat /sys/devices/platform/pmic_battery.1/power_supply/mc13892_charger/online) -ne 0 ]; then
+if ! grep -qi "^[[:blank:]]*allowUSBPower[[:blank:]]*=[[:blank:]]*true" "/mnt/onboard/${KU_DIR}/config/ku.toml"; then
+    if [ "$(cat /sys/devices/platform/pmic_battery.1/power_supply/mc13892_charger/online)" -ne 0 ]; then
         # Sleep a bit to lose the race with Nickel's opening of our image
         sleep 2
         logmsg "C" "Device is currently plugged in. Aborting!"
@@ -30,8 +30,12 @@ insert_usb
 logmsg "I" "Scanning for Button"
 BS_TIMEOUT=0
 while ! ./button_scan -p; do
+    ret=$?
     # If the button scan hasn't succeeded in 5 seconds, assume it's not going to...
     if [ $BS_TIMEOUT -ge 20 ]; then
+        # 'Unplug' on failure
+        logmsg "C" "Failed to find/press the Connect button (${ret}). Aborting!"
+        remove_usb
         exit 1
     fi
     # Button scan hasn't succeeded yet. wait a bit (250ms), then try again
@@ -99,7 +103,7 @@ logmsg "I" "Waiting for content processing"
 ./button_scan -w -u -q
 BS_RES=$?
 # Note, KU may have updated metadata, even if no new books are added
-if [ $KU_RES -eq 1 ] || [ $BS_RES -eq 0 ]; then
+if [ $KU_RES -eq 1 ] || [ $KU_RES -eq 10 ] || [ $BS_RES -eq 0 ]; then
     logmsg "N" "Updating metadata . . ."
     logmsg "I" "Entering USBMS mode . . ."
     insert_usb
@@ -107,8 +111,12 @@ if [ $KU_RES -eq 1 ] || [ $BS_RES -eq 0 ]; then
     logmsg "I" "Scanning for Button"
     BS_TIMEOUT=0
     while ! ./button_scan -p -q; do
+        ret=$?
         # If the button scan hasn't succeeded in 5 seconds, assume it's not going to...
         if [ $BS_TIMEOUT -ge 20 ]; then
+            # 'Unplug' on failure
+            logmsg "C" "Failed to find/press the Connect button (${ret}). Aborting!"
+            remove_usb
             exit 1
         fi
         # Button scan hasn't succeeded yet. wait a bit (250ms), then try again
@@ -116,40 +124,45 @@ if [ $KU_RES -eq 1 ] || [ $BS_RES -eq 0 ]; then
         BS_TIMEOUT=$(( BS_TIMEOUT + 1 ))
     done
 
-    logmsg "I" "(Re)mounting onboard"
-    mount_onboard
-    ret=$?
-    if [ ${ret} -ne 0 ]; then
-        logmsg "C" "Onboard did not remount (${ret}). Aborting!"
-        remove_usb
-        exit 1
-    fi
-    logmsg "I" "Remounting SD card"
-    mount_sd
-    ret=$?
-    if [ ${ret} -ne 0 ]; then
-        logmsg "C" "SD card did not Remount (${ret}). Aborting!"
-        remove_usb
-        exit 1
-    fi
+    if [ $KU_RES -ne 10 ]; then
+        logmsg "I" "(Re)mounting onboard"
+        mount_onboard
+        ret=$?
+        if [ ${ret} -ne 0 ]; then
+            logmsg "C" "Onboard did not remount (${ret}). Aborting!"
+            remove_usb
+            exit 1
+        fi
+        logmsg "I" "Remounting SD card"
+        mount_sd
+        ret=$?
+        if [ ${ret} -ne 0 ]; then
+            logmsg "C" "SD card did not Remount (${ret}). Aborting!"
+            remove_usb
+            exit 1
+        fi
 
-    logmsg "I" "Running Kobo-UNCaGED"
-    if [ -z "$MNT_SD_NEW" ]; then
-        $KU_BIN -onboardmount="${MNT_ONBOARD_NEW}" -metadata
+        logmsg "I" "Running Kobo-UNCaGED"
+        if [ -z "$MNT_SD_NEW" ]; then
+            $KU_BIN -onboardmount="${MNT_ONBOARD_NEW}" -metadata
+        else
+            $KU_BIN -onboardmount="${MNT_ONBOARD_NEW}" -sdmount="${MNT_SD_NEW}" -metadata
+        fi
+
+        logmsg "I" "Unmounting onboard"
+        unmount_onboard
+        ret=$?
+        logmsg "N" "Onboard unmounted (${ret}) . . ."
+
+        logmsg "I" "Unmounting SD card"
+        unmount_sd
+        ret=$?
+        logmsg "N" "SD card unmounted (${ret}) . . ."
     else
-        $KU_BIN -onboardmount="${MNT_ONBOARD_NEW}" -sdmount="${MNT_SD_NEW}" -metadata
+        # Wait a little before "unplugging"
+        sleep 1
+        logmsg "I" "All Done!"
     fi
-
-    logmsg "I" "Unmounting onboard"
-    unmount_onboard
-    ret=$?
-    logmsg "N" "Onboard unmounted (${ret}) . . ."
-
-    logmsg "I" "Unmounting SD card"
-    unmount_sd
-    ret=$?
-    logmsg "N" "SD card unmounted (${ret}) . . ."
-
     logmsg "I" "Going back to Nickel"
     remove_usb
 elif [ $KU_RES -eq 100 ]; then

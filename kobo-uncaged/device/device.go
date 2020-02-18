@@ -8,21 +8,20 @@ import (
 	"html"
 	"image"
 	"image/jpeg"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/bamiaux/rez"
+	"github.com/geek1011/koboutils/v2/kobo"
 	"github.com/gofrs/uuid"
 	"github.com/kapmahc/epub"
-	"github.com/pkg/errors"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/util"
+	"github.com/shermp/UNCaGED/uc"
 )
 
 const koboDBpath = ".kobo/KoboReader.sqlite"
@@ -45,17 +44,6 @@ func (pw *uncagedPassword) NextPassword() string {
 		pw.currPassIndex++
 	}
 	return password
-}
-
-// CreateKoboMetadata creates the required nested maps
-func CreateKoboMetadata() KoboMetadata {
-	var md KoboMetadata
-	md.UserMetadata = make(map[string]interface{}, 0)
-	md.UserCategories = make(map[string]interface{}, 0)
-	md.AuthorSortMap = make(map[string]string, 0)
-	md.AuthorLinkMap = make(map[string]string, 0)
-	md.Identifiers = make(map[string]string, 0)
-	return md
 }
 
 // New creates a Kobo object, ready for use
@@ -86,35 +74,121 @@ func New(dbRootDir, sdRootDir string, updatingMD bool, opts *KuOptions, vers str
 	kuprint.Println(kuprint.Body, "Gathering information about your Kobo")
 	log.Println("Opening NickelDB")
 	if err = k.openNickelDB(); err != nil {
-		return nil, errors.Wrap(err, "failed to open Nickel DB")
+		return nil, fmt.Errorf("New: failed to open Nickel DB: %w", err)
 	}
 	log.Println("Getting Kobo Info")
 	if err = k.getKoboInfo(); err != nil {
-		return nil, errors.Wrap(err, "failed to get kobo info")
+		return nil, fmt.Errorf("New: failed to get kobo info: %w", err)
 	}
 	log.Println("Getting Device Info")
 	if err = k.loadDeviceInfo(); err != nil {
-		return nil, errors.Wrap(err, "failed to load device info")
+		return nil, fmt.Errorf("New: failed to load device info: %w", err)
 	}
 	log.Println("Reading Metadata")
 	if err = k.readMDfile(); err != nil {
-		return nil, errors.Wrap(err, "failed to read metadata file")
+		return nil, fmt.Errorf("New: failed to read metadata file: %w", err)
 	}
 
+	if k.KuConfig.AddMetadataByTrigger {
+		if err = k.setupMetaTrigger(); err != nil {
+			return nil, fmt.Errorf("New: failed to setup metadata trigger: %w", err)
+		}
+	} else {
+		// clean up after ourselves by not leaving an unwanted table and trigger lingering
+		// in the Nickel DB
+		if err = k.removeMetaTrigger(); err != nil {
+			return nil, fmt.Errorf("New: failed to remove metadata trigger: %w", err)
+		}
+	}
 	if !updatingMD {
 		return k, nil
 	}
 	if err = k.readUpdateMDfile(); err != nil {
-		return nil, errors.Wrap(err, "failed to read updated metadata file")
+		return nil, fmt.Errorf("New: failed to read updated metadata file: %w", err)
 	}
+
 	return k, err
 }
 
 func (k *Kobo) openNickelDB() error {
 	var err error
 	dsn := "file:" + filepath.Join(k.DBRootDir, koboDBpath) + "?cache=shared&mode=rw"
-	k.nickelDB, err = sql.Open("sqlite3", dsn)
-	return errors.Wrap(err, "sql open failed")
+	if k.nickelDB, err = sql.Open("sqlite3", dsn); err != nil {
+		err = fmt.Errorf("openNickelDB: sql open failed: %w", err)
+	}
+	return err
+}
+
+func (k *Kobo) setupMetaTrigger() error {
+	var err error
+	tx, err := k.nickelDB.Begin()
+	if err != nil {
+		return fmt.Errorf("setupMetaTrigger: Error beginning transaction: %w", err)
+	}
+	// Table to hold temporary metadata for the trigger to use
+	metaTableQuery := `
+	CREATE TABLE IF NOT EXISTS _ku_meta (
+		ContentID    TEXT NOT NULL UNIQUE,
+		Description  TEXT,
+		Series       TEXT,
+		SeriesNumber TEXT,
+		PRIMARY KEY(ContentID)
+	);`
+	if _, err = tx.Exec(metaTableQuery); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("setupMetaTrigger: Create _ku_meta table error: %w", err)
+	}
+	// Trigger fired when Nickel inserts a book into the content table
+	// It replaces and/or adds metadata after the record has been inserted
+	triggerQuery := `
+	DROP TRIGGER IF EXISTS _ku_meta_content_insert;
+	CREATE TRIGGER _ku_meta_content_insert
+		AFTER INSERT ON content WHEN
+			(new.ImageId LIKE "file____mnt_%") AND
+			(SELECT count() FROM _ku_meta WHERE ContentID = new.ContentID)
+		BEGIN
+			UPDATE content
+			SET
+				Description  = (SELECT Description  FROM _ku_meta WHERE ContentID = new.ContentID),
+				Series       = (SELECT Series       FROM _ku_meta WHERE ContentID = new.ContentID),
+				SeriesNumber = (SELECT SeriesNumber FROM _ku_meta WHERE ContentID = new.ContentID)
+			WHERE ContentID = new.ContentID;
+			DELETE FROM _ku_meta WHERE ContentID = new.ContentID;
+		END;`
+	if _, err = tx.Exec(triggerQuery); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("setupMetaTrigger: Create trigger error: %w", err)
+	}
+	// Make sure the _ku_meta has no existing records before beginning. Makes sure we aren't
+	// adding a duplicate row
+	if _, err = tx.Exec(`DELETE FROM _ku_meta;`); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("setupMetaTrigger: Delete rows error: %w", err)
+	}
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("setupMetaTrigger: Error committing transaction: %w", err)
+	}
+	return nil
+}
+
+func (k *Kobo) removeMetaTrigger() error {
+	var err error
+	tx, err := k.nickelDB.Begin()
+	if err != nil {
+		return fmt.Errorf("removeMetaTrigger: Error beginning transaction: %w", err)
+	}
+	if _, err = tx.Exec(`DROP TABLE IF EXISTS _ku_meta;`); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("removeMetaTrigger: drop _ku_meta error: %w", err)
+	}
+	if _, err = tx.Exec(`DROP TRIGGER IF EXISTS _ku_meta_content_insert;`); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("removeMetaTrigger: drop _ku_meta_content_insert error: %w", err)
+	}
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("removeMetaTrigger: Error committing transaction: %w", err)
+	}
+	return nil
 }
 
 // UpdateIfExists updates onboard metadata if it exists in the Nickel database
@@ -128,9 +202,8 @@ func (k *Kobo) UpdateIfExists(cID string, len int) error {
 			FROM content 
 			WHERE ContentID = ? 
 			AND ContentType = 6`
-		err := k.nickelDB.QueryRow(testQuery, cID).Scan(&currSize)
-		if err != nil {
-			return errors.Wrap(err, "error querying row")
+		if err := k.nickelDB.QueryRow(testQuery, cID).Scan(&currSize); err != nil {
+			return fmt.Errorf("UpdateIfExists: error querying row: %w", err)
 		}
 		if currSize != len {
 			updateQuery := `
@@ -138,9 +211,8 @@ func (k *Kobo) UpdateIfExists(cID string, len int) error {
 				SET ___FileSize = ? 
 				WHERE ContentId = ? 
 				AND ContentType = 6`
-			_, err = k.nickelDB.Exec(updateQuery, len, cID)
-			if err != nil {
-				return errors.Wrap(err, "error updating filesize field")
+			if _, err := k.nickelDB.Exec(updateQuery, len, cID); err != nil {
+				return fmt.Errorf("UpdateIfExists: error updating filesize field: %w", err)
 			}
 			log.Println("Updated existing book file length")
 		}
@@ -149,20 +221,19 @@ func (k *Kobo) UpdateIfExists(cID string, len int) error {
 }
 
 func (k *Kobo) getKoboInfo() error {
-	// Get the model ID and firmware version from the device
-	versInfo, err := ioutil.ReadFile(filepath.Join(k.DBRootDir, koboVersPath))
+	_, vers, id, err := kobo.ParseKoboVersion(k.DBRootDir)
 	if err != nil {
-		return errors.Wrap(err, "error reading kobo version file")
+		return fmt.Errorf("New: %w", err)
 	}
-	if len(versInfo) > 0 {
-		vers := strings.TrimSpace(string(versInfo))
-		versFields := strings.Split(vers, ",")
-		fwStr := strings.Split(versFields[2], ".")
-		k.fw.major, _ = strconv.Atoi(fwStr[0])
-		k.fw.minor, _ = strconv.Atoi(fwStr[1])
-		k.fw.build, _ = strconv.Atoi(fwStr[2])
-		k.Device = koboDevice(versFields[len(versFields)-1])
+	if dev, ok := kobo.DeviceByID(id); ok {
+		k.Device = dev
+	} else {
+		return fmt.Errorf("New: unknown device")
 	}
+	fwStr := strings.Split(vers, ".")
+	k.fw.major, _ = strconv.Atoi(fwStr[0])
+	k.fw.minor, _ = strconv.Atoi(fwStr[1])
+	k.fw.build, _ = strconv.Atoi(fwStr[2])
 	return nil
 }
 
@@ -173,14 +244,14 @@ func (k *Kobo) GetDeviceOptions() (ext []string, model string, thumbSz image.Poi
 	} else {
 		ext = []string{"epub", "kepub", "mobi", "pdf", "cbz", "cbr", "txt", "html", "rtf"}
 	}
-	model = k.Device.Model()
+	model = k.Device.Family()
 	switch k.KuConfig.Thumbnail.GenerateLevel {
 	case generateAll:
-		thumbSz = fullCover.Size(k.Device)
+		thumbSz = k.Device.CoverSize(kobo.CoverTypeFull)
 	case generatePartial:
-		thumbSz = libFull.Size(k.Device)
+		thumbSz = k.Device.CoverSize(kobo.CoverTypeLibFull)
 	default:
-		thumbSz = libGrid.Size(k.Device)
+		thumbSz = k.Device.CoverSize(kobo.CoverTypeLibGrid)
 	}
 
 	return ext, model, thumbSz
@@ -189,12 +260,12 @@ func (k *Kobo) GetDeviceOptions() (ext []string, model string, thumbSz image.Poi
 // readEpubMeta opens an epub (or kepub), and attempts to read the
 // metadata it contains. This is used if the metadata has not yet
 // been cached
-func (k *Kobo) readEpubMeta(contentID string, md *KoboMetadata) error {
+func (k *Kobo) readEpubMeta(contentID string, md *uc.CalibreBookMeta) error {
 	lpath := util.ContentIDtoLpath(contentID, string(k.ContentIDprefix))
 	epubPath := util.ContentIDtoBkPath(k.BKRootDir, contentID, string(k.ContentIDprefix))
 	bk, err := epub.Open(epubPath)
 	if err != nil {
-		return errors.Wrap(err, "error opening epub for metadata reading")
+		return fmt.Errorf("readEpubMeta: error opening epub for metadata reading: %w", err)
 	}
 	defer bk.Close()
 	md.Lpath = lpath
@@ -232,14 +303,12 @@ func (k *Kobo) readEpubMeta(contentID string, md *KoboMetadata) error {
 		md.Publisher = &pub
 	}
 	if len(bk.Opf.Metadata.Date) > 0 {
-		pubDate := bk.Opf.Metadata.Date[0].Data
-		md.Pubdate = &pubDate
+		md.Pubdate = uc.ParseTime(bk.Opf.Metadata.Date[0].Data)
 	}
 	for _, m := range bk.Opf.Metadata.Meta {
 		switch m.Name {
 		case "calibre:timestamp":
-			timeStamp := m.Content
-			md.Timestamp = &timeStamp
+			md.Timestamp = uc.ParseTime(m.Content)
 		case "calibre:series":
 			series := m.Content
 			md.Series = &series
@@ -263,17 +332,17 @@ func (k *Kobo) readEpubMeta(contentID string, md *KoboMetadata) error {
 func (k *Kobo) readMDfile() error {
 	log.Println("Reading metadata.calibre")
 
-	var koboMD []KoboMetadata
+	var koboMD []uc.CalibreBookMeta
 	emptyOrNotExist, err := util.ReadJSON(filepath.Join(k.BKRootDir, calibreMDfile), &koboMD)
 	if emptyOrNotExist {
 		// ignore
 	} else if err != nil {
-		return errors.Wrap(err, "error reading metadata.calibre JSON")
+		return fmt.Errorf("readMDfile: error reading metadata.calibre JSON: %w", err)
 	}
 
 	// Make the metadatamap here instead of the constructer so we can pre-allocate
 	// the memory with the right size.
-	k.MetadataMap = make(map[string]KoboMetadata, len(koboMD))
+	k.MetadataMap = make(map[string]uc.CalibreBookMeta, len(koboMD))
 	// make a temporary map for easy searching later
 	tmpMap := make(map[string]int, len(koboMD))
 	for n, md := range koboMD {
@@ -307,17 +376,20 @@ func (k *Kobo) readMDfile() error {
 
 	bkRows, err := k.nickelDB.Query(query)
 	if err != nil {
-		return errors.Wrap(err, "error getting book rows")
+		return fmt.Errorf("readMDfile: error getting book rows: %w", err)
 	}
 	defer bkRows.Close()
 	for bkRows.Next() {
 		err = bkRows.Scan(&dbCID, &dbTitle, &dbAttr, &dbDesc, &dbPublisher, &dbSeries, &dbbSeriesNum, &dbContentType, &dbMimeType)
 		if err != nil {
-			return errors.Wrap(err, "row decoding error")
+			return fmt.Errorf("readMDfile: row decoding error: %w", err)
 		}
 		if _, exists := tmpMap[dbCID]; !exists {
 			log.Printf("Book not in cache: %s\n", dbCID)
-			bkMD := CreateKoboMetadata()
+			bkMD := uc.CalibreBookMeta{}
+			bkMD.Lpath = util.ContentIDtoLpath(dbCID, string(onboardPrefix))
+			uuidV4, _ := uuid.NewV4()
+			bkMD.UUID = uuidV4.String()
 			bkMD.Comments, bkMD.Publisher, bkMD.Series = dbDesc, dbPublisher, dbSeries
 			if dbTitle != nil {
 				bkMD.Title = *dbTitle
@@ -343,7 +415,7 @@ func (k *Kobo) readMDfile() error {
 			fi, err := os.Stat(filepath.Join(k.BKRootDir, bkMD.Lpath))
 			if err == nil {
 				bkSz := fi.Size()
-				lastMod := fi.ModTime().Format(time.RFC3339)
+				lastMod := uc.ConvertTime(fi.ModTime())
 				bkMD.LastModified = &lastMod
 				bkMD.Size = int(bkSz)
 			}
@@ -353,14 +425,17 @@ func (k *Kobo) readMDfile() error {
 			k.MetadataMap[dbCID] = koboMD[tmpMap[dbCID]]
 		}
 	}
-	err = bkRows.Err()
-	if err != nil {
-		return errors.Wrap(err, "bkRows error")
+	if err = bkRows.Err(); err != nil {
+		return fmt.Errorf("readMDfile: bkRows error: %w", err)
+	}
+	// Finally, store a snapshot of books in database before we make any additions/deletions
+	k.BooksInDB = make(map[string]struct{}, len(k.MetadataMap))
+	for cid := range k.MetadataMap {
+		k.BooksInDB[cid] = struct{}{}
 	}
 	// Hopefully, our metadata is now up to date. Update the cache on disk
-	err = k.WriteMDfile()
-	if err != nil {
-		return errors.Wrap(err, "error writing metadata to disk")
+	if err = k.WriteMDfile(); err != nil {
+		return fmt.Errorf("readMDfile: error writing metadata to disk: %w", err)
 	}
 	return nil
 }
@@ -368,12 +443,16 @@ func (k *Kobo) readMDfile() error {
 // WriteMDfile writes metadata to file
 func (k *Kobo) WriteMDfile() error {
 	var n int
-	metadata := make([]KoboMetadata, len(k.MetadataMap))
+	var err error
+	metadata := make([]uc.CalibreBookMeta, len(k.MetadataMap))
 	for _, md := range k.MetadataMap {
 		metadata[n] = md
 		n++
 	}
-	return util.WriteJSON(filepath.Join(k.BKRootDir, calibreMDfile), metadata)
+	if err = util.WriteJSON(filepath.Join(k.BKRootDir, calibreMDfile), metadata); err != nil {
+		err = fmt.Errorf("WriteMDfile: %w", err)
+	}
+	return err
 }
 
 func (k *Kobo) readUpdateMDfile() error {
@@ -381,18 +460,26 @@ func (k *Kobo) readUpdateMDfile() error {
 	if emptyOrNotExist {
 		// ignore
 	} else if err != nil {
-		return errors.Wrap(err, "error reading update metadata JSON")
+		return fmt.Errorf("readUpdateMDfile: error reading update metadata JSON: %w", err)
 	}
 	return nil
 }
 
 // WriteUpdateMDfile writes updated metadata to file
 func (k *Kobo) WriteUpdateMDfile() error {
+	var err error
 	// We only write the file if there is new or updated metadata to write
 	if len(k.UpdatedMetadata) == 0 {
 		return nil
 	}
-	return util.WriteJSON(filepath.Join(k.BKRootDir, kuUpdatedMDfile), k.UpdatedMetadata)
+	// Don't write the file if we are updating metadata via DB trigger
+	if k.KuConfig.AddMetadataByTrigger {
+		return nil
+	}
+	if err = util.WriteJSON(filepath.Join(k.BKRootDir, kuUpdatedMDfile), k.UpdatedMetadata); err != nil {
+		err = fmt.Errorf("WriteUpdateMDfile: error writing update metadata JSON: %w", err)
+	}
+	return err
 }
 
 func (k *Kobo) loadDeviceInfo() error {
@@ -400,20 +487,23 @@ func (k *Kobo) loadDeviceInfo() error {
 	if emptyOrNotExist {
 		uuid4, _ := uuid.NewV4()
 		k.DriveInfo.DevInfo.LocationCode = "main"
-		k.DriveInfo.DevInfo.DeviceName = "Kobo " + k.Device.Model()
+		k.DriveInfo.DevInfo.DeviceName = k.Device.Family()
 		k.DriveInfo.DevInfo.DeviceStoreUUID = uuid4.String()
 		if k.useSDCard {
 			k.DriveInfo.DevInfo.LocationCode = "A"
 		}
 	} else if err != nil {
-		return errors.Wrap(err, "error reading device info JSON")
+		return fmt.Errorf("loadDeviceInfo: error reading device info JSON: %w", err)
 	}
 	return nil
 }
 
 // SaveDeviceInfo save device info to file
 func (k *Kobo) SaveDeviceInfo() error {
-	return util.WriteJSON(filepath.Join(k.BKRootDir, calibreDIfile), k.DriveInfo.DevInfo)
+	if err := util.WriteJSON(filepath.Join(k.BKRootDir, calibreDIfile), k.DriveInfo.DevInfo); err != nil {
+		return fmt.Errorf("SaveDeviceInfo: error saving device info JSON: %w", err)
+	}
+	return nil
 }
 
 // SaveCoverImage generates cover image and thumbnails, and save to appropriate locations
@@ -427,26 +517,22 @@ func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string)
 	}
 	sz := img.Bounds().Size()
 
-	imgDir := ".kobo-images"
-	if k.useSDCard {
-		imgDir = "koboExtStorage/images-cache"
-	}
-	imgDir = filepath.Join(k.BKRootDir, imgDir)
-	imgID := util.ImgIDFromContentID(contentID)
+	imgID := kobo.ContentIDToImageID(contentID)
+	//fmt.Printf("Image ID is: %s\n", imgID)
 	jpegOpts := jpeg.Options{Quality: k.KuConfig.Thumbnail.JpegQuality}
 
-	var coverEndings []koboCover
+	var coverEndings []kobo.CoverType
 	switch k.KuConfig.Thumbnail.GenerateLevel {
 	case generateAll:
-		coverEndings = []koboCover{fullCover, libFull, libGrid}
+		coverEndings = []kobo.CoverType{kobo.CoverTypeFull, kobo.CoverTypeLibFull, kobo.CoverTypeLibGrid}
 	case generatePartial:
-		coverEndings = []koboCover{libFull, libGrid}
+		coverEndings = []kobo.CoverType{kobo.CoverTypeLibFull, kobo.CoverTypeLibGrid}
 	}
 	for _, cover := range coverEndings {
-		nsz := cover.Resize(k.Device, sz)
-		nfn := filepath.Join(imgDir, cover.RelPath(imgID))
-
-		log.Printf("Resizing %s cover to %s (target %s) for %s\n", sz, nsz, cover.Size(k.Device), cover)
+		nsz := k.Device.CoverSized(cover, sz)
+		nfn := filepath.Join(k.BKRootDir, cover.GeneratePath(k.useSDCard, imgID))
+		//fmt.Printf("Cover file path is: %s\n", nfn)
+		log.Printf("Resizing %s cover to %s (target %s) for %s\n", sz, nsz, k.Device.CoverSize(cover), cover)
 
 		var nimg image.Image
 		if !sz.Eq(nsz) {
@@ -458,7 +544,7 @@ func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string)
 			log.Println(" -- Skipped resize: already correct size")
 		}
 		// Optimization. No need to resize libGrid from the full cover size...
-		if cover == libFull {
+		if cover == kobo.CoverTypeLibFull {
 			img = nimg
 		}
 
@@ -481,24 +567,46 @@ func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string)
 	}
 }
 
-// UpdateNickelDB updates the Nickel database with updated metadata obtained from a previous run
+// UpdateNickelDB updates the Nickel database with updated metadata obtained from a previous run,
+// or this run if updating via triggers
 func (k *Kobo) UpdateNickelDB() error {
-	// No matter what happens, we remove the 'metadata_update.kobouc' file when we're done
-	defer os.Remove(filepath.Join(k.BKRootDir, kuUpdatedMDfile))
-	query := `
+	if !k.KuConfig.AddMetadataByTrigger {
+		// No matter what happens, we remove the 'metadata_update.kobouc' file when we're done
+		defer os.Remove(filepath.Join(k.BKRootDir, kuUpdatedMDfile))
+	}
+	var err error
+	tx, err := k.nickelDB.Begin()
+	if err != nil {
+		return fmt.Errorf("UpdateNickelDB: Error beginning transaction: %w", err)
+	}
+	// Insert prepared statement if using triggers
+	var insertStmt *sql.Stmt
+	if k.KuConfig.AddMetadataByTrigger {
+		insertQuery := `
+		INSERT INTO _ku_meta (ContentID, Description, Series, SeriesNumber)
+		VALUES (?, ?, ?, ?);`
+		insertStmt, err = tx.Prepare(insertQuery)
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("UpdateNickelDB: prepared insert statement failed: %w", err)
+		}
+	}
+	// Update statment for books already in the content table
+	updateQuery := `
 		UPDATE content SET 
 		Description=?,
 		Series=?,
 		SeriesNumber=?,
 		SeriesNumberFloat=? 
-		WHERE ContentID=?`
-	stmt, err := k.nickelDB.Prepare(query)
+		WHERE ContentID=?;`
+	updateStmt, err := tx.Prepare(updateQuery)
 	if err != nil {
-		return errors.Wrap(err, "prepared statement failed")
+		tx.Rollback()
+		return fmt.Errorf("UpdateNickelDB: prepared statement failed: %w", err)
 	}
+	var updateErr error
 	var desc, series, seriesNum *string
 	var seriesNumFloat *float64
-	var updateErr error
 	for _, cid := range k.UpdatedMetadata {
 		desc, series, seriesNum, seriesNumFloat = nil, nil, nil, nil
 		if k.MetadataMap[cid].Comments != nil && *k.MetadataMap[cid].Comments != "" {
@@ -512,10 +620,22 @@ func (k *Kobo) UpdateNickelDB() error {
 			seriesNum = &sn
 			seriesNumFloat = k.MetadataMap[cid].SeriesIndex
 		}
-		_, err = stmt.Exec(desc, series, seriesNum, seriesNumFloat, cid)
-		if err != nil {
-			updateErr = errors.Wrap(updateErr, err.Error())
+		// Note, not rolling back transaction on error. Is this allowed?
+		// Don't want one bad update to derail the whole thing, hence avoiding rollback
+		if _, ok := k.BooksInDB[cid]; ok {
+			_, err = updateStmt.Exec(desc, series, seriesNum, seriesNumFloat, cid)
+			if err != nil {
+				updateErr = fmt.Errorf("UpdateNickelDB: %w", err)
+			}
+		} else if k.KuConfig.AddMetadataByTrigger {
+			_, err = insertStmt.Exec(cid, desc, series, seriesNum)
+			if err != nil {
+				updateErr = fmt.Errorf("UpdateNickelDB: %w", err)
+			}
 		}
+	}
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("UpdateNickelDB: Error committing transaction: %w", err)
 	}
 	return updateErr
 }

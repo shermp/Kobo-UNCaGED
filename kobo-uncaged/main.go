@@ -1,4 +1,4 @@
-// Copyright 2019 Sherman Perry
+// Copyright 2019-2020 Sherman Perry
 
 // This file is part of Kobo UNCaGED.
 
@@ -18,7 +18,9 @@
 package main
 
 import (
+	"errors"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"log/syslog"
@@ -27,7 +29,6 @@ import (
 
 	"github.com/BurntSushi/toml"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/pkg/errors"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/device"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kunc"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
@@ -43,6 +44,7 @@ const (
 	genericError    returnCode = 250
 	successNoAction returnCode = 0
 	successRerun    returnCode = 1
+	successUSBMS    returnCode = 10
 	passwordError   returnCode = 100
 	calibreNotFound returnCode = 101
 )
@@ -53,10 +55,10 @@ func getUserOptions(dbRootDir string) (*device.KuOptions, error) {
 	opts := &device.KuOptions{}
 	configBytes, err := ioutil.ReadFile(filepath.Join(dbRootDir, ".adds/kobo-uncaged/config/ku.toml"))
 	if err != nil {
-		return opts, errors.Wrap(err, "error loading config file")
+		return opts, fmt.Errorf("error loading config file: %w", err)
 	}
 	if err := toml.Unmarshal(configBytes, opts); err != nil {
-		return opts, errors.Wrap(err, "error reading config file")
+		return opts, fmt.Errorf("error reading config file: %w", err)
 	}
 	opts.Thumbnail.Validate()
 	opts.Thumbnail.SetRezFilter()
@@ -66,20 +68,23 @@ func getUserOptions(dbRootDir string) (*device.KuOptions, error) {
 func returncodeFromError(err error) returnCode {
 	rc := successNoAction
 	if err != nil {
+		var calErr uc.CalError
 		log.Print(err)
-		// TODO: Probably need to come up with a set of error codes for
-		//       UNCaGED instead of this string comparison
-		switch err.Error() {
-		case "calibre server not found":
-			kuprint.Println(kuprint.Body, "Calibre not found!\nHave you enabled the Calibre Wireless service?")
-			rc = calibreNotFound
-		case "no password entered":
-			kuprint.Println(kuprint.Body, "No valid password found!")
-			rc = passwordError
-		default:
-			kuprint.Println(kuprint.Body, err.Error())
-			rc = genericError
+		if errors.As(err, &calErr) {
+			switch calErr {
+			case uc.CalibreNotFound:
+				kuprint.Println(kuprint.Body, "Calibre not found!\nHave you enabled the Calibre Wireless service?")
+				rc = calibreNotFound
+			case uc.NoPassword:
+				kuprint.Println(kuprint.Body, "No valid password found!")
+				rc = passwordError
+			default:
+				kuprint.Println(kuprint.Body, calErr.Error())
+				rc = genericError
+			}
 		}
+		kuprint.Println(kuprint.Body, err.Error())
+		rc = genericError
 	}
 	return rc
 }
@@ -104,6 +109,7 @@ func mainWithErrCode() returnCode {
 	log.Println("Creating KU object")
 	k, err := device.New(*onboardMntPtr, *sdMntPtr, *mdPtr, opts, kuVersion)
 	if err != nil {
+		log.Print(err)
 		return returncodeFromError(err)
 	}
 	defer k.Close()
@@ -115,23 +121,35 @@ func mainWithErrCode() returnCode {
 		kuprint.Println(kuprint.Body, "Updating Metadata!")
 		err = k.UpdateNickelDB()
 		if err != nil {
+			log.Print(err)
 			return returncodeFromError(err)
 		}
 		kuprint.Println(kuprint.Body, "Metadata Updated!\n\nReturning to Home screen")
 	} else {
 		log.Println("Preparing Kobo UNCaGED!")
 		ku := kunc.New(k)
-		cc, err := uc.New(ku, true)
+		cc, err := uc.New(ku, k.KuConfig.EnableDebug)
 		if err != nil {
+			log.Print(err)
 			return returncodeFromError(err)
 		}
 		log.Println("Starting Calibre Connection")
 		err = cc.Start()
 		if err != nil {
+			log.Print(err)
 			return returncodeFromError(err)
 		}
 
 		if len(k.UpdatedMetadata) > 0 {
+			if k.KuConfig.AddMetadataByTrigger {
+				if err = k.UpdateNickelDB(); err != nil {
+					kuprint.Println(kuprint.Body, "Updating metadata by DB trigger failed")
+					log.Print(err)
+					return genericError
+				}
+				kuprint.Println(kuprint.Body, "Metadata added to DB\n\nYour Kobo will perform another USB connect after content import")
+				return successUSBMS
+			}
 			kuprint.Println(kuprint.Body, "Kobo-UNCaGED will restart automatically to update metadata")
 			return successRerun
 		}

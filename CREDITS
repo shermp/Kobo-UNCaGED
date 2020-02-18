@@ -23,11 +23,6 @@ Kobo UNCaGED is made possible with the help of the following third-party librari
     Homepage:       http://mattn.github.io/go-sqlite3/
     Source:         https://github.com/mattn/go-sqlite3
 
-    mapstructure
-    Description:    Go library for decoding generic map values into native Go structures
-    Licence:        MIT
-    Source:         https://github.com/mitchellh/mapstructure
-
 Additionally, the following code and resources have been adapted or used:
 
     KOReader (Kobo specific shell scripts)
