@@ -429,9 +429,9 @@ func (k *Kobo) readMDfile() error {
 		return fmt.Errorf("readMDfile: bkRows error: %w", err)
 	}
 	// Finally, store a snapshot of books in database before we make any additions/deletions
-	k.BooksInDB = make(map[string]bool, len(k.MetadataMap))
+	k.BooksInDB = make(map[string]struct{}, len(k.MetadataMap))
 	for cid := range k.MetadataMap {
-		k.BooksInDB[cid] = true
+		k.BooksInDB[cid] = struct{}{}
 	}
 	// Hopefully, our metadata is now up to date. Update the cache on disk
 	if err = k.WriteMDfile(); err != nil {
@@ -500,11 +500,10 @@ func (k *Kobo) loadDeviceInfo() error {
 
 // SaveDeviceInfo save device info to file
 func (k *Kobo) SaveDeviceInfo() error {
-	var err error
-	if err = util.WriteJSON(filepath.Join(k.BKRootDir, calibreDIfile), k.DriveInfo.DevInfo); err != nil {
-		err = fmt.Errorf("SaveDeviceInfo: error saving device info JSON: %w", err)
+	if err := util.WriteJSON(filepath.Join(k.BKRootDir, calibreDIfile), k.DriveInfo.DevInfo); err != nil {
+		return fmt.Errorf("SaveDeviceInfo: error saving device info JSON: %w", err)
 	}
-	return err
+	return nil
 }
 
 // SaveCoverImage generates cover image and thumbnails, and save to appropriate locations
@@ -623,7 +622,7 @@ func (k *Kobo) UpdateNickelDB() error {
 		}
 		// Note, not rolling back transaction on error. Is this allowed?
 		// Don't want one bad update to derail the whole thing, hence avoiding rollback
-		if k.BooksInDB[cid] {
+		if _, ok := k.BooksInDB[cid]; ok {
 			_, err = updateStmt.Exec(desc, series, seriesNum, seriesNumFloat, cid)
 			if err != nil {
 				updateErr = fmt.Errorf("UpdateNickelDB: %w", err)

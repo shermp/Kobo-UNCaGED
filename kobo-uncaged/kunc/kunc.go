@@ -178,8 +178,7 @@ func (ku *koboUncaged) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, 
 		ku.k.Wg.Add(1)
 		go ku.k.SaveCoverImage(cID, image.Pt(w, h), md.Thumbnail.ImgBase64())
 	}
-	n, err := io.CopyN(destBook, book, int64(len))
-	if n != int64(len) || err != nil {
+	if _, err = io.CopyN(destBook, book, int64(len)); err != nil {
 		return fmt.Errorf("SaveBook: error writing ebook to file: %w", err)
 	}
 	ku.k.UpdateIfExists(cID, len)
@@ -222,7 +221,7 @@ func (ku *koboUncaged) DeleteBook(book uc.BookID) error {
 	if ku.k.KuConfig.EnableDebug {
 		log.Printf("[DEBUG] CID: %s, bkPath: %s, dir: %s, dirPath: %s\n", cid, bkPath, dir, dirPath)
 	}
-	if err = os.Remove(bkPath); err != nil {
+	if err = os.Remove(bkPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("DeleteBook: error deleting file: %w", err)
 	}
 	for dirPath != filepath.Clean(ku.k.BKRootDir) {

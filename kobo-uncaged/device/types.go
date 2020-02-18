@@ -58,7 +58,7 @@ type Kobo struct {
 	useSDCard       bool
 	MetadataMap     map[string]uc.CalibreBookMeta
 	UpdatedMetadata []string
-	BooksInDB       map[string]bool
+	BooksInDB       map[string]struct{}
 	Passwords       *uncagedPassword
 	DriveInfo       uc.DeviceInfo
 	nickelDB        *sql.DB
@@ -75,7 +75,6 @@ type MetaIterator struct {
 // NewMetaIter creates a new MetaIterator for use
 func NewMetaIter(k *Kobo) *MetaIterator {
 	iter := MetaIterator{k: k, cidIndex: -1}
-	iter.cidList = make([]string, 0)
 	return &iter
 }
 
