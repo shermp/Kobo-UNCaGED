@@ -1,4 +1,4 @@
-// Copyright 2019 Sherman Perry
+// Copyright 2019-2020 Sherman Perry
 
 // This file is part of Kobo UNCaGED.
 
