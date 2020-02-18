@@ -1,7 +1,9 @@
 # Kobo-UNCaGED
 Kobo-UNCaGED is a program for Kobo eink readers for connecting wirelessly to Calibre. It makes use of my [UNCaGED](https://github.com/shermp/UNCaGED) library. It is licenced under the AGPL-3.0 licence.
 
-**Kobo-UNCaGED is currently ALPHA software. While I don't have any major issues with it, testing has been relatively limited, and I can't guarentee a problem free experience. If your ebook library is important to you, backup your Kobo user partition before use!**
+**While I don't have any major issues with Kobo-UNCaGED, testing has been relatively limited, and I can't guarentee a problem free experience. If your ebook library is important to you, backup your Kobo user partition before use!**
+
+**Very large ebook libraries on your Kobo will likely cause issues. If you have thousands of books on your device, proceed with caution!**
 
 ## About
 Kobo-UNCaGED runs on any Kobo with modern firmware (earliest version unknown). It is designed to be run from within the Kobo environment (Nickel), and allows you to connect your Kobo to Calibre using its wireless driver. This is the same connection/protocol that Calibre Companion (for Android) uses, and I decided why couldn't the rest of us join in the wireless fun?
@@ -24,8 +26,7 @@ Note, working with store-bought books are currently not supported. Also, KU will
 Kobo-UNCaGED is designed to be launched from within the Kobo software (nickel) using launchers such as fmon or kfmon. Launching using other systems such as KSM is not supported, as they have not been tested, or likely to work with the current launch scripts.
 
 ### Installation
-1. Install an application launcher. I recommend [kfmon](https://github.com/NiLuJe/kfmon), as that is what I have tested with, and have provided a configuration file for. Follow the installation instructions for the launcher you will use. As of Kobo-UNCaGED v0.3, kfmon 1.3.0 or newer is highly reccommended, especially 
-when using an external SD card.
+1. Install an application launcher. I recommend [kfmon](https://github.com/NiLuJe/kfmon), as that is what I have tested with, and have provided a configuration file for. Follow the installation instructions for the launcher you will use. As of Kobo-UNCaGED v0.3, kfmon 1.3.0 or newer is highly reccommended, especially when using an external SD card.
 2. Download the latest release zip archive from https://github.com/shermp/Kobo-UNCaGED/releases
 3. Unzip the contents of the archive directly onto the root directory of your kobo partion (when connected with USB). All files should be copied to their appropriate location.
 4. (optional) navigate to `.adds/kobo-uncaged/config`, and copy `ku.toml.default` to `ku.toml`, and make desired configuration changes. If you don't perform this step, the startup script will do so automatically on first run.
