@@ -406,12 +406,12 @@ func (k *Kobo) readMDfile() error {
 					bkMD.Authors[i] = strings.TrimSpace(bkMD.Authors[i])
 				}
 			}
-			if dbMimeType == "application/epub+zip" || dbMimeType == "application/x-kobo-epub+zip" {
-				err = k.readEpubMeta(dbCID, &bkMD)
-				if err != nil {
-					log.Print(err)
-				}
-			}
+			// if dbMimeType == "application/epub+zip" || dbMimeType == "application/x-kobo-epub+zip" {
+			// 	err = k.readEpubMeta(dbCID, &bkMD)
+			// 	if err != nil {
+			// 		log.Print(err)
+			// 	}
+			// }
 			fi, err := os.Stat(filepath.Join(k.BKRootDir, bkMD.Lpath))
 			if err == nil {
 				bkSz := fi.Size()
