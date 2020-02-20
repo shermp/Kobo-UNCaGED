@@ -74,12 +74,13 @@ logmsg "N" "USBMS mode entered . . ."
 
 
 logmsg "I" "Running Kobo-UNCaGED"
+KU_LOG=".adds/kobo-uncaged/error_log.txt"
 KU_BIN="${MNT_ONBOARD_NEW}/${KU_DIR}/bin/kobo-uncaged"
 if [ -z "$MNT_SD_NEW" ]; then
-    $KU_BIN -onboardmount="${MNT_ONBOARD_NEW}"
+    $KU_BIN -onboardmount="${MNT_ONBOARD_NEW}" 2> "${MNT_ONBOARD_NEW}/${KU_LOG}"
     KU_RES=$?
 else
-    $KU_BIN -onboardmount="${MNT_ONBOARD_NEW}" -sdmount="${MNT_SD_NEW}"
+    $KU_BIN -onboardmount="${MNT_ONBOARD_NEW}" -sdmount="${MNT_SD_NEW}" 2> "${MNT_ONBOARD_NEW}/${KU_LOG}"
     KU_RES=$?
 fi
 
@@ -167,6 +168,10 @@ if [ $KU_RES -eq 1 ] || [ $KU_RES -eq 10 ] || [ $BS_RES -eq 0 ]; then
     remove_usb
 elif [ $KU_RES -eq 100 ]; then
     logmsg "I" "Password issue. Check your ku.toml config file"
+elif [ $KU_RES -eq 250 ] || [ $KU_RES -eq 101 ]; then
+    logmsg "E" "Kobo UNCaGED exited with an error. Check syslog for error message"
+elif [ $KU_RES -ne 0 ]; then
+    logmsg "C" "Kobo UNCaGED appears to have crashed, check ${KU_LOG}"
 elif [ $KU_RES -ne 0 ] && [ $BS_RES -ne 0 ]; then
     # FBInk returns negative error codes, fudge that back to the <errno.h> value...
     logmsg "I" "Something strange happened... (KU: ${KU_RES}; BS: -$(( 256 - BS_RES )))"
