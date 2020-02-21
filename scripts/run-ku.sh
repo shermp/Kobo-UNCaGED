@@ -107,12 +107,25 @@ logmsg "I" "Unmounting SD card"
 unmount_sd
 ret=$?
 logmsg "N" "SD card unmounted (${ret}) . . ."
-
-logmsg "I" "Waiting for content processing"
-./button_scan -w -u -q
-BS_RES=$?
+if [ $KU_RES -ne $KURC_RERUN ] || [ $KU_RES -ne $KURC_USBMS ]; then
+    if [ $KU_RES -eq $KURC_PWERR ]; then
+        logmsg "I" "Password issue. Check your ku.toml config file"
+    elif [ $KU_RES -eq $KURC_ERR ] || [ $KU_RES -eq $KURC_NFERR ]; then
+        logmsg "E" "Kobo UNCaGED exited with an error. Check syslog for error message"
+    elif [ $KU_RES -ne $KURC_SUCC ]; then
+        logmsg "C" "Kobo UNCaGED appears to have crashed, check ${KU_LOG}"
+    else
+        logmsg "I" "Success! Returning to home"
+    fi
+    remove_usb
 # Note, KU may have updated metadata, even if no new books are added
-if [ $KU_RES -eq $KURC_RERUN ] || [ $KU_RES -eq $KURC_USBMS ] || [ $BS_RES -eq 0 ]; then
+else
+    logmsg "I" "Waiting for content processing"
+    ./button_scan -w -u -q
+    BS_RES=$?
+    if [ $BS_RES -ne 0 ]; then
+        logmsg "I" "Something strange happened... (BS: -$(( 256 - BS_RES )))"
+    fi
     logmsg "N" "Updating metadata . . ."
     logmsg "I" "Entering USBMS mode . . ."
     insert_usb
@@ -174,13 +187,4 @@ if [ $KU_RES -eq $KURC_RERUN ] || [ $KU_RES -eq $KURC_USBMS ] || [ $BS_RES -eq 0
     fi
     logmsg "I" "Going back to Nickel"
     remove_usb
-elif [ $KU_RES -eq $KURC_PWERR ]; then
-    logmsg "I" "Password issue. Check your ku.toml config file"
-elif [ $KU_RES -eq $KURC_ERR ] || [ $KU_RES -eq $KURC_NFERR ]; then
-    logmsg "E" "Kobo UNCaGED exited with an error. Check syslog for error message"
-elif [ $KU_RES -ne $KURC_SUCC ]; then
-    logmsg "C" "Kobo UNCaGED appears to have crashed, check ${KU_LOG}"
-elif [ $KU_RES -ne $KURC_SUCC ] && [ $BS_RES -ne 0 ]; then
-    # FBInk returns negative error codes, fudge that back to the <errno.h> value...
-    logmsg "I" "Something strange happened... (KU: ${KU_RES}; BS: -$(( 256 - BS_RES )))"
 fi
