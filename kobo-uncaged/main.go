@@ -119,7 +119,7 @@ func mainWithErrCode() returnCode {
 	if *mdPtr {
 		log.Println("Updating Metadata")
 		kuprint.Println(kuprint.Body, "Updating Metadata!")
-		err = k.UpdateNickelDB()
+		_, err = k.UpdateNickelDB()
 		if err != nil {
 			log.Print(err)
 			return returncodeFromError(err)
@@ -141,17 +141,20 @@ func mainWithErrCode() returnCode {
 		}
 
 		if len(k.UpdatedMetadata) > 0 {
-			if k.KuConfig.AddMetadataByTrigger {
-				if err = k.UpdateNickelDB(); err != nil {
-					kuprint.Println(kuprint.Body, "Updating metadata by DB trigger failed")
-					log.Print(err)
-					return genericError
-				}
-				kuprint.Println(kuprint.Body, "Metadata added to DB\n\nYour Kobo will perform another USB connect after content import")
-				return successUSBMS
+			rerun, err := k.UpdateNickelDB()
+			if err != nil {
+				kuprint.Println(kuprint.Body, "Updating metadata failed")
+				log.Print(err)
+				return returncodeFromError(err)
 			}
-			kuprint.Println(kuprint.Body, "Kobo-UNCaGED will restart automatically to update metadata")
-			return successRerun
+			if rerun {
+				if k.KuConfig.AddMetadataByTrigger {
+					kuprint.Println(kuprint.Body, "Books added!\n\nYour Kobo will perform another USB connect after content import")
+					return successUSBMS
+				}
+				kuprint.Println(kuprint.Body, "Books added!\n\nKobo-UNCaGED will restart automatically to update metadata")
+				return successRerun
+			}
 		}
 		kuprint.Println(kuprint.Body, "Nothing more to do!\n\nReturning to Home screen")
 	}

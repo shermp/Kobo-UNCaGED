@@ -61,8 +61,8 @@ func New(dbRootDir, sdRootDir string, updatingMD bool, opts *KuOptions, vers str
 		k.BKRootDir = sdRootDir
 		k.ContentIDprefix = sdPrefix
 	}
-
 	k.Passwords = newUncagedPassword(k.KuConfig.PasswordList)
+	k.UpdatedMetadata = make(map[string]struct{}, 0)
 	headerStr := "Kobo-UNCaGED " + vers
 	if k.useSDCard {
 		headerStr += "\nUsing SD Card"
@@ -569,7 +569,8 @@ func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string)
 
 // UpdateNickelDB updates the Nickel database with updated metadata obtained from a previous run,
 // or this run if updating via triggers
-func (k *Kobo) UpdateNickelDB() error {
+func (k *Kobo) UpdateNickelDB() (bool, error) {
+	rerun := false
 	if !k.KuConfig.AddMetadataByTrigger {
 		// No matter what happens, we remove the 'metadata_update.kobouc' file when we're done
 		defer os.Remove(filepath.Join(k.BKRootDir, kuUpdatedMDfile))
@@ -577,7 +578,7 @@ func (k *Kobo) UpdateNickelDB() error {
 	var err error
 	tx, err := k.nickelDB.Begin()
 	if err != nil {
-		return fmt.Errorf("UpdateNickelDB: Error beginning transaction: %w", err)
+		return rerun, fmt.Errorf("UpdateNickelDB: Error beginning transaction: %w", err)
 	}
 	// Insert prepared statement if using triggers
 	var insertStmt *sql.Stmt
@@ -588,7 +589,7 @@ func (k *Kobo) UpdateNickelDB() error {
 		insertStmt, err = tx.Prepare(insertQuery)
 		if err != nil {
 			tx.Rollback()
-			return fmt.Errorf("UpdateNickelDB: prepared insert statement failed: %w", err)
+			return rerun, fmt.Errorf("UpdateNickelDB: prepared insert statement failed: %w", err)
 		}
 	}
 	// Update statment for books already in the content table
@@ -602,12 +603,12 @@ func (k *Kobo) UpdateNickelDB() error {
 	updateStmt, err := tx.Prepare(updateQuery)
 	if err != nil {
 		tx.Rollback()
-		return fmt.Errorf("UpdateNickelDB: prepared statement failed: %w", err)
+		return rerun, fmt.Errorf("UpdateNickelDB: prepared statement failed: %w", err)
 	}
 	var updateErr error
 	var desc, series, seriesNum *string
 	var seriesNumFloat *float64
-	for _, cid := range k.UpdatedMetadata {
+	for cid := range k.UpdatedMetadata {
 		desc, series, seriesNum, seriesNumFloat = nil, nil, nil, nil
 		if k.MetadataMap[cid].Comments != nil && *k.MetadataMap[cid].Comments != "" {
 			desc = k.MetadataMap[cid].Comments
@@ -627,17 +628,26 @@ func (k *Kobo) UpdateNickelDB() error {
 			if err != nil {
 				updateErr = fmt.Errorf("UpdateNickelDB: %w", err)
 			}
-		} else if k.KuConfig.AddMetadataByTrigger {
-			_, err = insertStmt.Exec(cid, desc, series, seriesNum)
-			if err != nil {
-				updateErr = fmt.Errorf("UpdateNickelDB: %w", err)
+			delete(k.UpdatedMetadata, cid)
+		} else {
+			rerun = true
+			if k.KuConfig.AddMetadataByTrigger {
+				_, err = insertStmt.Exec(cid, desc, series, seriesNum)
+				if err != nil {
+					updateErr = fmt.Errorf("UpdateNickelDB: %w", err)
+				}
+				delete(k.UpdatedMetadata, cid)
 			}
 		}
 	}
 	if err = tx.Commit(); err != nil {
-		return fmt.Errorf("UpdateNickelDB: Error committing transaction: %w", err)
+		return rerun, fmt.Errorf("UpdateNickelDB: Error committing transaction: %w", err)
 	}
-	return updateErr
+	// Note, this should only write to the file if new books are added, and AddMetadataByTrigger is false
+	if err = k.WriteUpdateMDfile(); err != nil {
+		return false, fmt.Errorf("UpdateNickelDB: %w", err)
+	}
+	return rerun, updateErr
 }
 
 // Close the kobo object when we're finished with it
