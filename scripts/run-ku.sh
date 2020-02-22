@@ -107,13 +107,13 @@ logmsg "I" "Unmounting SD card"
 unmount_sd
 ret=$?
 logmsg "N" "SD card unmounted (${ret}) . . ."
-if [ $KU_RES -ne $KURC_RERUN ] || [ $KU_RES -ne $KURC_USBMS ]; then
+if [ $KU_RES -ne $KURC_RERUN ] && [ $KU_RES -ne $KURC_USBMS ]; then
     if [ $KU_RES -eq $KURC_PWERR ]; then
         logmsg "I" "Password issue. Check your ku.toml config file"
     elif [ $KU_RES -eq $KURC_ERR ] || [ $KU_RES -eq $KURC_NFERR ]; then
         logmsg "E" "Kobo UNCaGED exited with an error. Check syslog for error message"
     elif [ $KU_RES -ne $KURC_SUCC ]; then
-        logmsg "C" "Kobo UNCaGED appears to have crashed, check ${KU_LOG}"
+        logmsg "C" "Kobo UNCaGED appears to have crashed, check\n${KU_LOG}"
     else
         logmsg "I" "Success! Returning to home"
     fi
