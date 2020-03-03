@@ -115,10 +115,9 @@ func (ku *koboUncaged) UpdateMetadata(mdList []uc.CalibreBookMeta) error {
 		md.Thumbnail = nil
 		cid := util.LpathToContentID(md.Lpath, string(ku.k.ContentIDprefix))
 		ku.k.MetadataMap[cid] = md
-		ku.k.UpdatedMetadata = append(ku.k.UpdatedMetadata, cid)
+		ku.k.UpdatedMetadata[cid] = struct{}{}
 	}
 	ku.k.WriteMDfile()
-	ku.k.WriteUpdateMDfile()
 	return nil
 }
 
@@ -171,7 +170,7 @@ func (ku *koboUncaged) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, 
 		return fmt.Errorf("SaveBook: error opening ebook file: %w", err)
 	}
 	defer destBook.Close()
-	ku.k.UpdatedMetadata = append(ku.k.UpdatedMetadata, cID)
+	ku.k.UpdatedMetadata[cID] = struct{}{}
 	// Note, the JSON format for covers should be in the form 'thumbnail: [w, h, "base64string"]'
 	if md.Thumbnail.Exists() {
 		w, h := md.Thumbnail.Dimensions()
@@ -185,7 +184,6 @@ func (ku *koboUncaged) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, 
 	ku.k.MetadataMap[cID] = md
 	if lastBook {
 		ku.k.WriteMDfile()
-		ku.k.WriteUpdateMDfile()
 	}
 	return err
 }
@@ -237,20 +235,10 @@ func (ku *koboUncaged) DeleteBook(book uc.BookID) error {
 	// Now we remove the book from the metadata map
 	delete(ku.k.MetadataMap, cid)
 	// As well as the updated metadata list, if it was added to the list this session
-	l := len(ku.k.UpdatedMetadata)
-	for n := 0; n < l; n++ {
-		if ku.k.UpdatedMetadata[n] == cid {
-			ku.k.UpdatedMetadata[n] = ku.k.UpdatedMetadata[len(ku.k.UpdatedMetadata)-1]
-			ku.k.UpdatedMetadata = ku.k.UpdatedMetadata[:len(ku.k.UpdatedMetadata)-1]
-			break
-		}
-	}
+	delete(ku.k.UpdatedMetadata, cid)
 	// Finally, write the new metadata files
 	if err = ku.k.WriteMDfile(); err != nil {
 		return fmt.Errorf("DeleteBook: error writing metadata file: %w", err)
-	}
-	if err = ku.k.WriteUpdateMDfile(); err != nil {
-		return fmt.Errorf("DeleteBook: error writing updated metadata file: %w", err)
 	}
 	return nil
 }

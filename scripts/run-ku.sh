@@ -11,6 +11,14 @@ KU_DIR="$1"
 KU_TMP_DIR="$2"
 . ./nickel-usbms.sh
 
+# Set expected KU return codes as variables
+KURC_ERR=250
+KURC_SUCC=0
+KURC_RERUN=1
+KURC_USBMS=10
+KURC_PWERR=100
+KURC_NFERR=101
+
 # Abort if the device is currently plugged in, as that's liable to confuse Nickel into actually starting a real USBMS session!
 # Which'd probably ultimately cause a crash with our shenanigans...
 # Except if we've specified 'allowUSBPower = true' in our ku.toml file
@@ -99,12 +107,25 @@ logmsg "I" "Unmounting SD card"
 unmount_sd
 ret=$?
 logmsg "N" "SD card unmounted (${ret}) . . ."
-
-logmsg "I" "Waiting for content processing"
-./button_scan -w -u -q
-BS_RES=$?
+if [ $KU_RES -ne $KURC_RERUN ] && [ $KU_RES -ne $KURC_USBMS ]; then
+    if [ $KU_RES -eq $KURC_PWERR ]; then
+        logmsg "I" "Password issue. Check your ku.toml config file"
+    elif [ $KU_RES -eq $KURC_ERR ] || [ $KU_RES -eq $KURC_NFERR ]; then
+        logmsg "E" "Kobo UNCaGED exited with an error. Check syslog for error message"
+    elif [ $KU_RES -ne $KURC_SUCC ]; then
+        logmsg "C" "Kobo UNCaGED appears to have crashed, check\n${KU_LOG}"
+    else
+        logmsg "I" "Success! Returning to home"
+    fi
+    remove_usb
 # Note, KU may have updated metadata, even if no new books are added
-if [ $KU_RES -eq 1 ] || [ $KU_RES -eq 10 ] || [ $BS_RES -eq 0 ]; then
+else
+    logmsg "I" "Waiting for content processing"
+    ./button_scan -w -u -q
+    BS_RES=$?
+    if [ $BS_RES -ne 0 ]; then
+        logmsg "I" "Something strange happened... (BS: -$(( 256 - BS_RES )))"
+    fi
     logmsg "N" "Updating metadata . . ."
     logmsg "I" "Entering USBMS mode . . ."
     insert_usb
@@ -125,7 +146,7 @@ if [ $KU_RES -eq 1 ] || [ $KU_RES -eq 10 ] || [ $BS_RES -eq 0 ]; then
         BS_TIMEOUT=$(( BS_TIMEOUT + 1 ))
     done
 
-    if [ $KU_RES -ne 10 ]; then
+    if [ $KU_RES -ne $KURC_USBMS ]; then
         logmsg "I" "(Re)mounting onboard"
         mount_onboard
         ret=$?
@@ -166,13 +187,4 @@ if [ $KU_RES -eq 1 ] || [ $KU_RES -eq 10 ] || [ $BS_RES -eq 0 ]; then
     fi
     logmsg "I" "Going back to Nickel"
     remove_usb
-elif [ $KU_RES -eq 100 ]; then
-    logmsg "I" "Password issue. Check your ku.toml config file"
-elif [ $KU_RES -eq 250 ] || [ $KU_RES -eq 101 ]; then
-    logmsg "E" "Kobo UNCaGED exited with an error. Check syslog for error message"
-elif [ $KU_RES -ne 0 ]; then
-    logmsg "C" "Kobo UNCaGED appears to have crashed, check ${KU_LOG}"
-elif [ $KU_RES -ne 0 ] && [ $BS_RES -ne 0 ]; then
-    # FBInk returns negative error codes, fudge that back to the <errno.h> value...
-    logmsg "I" "Something strange happened... (KU: ${KU_RES}; BS: -$(( 256 - BS_RES )))"
 fi

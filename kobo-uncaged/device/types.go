@@ -57,7 +57,7 @@ type Kobo struct {
 	ContentIDprefix cidPrefix
 	useSDCard       bool
 	MetadataMap     map[string]uc.CalibreBookMeta
-	UpdatedMetadata []string
+	UpdatedMetadata map[string]struct{}
 	BooksInDB       map[string]struct{}
 	Passwords       *uncagedPassword
 	DriveInfo       uc.DeviceInfo
