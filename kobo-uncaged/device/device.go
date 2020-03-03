@@ -106,6 +106,7 @@ func New(dbRootDir, sdRootDir string, updatingMD bool, opts *KuOptions, vers str
 	if err = k.readUpdateMDfile(); err != nil {
 		return nil, fmt.Errorf("New: failed to read updated metadata file: %w", err)
 	}
+	os.Remove(filepath.Join(k.BKRootDir, kuUpdatedMDfile))
 
 	return k, err
 }
@@ -571,10 +572,6 @@ func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string)
 // or this run if updating via triggers
 func (k *Kobo) UpdateNickelDB() (bool, error) {
 	rerun := false
-	if !k.KuConfig.AddMetadataByTrigger {
-		// No matter what happens, we remove the 'metadata_update.kobouc' file when we're done
-		defer os.Remove(filepath.Join(k.BKRootDir, kuUpdatedMDfile))
-	}
 	var err error
 	tx, err := k.nickelDB.Begin()
 	if err != nil {

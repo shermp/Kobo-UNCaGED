@@ -118,7 +118,6 @@ func (ku *koboUncaged) UpdateMetadata(mdList []uc.CalibreBookMeta) error {
 		ku.k.UpdatedMetadata[cid] = struct{}{}
 	}
 	ku.k.WriteMDfile()
-	ku.k.WriteUpdateMDfile()
 	return nil
 }
 
@@ -185,7 +184,6 @@ func (ku *koboUncaged) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, 
 	ku.k.MetadataMap[cID] = md
 	if lastBook {
 		ku.k.WriteMDfile()
-		ku.k.WriteUpdateMDfile()
 	}
 	return err
 }
@@ -241,9 +239,6 @@ func (ku *koboUncaged) DeleteBook(book uc.BookID) error {
 	// Finally, write the new metadata files
 	if err = ku.k.WriteMDfile(); err != nil {
 		return fmt.Errorf("DeleteBook: error writing metadata file: %w", err)
-	}
-	if err = ku.k.WriteUpdateMDfile(); err != nil {
-		return fmt.Errorf("DeleteBook: error writing updated metadata file: %w", err)
 	}
 	return nil
 }
