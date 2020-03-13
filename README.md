@@ -1,7 +1,7 @@
 # Kobo-UNCaGED
 Kobo-UNCaGED is a program for Kobo eink readers for connecting wirelessly to Calibre. It makes use of my [UNCaGED](https://github.com/shermp/UNCaGED) library. It is licenced under the AGPL-3.0 licence.
 
-**While I don't have any major issues with Kobo-UNCaGED, testing has been relatively limited, and I can't guarentee a problem free experience. If your ebook library is important to you, backup your Kobo user partition before use!**
+**While I don't have any major issues with Kobo-UNCaGED, testing has been relatively limited, and I can't guarantee a problem-free experience. If your ebook library is important to you, backup your Kobo user partition before use!**
 
 **Very large ebook libraries on your Kobo will likely cause issues. If you have thousands of books on your device, proceed with caution!**
 
@@ -14,13 +14,13 @@ KU works by using scripts to safely enter a fake USB mode. Once in this mode, th
 * Get list of current sideloaded books on device
 * Update metadata on device
 * Send new and replacement ebooks. Format support is the official list of supported formats such as epub, pdf, txt, rtf, html, mobi etc. kepub is also supported.
-* Retrieve/read books from the device.
+* Retrieve/read books from the device
 * Automatically set series metadata
 * Remove books from device
 * Generate library thumbnails for new books sent
 * Connect to password protected calibre instances
 
-Note, working with store-bought books are currently not supported. Also, KU will use and overwrite any existing metadata.calibre file. This could cause some data "loss" in that the metadata cache will lose any info on non-sideloaded books.
+Note: Working with store-bought books are currently not supported. Also, KU will use and overwrite any existing metadata.calibre file. This could cause some data "loss" in that the metadata cache will lose any info on non-sideloaded books.
 
 ## Installing/running
 Kobo-UNCaGED is designed to be launched from within the Kobo software (nickel) using launchers such as fmon or kfmon. Launching using other systems such as KSM is not supported, as they have not been tested, or likely to work with the current launch scripts.
