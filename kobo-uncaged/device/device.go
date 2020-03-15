@@ -17,7 +17,7 @@ import (
 
 	"github.com/bamiaux/rez"
 	"github.com/geek1011/koboutils/v2/kobo"
-	"github.com/gofrs/uuid"
+	"github.com/google/uuid"
 	"github.com/kapmahc/epub"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/util"
@@ -389,7 +389,7 @@ func (k *Kobo) readMDfile() error {
 			log.Printf("Book not in cache: %s\n", dbCID)
 			bkMD := uc.CalibreBookMeta{}
 			bkMD.Lpath = util.ContentIDtoLpath(dbCID, string(onboardPrefix))
-			uuidV4, _ := uuid.NewV4()
+			uuidV4, _ := uuid.NewRandom()
 			bkMD.UUID = uuidV4.String()
 			bkMD.Comments, bkMD.Publisher, bkMD.Series = dbDesc, dbPublisher, dbSeries
 			if dbTitle != nil {
@@ -486,7 +486,7 @@ func (k *Kobo) WriteUpdateMDfile() error {
 func (k *Kobo) loadDeviceInfo() error {
 	emptyOrNotExist, err := util.ReadJSON(filepath.Join(k.BKRootDir, calibreDIfile), &k.DriveInfo.DevInfo)
 	if emptyOrNotExist {
-		uuid4, _ := uuid.NewV4()
+		uuid4, _ := uuid.NewRandom()
 		k.DriveInfo.DevInfo.LocationCode = "main"
 		k.DriveInfo.DevInfo.DeviceName = k.Device.Family()
 		k.DriveInfo.DevInfo.DeviceStoreUUID = uuid4.String()
