@@ -63,6 +63,7 @@ func New(dbRootDir, sdRootDir string, updatingMD bool, opts *KuOptions, vers str
 	}
 	k.Passwords = newUncagedPassword(k.KuConfig.PasswordList)
 	k.UpdatedMetadata = make(map[string]struct{}, 0)
+	k.SeriesIDMap = make(map[string]string, 0)
 	headerStr := "Kobo-UNCaGED " + vers
 	if k.useSDCard {
 		headerStr += "\nUsing SD Card"
@@ -128,41 +129,47 @@ func (k *Kobo) setupMetaTrigger() error {
 	}
 	// Table to hold temporary metadata for the trigger to use
 	metaTableQuery := `
-	CREATE TABLE IF NOT EXISTS _ku_meta (
-		ContentID    TEXT NOT NULL UNIQUE,
-		Description  TEXT,
-		Series       TEXT,
-		SeriesNumber TEXT,
+	DROP TABLE IF EXISTS _ku_meta;
+	CREATE TABLE IF NOT EXISTS _ku_meta_new (
+		_schema_vers      INTEGER NOT NULL DEFAULT 0,
+		ContentID         TEXT NOT NULL UNIQUE,
+		Description       TEXT,
+		Series            TEXT,
+		SeriesNumber      TEXT,
+		SeriesNumberFloat REAL,
+		SeriesID          TEXT,
 		PRIMARY KEY(ContentID)
 	);`
 	if _, err = tx.Exec(metaTableQuery); err != nil {
 		tx.Rollback()
-		return fmt.Errorf("setupMetaTrigger: Create _ku_meta table error: %w", err)
+		return fmt.Errorf("setupMetaTrigger: Create _ku_meta_new table error: %w", err)
 	}
 	// Trigger fired when Nickel inserts a book into the content table
 	// It replaces and/or adds metadata after the record has been inserted
 	triggerQuery := `
-	DROP TRIGGER IF EXISTS _ku_meta_content_insert;
-	CREATE TRIGGER _ku_meta_content_insert
+	DROP TRIGGER IF EXISTS _ku_meta_new_content_insert;
+	CREATE TRIGGER _ku_meta_new_content_insert
 		AFTER INSERT ON content WHEN
 			(new.ImageId LIKE "file____mnt_%") AND
-			(SELECT count() FROM _ku_meta WHERE ContentID = new.ContentID)
+			(SELECT count() FROM _ku_meta_new WHERE ContentID = new.ContentID)
 		BEGIN
 			UPDATE content
 			SET
-				Description  = (SELECT Description  FROM _ku_meta WHERE ContentID = new.ContentID),
-				Series       = (SELECT Series       FROM _ku_meta WHERE ContentID = new.ContentID),
-				SeriesNumber = (SELECT SeriesNumber FROM _ku_meta WHERE ContentID = new.ContentID)
+				Description       = (SELECT Description        FROM _ku_meta_new WHERE ContentID = new.ContentID),
+				Series            = (SELECT Series             FROM _ku_meta_new WHERE ContentID = new.ContentID),
+				SeriesNumber      = (SELECT SeriesNumber       FROM _ku_meta_new WHERE ContentID = new.ContentID),
+				SeriesNumberFloat = (SELECT SeriesNumberFloat  FROM _ku_meta_new WHERE ContentID = new.ContentID),
+				SeriesID          = (SELECT SeriesID           FROM _ku_meta_new WHERE ContentID = new.ContentID)
 			WHERE ContentID = new.ContentID;
-			DELETE FROM _ku_meta WHERE ContentID = new.ContentID;
+			DELETE FROM _ku_meta_new WHERE ContentID = new.ContentID;
 		END;`
 	if _, err = tx.Exec(triggerQuery); err != nil {
 		tx.Rollback()
 		return fmt.Errorf("setupMetaTrigger: Create trigger error: %w", err)
 	}
-	// Make sure the _ku_meta has no existing records before beginning. Makes sure we aren't
+	// Make sure the _ku_meta_new has no existing records before beginning. Makes sure we aren't
 	// adding a duplicate row
-	if _, err = tx.Exec(`DELETE FROM _ku_meta;`); err != nil {
+	if _, err = tx.Exec(`DELETE FROM _ku_meta_new;`); err != nil {
 		tx.Rollback()
 		return fmt.Errorf("setupMetaTrigger: Delete rows error: %w", err)
 	}
@@ -178,13 +185,13 @@ func (k *Kobo) removeMetaTrigger() error {
 	if err != nil {
 		return fmt.Errorf("removeMetaTrigger: Error beginning transaction: %w", err)
 	}
-	if _, err = tx.Exec(`DROP TABLE IF EXISTS _ku_meta;`); err != nil {
+	if _, err = tx.Exec(`DROP TABLE IF EXISTS _ku_meta_new;`); err != nil {
 		tx.Rollback()
-		return fmt.Errorf("removeMetaTrigger: drop _ku_meta error: %w", err)
+		return fmt.Errorf("removeMetaTrigger: drop _ku_meta_new error: %w", err)
 	}
-	if _, err = tx.Exec(`DROP TRIGGER IF EXISTS _ku_meta_content_insert;`); err != nil {
+	if _, err = tx.Exec(`DROP TRIGGER IF EXISTS _ku_meta_new_content_insert;`); err != nil {
 		tx.Rollback()
-		return fmt.Errorf("removeMetaTrigger: drop _ku_meta_content_insert error: %w", err)
+		return fmt.Errorf("removeMetaTrigger: drop _ku_meta_new_content_insert error: %w", err)
 	}
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("removeMetaTrigger: Error committing transaction: %w", err)
@@ -355,18 +362,17 @@ func (k *Kobo) readMDfile() error {
 	// Now that we have our map, we need to check for any books in the DB not in our
 	// metadata cache, or books that are in our cache but not in the DB
 	var (
-		dbCID         string
-		dbTitle       *string
-		dbAttr        *string
-		dbDesc        *string
-		dbPublisher   *string
-		dbSeries      *string
-		dbbSeriesNum  *string
-		dbContentType int
-		dbMimeType    string
+		dbCID        string
+		dbTitle      *string
+		dbAttr       *string
+		dbDesc       *string
+		dbPublisher  *string
+		dbSeries     *string
+		dbbSeriesNum *string
+		dbMimeType   string
 	)
 	query := fmt.Sprintf(`
-		SELECT ContentID, Title, Attribution, Description, Publisher, Series, SeriesNumber, ContentType, MimeType
+		SELECT ContentID, Title, Attribution, Description, Publisher, Series, SeriesNumber, MimeType 
 		FROM content
 		WHERE ContentType=6
 		AND MimeType NOT LIKE 'image%%'
@@ -381,7 +387,7 @@ func (k *Kobo) readMDfile() error {
 	}
 	defer bkRows.Close()
 	for bkRows.Next() {
-		err = bkRows.Scan(&dbCID, &dbTitle, &dbAttr, &dbDesc, &dbPublisher, &dbSeries, &dbbSeriesNum, &dbContentType, &dbMimeType)
+		err = bkRows.Scan(&dbCID, &dbTitle, &dbAttr, &dbDesc, &dbPublisher, &dbSeries, &dbbSeriesNum, &dbMimeType)
 		if err != nil {
 			return fmt.Errorf("readMDfile: row decoding error: %w", err)
 		}
@@ -573,16 +579,66 @@ func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string)
 func (k *Kobo) UpdateNickelDB() (bool, error) {
 	rerun := false
 	var err error
+	var updateErr error
+	var desc, series, seriesID, seriesNum *string
+	var seriesNumFloat *float64
 	tx, err := k.nickelDB.Begin()
 	if err != nil {
 		return rerun, fmt.Errorf("UpdateNickelDB: Error beginning transaction: %w", err)
 	}
+	// Get Series and SeriesID from the DB for non-sideloaded books
+	getSeriesQ := `
+		SELECT DISTINCT Series, SeriesID FROM content 
+		WHERE ContentType == 6 AND ContentID NOT LIKE 'file://%' AND (Series IS NOT NULL AND Series != '') AND (SeriesID IS NOT NULL AND SeriesID != '');`
+	seriesRows, err := tx.Query(getSeriesQ)
+	if err != nil {
+		tx.Rollback()
+		return rerun, fmt.Errorf("UpdateNickelDB: error getting series rows: %w", err)
+	}
+	defer seriesRows.Close()
+	for seriesRows.Next() {
+		if err = seriesRows.Scan(&series, &seriesID); err != nil {
+			tx.Rollback()
+			return rerun, fmt.Errorf("UpdateNickelDB: error decoding row: %w", err)
+		}
+		// The WHERE clause in the SQL query should ensure we never get NULL values
+		k.SeriesIDMap[*series] = *seriesID
+	}
+	if err = seriesRows.Err(); err != nil {
+		tx.Rollback()
+		return rerun, fmt.Errorf("UpdateNickelDB: seriesRows error: %w", err)
+	}
+
+	// Update SeriesID column for all series that have Kobo derived SeriesID values
+	// We do this because a user could download a book from Kobo which is in a series that
+	// the user already has other (sideloaded) books on device
+	seriesIDQuery := `UPDATE content SET SeriesID=? WHERE Series=?;`
+	seriesIDstmt, err := tx.Prepare(seriesIDQuery)
+	if err != nil {
+		tx.Rollback()
+		return rerun, fmt.Errorf("UpdateNickelDB: SeriesID prepared statement failed: %w", err)
+	}
+	for s, sID := range k.SeriesIDMap {
+		if _, err = seriesIDstmt.Exec(sID, s); err != nil {
+			updateErr = fmt.Errorf("UpdateNickelDB: %w", err)
+		}
+	}
+	// Once we've done that, also check if there are still empty SeriesID columns that have Series set,
+	// and update if required. This shouldn't have much, if any, effect if KU has been run before, or
+	// the device has been connected to calibre
+	seriesIDQuery = `
+		UPDATE content SET SeriesID=Series
+		WHERE ContentType == 6 AND (Series IS NOT NULL OR Series != '') AND (SeriesID IS NULL OR SeriesID == '');`
+	if _, err = tx.Exec(seriesIDQuery); err != nil {
+		updateErr = fmt.Errorf("UpdateNickelDB: %w", err)
+	}
+	// Prepare database with some statements
 	// Insert prepared statement if using triggers
 	var insertStmt *sql.Stmt
 	if k.KuConfig.AddMetadataByTrigger {
 		insertQuery := `
-		INSERT INTO _ku_meta (ContentID, Description, Series, SeriesNumber)
-		VALUES (?, ?, ?, ?);`
+		INSERT INTO _ku_meta_new (ContentID, Description, Series, SeriesNumber, SeriesNumberFloat, SeriesID)
+		VALUES (?, ?, ?, ?, ?, ?);`
 		insertStmt, err = tx.Prepare(insertQuery)
 		if err != nil {
 			tx.Rollback()
@@ -595,23 +651,26 @@ func (k *Kobo) UpdateNickelDB() (bool, error) {
 		Description=?,
 		Series=?,
 		SeriesNumber=?,
-		SeriesNumberFloat=? 
+		SeriesNumberFloat=?,
+		SeriesID=?
 		WHERE ContentID=?;`
 	updateStmt, err := tx.Prepare(updateQuery)
 	if err != nil {
 		tx.Rollback()
 		return rerun, fmt.Errorf("UpdateNickelDB: prepared statement failed: %w", err)
 	}
-	var updateErr error
-	var desc, series, seriesNum *string
-	var seriesNumFloat *float64
 	for cid := range k.UpdatedMetadata {
-		desc, series, seriesNum, seriesNumFloat = nil, nil, nil, nil
+		desc, series, seriesID, seriesNum, seriesNumFloat = nil, nil, nil, nil, nil
 		if k.MetadataMap[cid].Comments != nil && *k.MetadataMap[cid].Comments != "" {
 			desc = k.MetadataMap[cid].Comments
 		}
 		if k.MetadataMap[cid].Series != nil && *k.MetadataMap[cid].Series != "" {
+			// TODO: Fuzzy series matching to deal with 'The' prefixes and 'Series' postfixes?
 			series = k.MetadataMap[cid].Series
+			seriesID = series
+			if sID, ok := k.SeriesIDMap[*series]; ok {
+				seriesID = &sID
+			}
 		}
 		if k.MetadataMap[cid].SeriesIndex != nil && *k.MetadataMap[cid].SeriesIndex != 0.0 {
 			sn := strconv.FormatFloat(*k.MetadataMap[cid].SeriesIndex, 'f', -1, 64)
@@ -621,7 +680,7 @@ func (k *Kobo) UpdateNickelDB() (bool, error) {
 		// Note, not rolling back transaction on error. Is this allowed?
 		// Don't want one bad update to derail the whole thing, hence avoiding rollback
 		if _, ok := k.BooksInDB[cid]; ok {
-			_, err = updateStmt.Exec(desc, series, seriesNum, seriesNumFloat, cid)
+			_, err = updateStmt.Exec(desc, series, seriesNum, seriesNumFloat, seriesID, cid)
 			if err != nil {
 				updateErr = fmt.Errorf("UpdateNickelDB: %w", err)
 			}
@@ -629,7 +688,7 @@ func (k *Kobo) UpdateNickelDB() (bool, error) {
 		} else {
 			rerun = true
 			if k.KuConfig.AddMetadataByTrigger {
-				_, err = insertStmt.Exec(cid, desc, series, seriesNum)
+				_, err = insertStmt.Exec(cid, desc, series, seriesNum, seriesNumFloat, seriesID)
 				if err != nil {
 					updateErr = fmt.Errorf("UpdateNickelDB: %w", err)
 				}
