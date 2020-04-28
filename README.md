@@ -20,7 +20,7 @@ KU works by using scripts to safely enter a fake USB mode. Once in this mode, th
 * Generate library thumbnails for new books sent
 * Connect to password protected calibre instances
 
-Note: Working with store-bought books are currently not supported. Also, KU will use and overwrite any existing metadata.calibre file. This could cause some data "loss" in that the metadata cache will lose any info on non-sideloaded books.
+Note: Working with store-bought books is currently not supported. Also, KU will use and overwrite any existing metadata.calibre file. This could cause some data "loss" in that the metadata cache will lose any info on non-sideloaded books.
 
 ## Installing/running
 Kobo-UNCaGED is designed to be launched from within the Kobo software (nickel) using launchers such as fmon or kfmon. Launching using other systems such as KSM is not supported, as they have not been tested, or likely to work with the current launch scripts.
@@ -29,7 +29,7 @@ Kobo-UNCaGED is designed to be launched from within the Kobo software (nickel) u
 1. Install an application launcher. I recommend [kfmon](https://github.com/NiLuJe/kfmon), as that is what I have tested with, and have provided a configuration file for. Follow the installation instructions for the launcher you will use. As of Kobo-UNCaGED v0.3, kfmon 1.3.0 or newer is highly reccommended, especially when using an external SD card.
 2. Download the latest release zip archive from https://github.com/shermp/Kobo-UNCaGED/releases
 3. Unzip the contents of the archive directly onto the root directory of your kobo partion (when connected with USB). All files should be copied to their appropriate location.
-4. (optional) navigate to `.adds/kobo-uncaged/config`, and copy `ku.toml.default` to `ku.toml`, and make desired configuration changes. If you don't perform this step, the startup script will do so automatically on first run.
+4. (optional) Navigate to `.adds/kobo-uncaged/config`, and copy `ku.toml.default` to `ku.toml`, and make desired configuration changes. If you don't perform this step, the startup script will do so automatically on first run.
 5. Disconnect/eject your Kobo, and restart it.
 
 ### Upgrading
