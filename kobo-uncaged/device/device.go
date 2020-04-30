@@ -114,7 +114,7 @@ func New(dbRootDir, sdRootDir string, updatingMD bool, opts *KuOptions, vers str
 
 func (k *Kobo) openNickelDB() error {
 	var err error
-	dsn := "file:" + filepath.Join(k.DBRootDir, koboDBpath) + "?cache=shared&mode=rw"
+	dsn := "file:" + filepath.Join(k.DBRootDir, koboDBpath) + "?_timeout=2000&_journal=WAL&mode=rw&_mutex=full&_sync=NORMAL"
 	if k.nickelDB, err = sql.Open("sqlite3", dsn); err != nil {
 		err = fmt.Errorf("openNickelDB: sql open failed: %w", err)
 	}
