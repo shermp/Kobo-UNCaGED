@@ -185,13 +185,13 @@ func (k *Kobo) removeMetaTrigger() error {
 	if err != nil {
 		return fmt.Errorf("removeMetaTrigger: Error beginning transaction: %w", err)
 	}
-	if _, err = tx.Exec(`DROP TABLE IF EXISTS _ku_meta_new;`); err != nil {
-		tx.Rollback()
-		return fmt.Errorf("removeMetaTrigger: drop _ku_meta_new error: %w", err)
-	}
 	if _, err = tx.Exec(`DROP TRIGGER IF EXISTS _ku_meta_new_content_insert;`); err != nil {
 		tx.Rollback()
 		return fmt.Errorf("removeMetaTrigger: drop _ku_meta_new_content_insert error: %w", err)
+	}
+	if _, err = tx.Exec(`DROP TABLE IF EXISTS _ku_meta_new;`); err != nil {
+		tx.Rollback()
+		return fmt.Errorf("removeMetaTrigger: drop _ku_meta_new error: %w", err)
 	}
 	if err = tx.Commit(); err != nil {
 		return fmt.Errorf("removeMetaTrigger: Error committing transaction: %w", err)
@@ -202,6 +202,11 @@ func (k *Kobo) removeMetaTrigger() error {
 // UpdateIfExists updates onboard metadata if it exists in the Nickel database
 func (k *Kobo) UpdateIfExists(cID string, len int) error {
 	if _, exists := k.MetadataMap[cID]; exists {
+		var err error
+		tx, err := k.nickelDB.Begin()
+		if err != nil {
+			return fmt.Errorf("removeMetaTrigger: Error beginning transaction: %w", err)
+		}
 		var currSize int
 		// Make really sure this is in the Nickel DB
 		// The query helpfully comes from Calibre
@@ -209,8 +214,9 @@ func (k *Kobo) UpdateIfExists(cID string, len int) error {
 			SELECT ___FileSize 
 			FROM content 
 			WHERE ContentID = ? 
-			AND ContentType = 6`
-		if err := k.nickelDB.QueryRow(testQuery, cID).Scan(&currSize); err != nil {
+			AND ContentType = 6;`
+		if err := tx.QueryRow(testQuery, cID).Scan(&currSize); err != nil {
+			tx.Rollback()
 			return fmt.Errorf("UpdateIfExists: error querying row: %w", err)
 		}
 		if currSize != len {
@@ -218,12 +224,16 @@ func (k *Kobo) UpdateIfExists(cID string, len int) error {
 				UPDATE content 
 				SET ___FileSize = ? 
 				WHERE ContentId = ? 
-				AND ContentType = 6`
-			if _, err := k.nickelDB.Exec(updateQuery, len, cID); err != nil {
+				AND ContentType = 6;`
+			if _, err := tx.Exec(updateQuery, len, cID); err != nil {
+				tx.Rollback()
 				return fmt.Errorf("UpdateIfExists: error updating filesize field: %w", err)
 			}
 			log.Println("Updated existing book file length")
 		}
+		if err = tx.Commit(); err != nil {
+			return fmt.Errorf("UpdateIfExists: Error committing transaction: %w", err)
+	}
 	}
 	return nil
 }
@@ -371,7 +381,7 @@ func (k *Kobo) readMDfile() error {
 		dbbSeriesNum *string
 		dbMimeType   string
 	)
-	query := fmt.Sprintf(`
+	query := `
 		SELECT ContentID, Title, Attribution, Description, Publisher, Series, SeriesNumber, MimeType 
 		FROM content
 		WHERE ContentType=6
@@ -379,9 +389,9 @@ func (k *Kobo) readMDfile() error {
 		AND (IsDownloaded='true' OR IsDownloaded=1)
 		AND ___FileSize>0
 		AND Accessibility=-1
-		AND ContentID LIKE '%s%%';`, k.ContentIDprefix)
+		AND ContentID LIKE ?;`
 
-	bkRows, err := k.nickelDB.Query(query)
+	bkRows, err := k.nickelDB.Query(query, fmt.Sprintf("%s%%", k.ContentIDprefix))
 	if err != nil {
 		return fmt.Errorf("readMDfile: error getting book rows: %w", err)
 	}
