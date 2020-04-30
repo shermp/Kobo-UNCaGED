@@ -6,6 +6,8 @@ github.com/geek1011/koboutils/v2 v2.0.1-0.20200209164819-ab31aac12ee0 h1:S11UsOD
 github.com/geek1011/koboutils/v2 v2.0.1-0.20200209164819-ab31aac12ee0/go.mod h1:c/EwVM90qr2bHUrNBVi4jBUWdz+lH1ns2xlfQoiv1vk=
 github.com/gofrs/uuid v3.2.0+incompatible h1:y12jRkkFxsd7GpqdSZ+/KCs/fJbqpEXSGd4+jfEaewE=
 github.com/gofrs/uuid v3.2.0+incompatible/go.mod h1:b2aQJv3Z4Fp6yNu3cdSllBxTCLRxnplIgP/c0N/04lM=
+github.com/google/uuid v1.1.1 h1:Gkbcsh/GbpXz7lPftLA3P6TYMwjCLYm83jiFQZF/3gY=
+github.com/google/uuid v1.1.1/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/kapmahc/epub v0.1.1 h1:a4fgmhh/q2vyzFR2QXOVohR2zAuQvbacCjMZ1LGr0lw=
 github.com/kapmahc/epub v0.1.1/go.mod h1:UpnUbQO78vpmp6TC4emDTAIG6XVcdnZTnaTx06qbtYM=
 github.com/mattn/go-sqlite3 v2.0.3+incompatible h1:gXHsfypPkaMZrKbD5209QV9jbUTJKjyR5WD3HYQSd+U=

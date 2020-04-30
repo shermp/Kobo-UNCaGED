@@ -59,6 +59,7 @@ type Kobo struct {
 	MetadataMap     map[string]uc.CalibreBookMeta
 	UpdatedMetadata map[string]struct{}
 	BooksInDB       map[string]struct{}
+	SeriesIDMap     map[string]string
 	Passwords       *uncagedPassword
 	DriveInfo       uc.DeviceInfo
 	nickelDB        *sql.DB
