@@ -233,7 +233,7 @@ func (k *Kobo) UpdateIfExists(cID string, len int) error {
 		}
 		if err = tx.Commit(); err != nil {
 			return fmt.Errorf("UpdateIfExists: Error committing transaction: %w", err)
-	}
+		}
 	}
 	return nil
 }
@@ -594,7 +594,7 @@ func (k *Kobo) UpdateNickelDB() (bool, error) {
 	var seriesNumFloat *float64
 	tx, err := k.nickelDB.Begin()
 	if err != nil {
-		return rerun, fmt.Errorf("UpdateNickelDB: Error beginning transaction: %w", err)
+		return rerun, fmt.Errorf("UpdateNickelDB: Error beginning SeriesID transaction: %w", err)
 	}
 	// Get Series and SeriesID from the DB for non-sideloaded books
 	getSeriesQ := `
@@ -630,18 +630,30 @@ func (k *Kobo) UpdateNickelDB() (bool, error) {
 	}
 	for s, sID := range k.SeriesIDMap {
 		if _, err = seriesIDstmt.Exec(sID, s); err != nil {
-			updateErr = fmt.Errorf("UpdateNickelDB: %w", err)
+			tx.Rollback()
+			return rerun, fmt.Errorf("UpdateNickelDB: %w", err)
 		}
 	}
+	if err = tx.Commit(); err != nil {
+		return rerun, fmt.Errorf("UpdateNickelDB: Error committing SeriesID transaction: %w", err)
+	}
+
 	// Once we've done that, also check if there are still empty SeriesID columns that have Series set,
 	// and update if required. This shouldn't have much, if any, effect if KU has been run before, or
 	// the device has been connected to calibre
 	seriesIDQuery = `
 		UPDATE content SET SeriesID=Series
 		WHERE ContentType == 6 AND (Series IS NOT NULL OR Series != '') AND (SeriesID IS NULL OR SeriesID == '');`
-	if _, err = tx.Exec(seriesIDQuery); err != nil {
-		updateErr = fmt.Errorf("UpdateNickelDB: %w", err)
+	if _, err = k.nickelDB.Exec(seriesIDQuery); err != nil {
+		return rerun, fmt.Errorf("UpdateNickelDB: %w", err)
 	}
+
+	// Begin a new transaction for updating metadata
+	tx, err = k.nickelDB.Begin()
+	if err != nil {
+		return rerun, fmt.Errorf("UpdateNickelDB: Error beginning update transaction: %w", err)
+	}
+
 	// Prepare database with some statements
 	// Insert prepared statement if using triggers
 	var insertStmt *sql.Stmt
@@ -687,12 +699,12 @@ func (k *Kobo) UpdateNickelDB() (bool, error) {
 			seriesNum = &sn
 			seriesNumFloat = k.MetadataMap[cid].SeriesIndex
 		}
-		// Note, not rolling back transaction on error. Is this allowed?
-		// Don't want one bad update to derail the whole thing, hence avoiding rollback
+		// We rollback on any sort of error, to lessen any chance of database corruption
 		if _, ok := k.BooksInDB[cid]; ok {
 			_, err = updateStmt.Exec(desc, series, seriesNum, seriesNumFloat, seriesID, cid)
 			if err != nil {
-				updateErr = fmt.Errorf("UpdateNickelDB: %w", err)
+				tx.Rollback()
+				return rerun, fmt.Errorf("UpdateNickelDB: %w", err)
 			}
 			delete(k.UpdatedMetadata, cid)
 		} else {
@@ -700,7 +712,8 @@ func (k *Kobo) UpdateNickelDB() (bool, error) {
 			if k.KuConfig.AddMetadataByTrigger {
 				_, err = insertStmt.Exec(cid, desc, series, seriesNum, seriesNumFloat, seriesID)
 				if err != nil {
-					updateErr = fmt.Errorf("UpdateNickelDB: %w", err)
+					tx.Rollback()
+					return rerun, fmt.Errorf("UpdateNickelDB: %w", err)
 				}
 				delete(k.UpdatedMetadata, cid)
 			}
