@@ -31,10 +31,13 @@ func (k *Kobo) initRender() {
 	})
 }
 
+// HandleIndex displays a form allowing the user to customize
+// KU. It uses the existing ku.toml file as a seed
 func (k *Kobo) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	k.rend.HTML(w, http.StatusOK, "indexPage", k.KuConfig)
 }
 
+// HandleStart parses the configuration form data
 func (k *Kobo) HandleStart(w http.ResponseWriter, r *http.Request) {
 	defer close(k.startChan)
 	var err error
@@ -63,10 +66,12 @@ func (k *Kobo) HandleStart(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/main", http.StatusSeeOther)
 }
 
+// HandleMain renders the main KU interface page
 func (k *Kobo) HandleMain(w http.ResponseWriter, r *http.Request) {
 	k.rend.HTML(w, http.StatusOK, "mainPage", "Main")
 }
 
+// HandleMessages sends messages to the client using server sent events.
 func (k *Kobo) HandleMessages(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -78,6 +83,8 @@ func (k *Kobo) HandleMessages(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case msg := <-k.MsgChan:
+			// Note, we replace all newlines in the message with spaces. That is because server
+			// sent events are newline delimited
 			if msg.Head != "" {
 				fmt.Fprintf(w, "event: head\ndata: %s\n\n", strings.ReplaceAll(msg.Head, "\n", " "))
 				f.Flush()

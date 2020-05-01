@@ -54,6 +54,7 @@ type webStartRes struct {
 	err      error
 }
 
+// WebMsg is used to send messages to the web client
 type WebMsg struct {
 	Head     string
 	Body     string
