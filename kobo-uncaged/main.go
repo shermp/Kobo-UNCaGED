@@ -27,8 +27,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/BurntSushi/toml"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/pelletier/go-toml"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/device"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kunc"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
@@ -63,6 +63,17 @@ func getUserOptions(dbRootDir string) (*device.KuOptions, error) {
 	opts.Thumbnail.Validate()
 	opts.Thumbnail.SetRezFilter()
 	return opts, nil
+}
+
+func saveUserOptions(dbRootDir string, opts *device.KuOptions) error {
+	configBytes, err := toml.Marshal(opts)
+	if err != nil {
+		return fmt.Errorf("error marshaling config: %w", err)
+	}
+	if err = ioutil.WriteFile(filepath.Join(dbRootDir, ".adds/kobo-uncaged/config/ku.toml"), configBytes, 0644); err != nil {
+		return fmt.Errorf("error writing config file: %w", err)
+	}
+	return nil
 }
 
 func returncodeFromError(err error) returnCode {
