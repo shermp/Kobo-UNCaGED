@@ -25,7 +25,9 @@ import (
 
 	"github.com/bamiaux/rez"
 	"github.com/geek1011/koboutils/v2/kobo"
+	"github.com/julienschmidt/httprouter"
 	"github.com/shermp/UNCaGED/uc"
+	"github.com/unrolled/render"
 )
 
 type cidPrefix string
@@ -46,6 +48,19 @@ type KuOptions struct {
 	Thumbnail            thumbnailOption
 }
 
+type webStartRes struct {
+	opts     KuOptions
+	saveOpts bool
+	err      error
+}
+
+type WebMsg struct {
+	Head     string
+	Body     string
+	Footer   string
+	Progress int
+}
+
 // Kobo contains the variables and methods required to use
 // the UNCaGED library
 type Kobo struct {
@@ -64,6 +79,11 @@ type Kobo struct {
 	DriveInfo       uc.DeviceInfo
 	nickelDB        *sql.DB
 	Wg              *sync.WaitGroup
+	mux             *httprouter.Router
+	rend            *render.Render
+	readyChan       chan bool
+	startChan       chan webStartRes
+	MsgChan         chan WebMsg
 }
 
 // MetaIterator Kobo UNCaGED to lazy load book metadata

@@ -1,0 +1,57 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>{{.}}</title>
+</head>
+<body>
+<div id="ku_head"></div>
+<div id="ku_body"></div>
+<progress id="ku_prog" value="0" max="100"></progress>
+<div id="ku_footer"></div>
+<script type="text/javascript">
+    var evtSource = new EventSource("/messages");
+    evtSource.addEventListener("head", function (event) {
+        setDivContent("ku_head", event.data);
+    });
+    evtSource.addEventListener("body", function (event) {
+        setDivContent("ku_body", event.data);
+    });
+    evtSource.addEventListener("footer", function (event) {
+        setDivContent("ku_footer", event.data);
+    });
+    evtSource.addEventListener("progress", function (event) {
+        if (event.data >= 0 && event.data <= 100) {
+            showProgress();
+            setProgress(event.data);
+        } else {
+            hideProgress;
+        }
+    });
+
+    function hideProgress() {
+        var prog = document.getElementById("ku_prog");
+        prog.style.display = "none";
+    }
+    function showProgress() {
+        var prog = document.getElementById("ku_prog");
+        prog.style.display = "block";
+    }
+    function setProgress(p) {
+        var prog = document.getElementById("ku_prog");
+        prog.setAttribute("value", p);
+    }
+    function setDivContent(idName, content) {
+        var el = document.getElementById(idName);
+        el.innerHTML = content;
+    }
+    window.onload = function () {
+        hideProgress();
+        setDivContent("ku_head", " ");
+        setDivContent("ku_body", " ");
+        setDivContent("ku_footer", " ");
+    }
+</script>
+</body>
+</html>

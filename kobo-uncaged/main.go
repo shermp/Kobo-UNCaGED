@@ -31,7 +31,6 @@ import (
 	"github.com/pelletier/go-toml"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/device"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kunc"
-	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
 	"github.com/shermp/UNCaGED/uc"
 )
 
@@ -76,25 +75,32 @@ func saveUserOptions(dbRootDir string, opts *device.KuOptions) error {
 	return nil
 }
 
-func returncodeFromError(err error) returnCode {
+func returncodeFromError(err error, k *device.Kobo) returnCode {
 	rc := successNoAction
 	if err != nil {
-		var calErr uc.CalError
 		log.Print(err)
+		if k == nil {
+			return genericError
+		}
+		var calErr uc.CalError
 		if errors.As(err, &calErr) {
 			switch calErr {
 			case uc.CalibreNotFound:
-				kuprint.Println(kuprint.Body, "Calibre not found!\nHave you enabled the Calibre Wireless service?")
+				k.MsgChan <- device.WebMsg{Body: "Calibre not found!<br>Have you enabled the Calibre Wireless service?", Progress: -1}
+				//kuprint.Println(kuprint.Body, "Calibre not found!\nHave you enabled the Calibre Wireless service?")
 				rc = calibreNotFound
 			case uc.NoPassword:
-				kuprint.Println(kuprint.Body, "No valid password found!")
+				k.MsgChan <- device.WebMsg{Body: "No valid password found!", Progress: -1}
+				//kuprint.Println(kuprint.Body, "No valid password found!")
 				rc = passwordError
 			default:
-				kuprint.Println(kuprint.Body, calErr.Error())
+				k.MsgChan <- device.WebMsg{Body: calErr.Error(), Progress: -1}
+				//kuprint.Println(kuprint.Body, calErr.Error())
 				rc = genericError
 			}
 		}
-		kuprint.Println(kuprint.Body, err.Error())
+		k.MsgChan <- device.WebMsg{Body: err.Error(), Progress: -1}
+		//kuprint.Println(kuprint.Body, err.Error())
 		rc = genericError
 	}
 	return rc
@@ -108,12 +114,12 @@ func mainWithErrCode() returnCode {
 	sdMntPtr := flag.String("sdmount", "", "If changed, specify the new new mountpoint of '/mnt/sd'")
 	mdPtr := flag.Bool("metadata", false, "Updates the Kobo DB with new metadata")
 	flag.Parse()
-	fntPath := filepath.Join(*onboardMntPtr, ".adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf")
-	if err = kuprint.InitPrinter(fntPath); err != nil {
-		log.Print(err)
-		return genericError
-	}
-	defer kuprint.Close()
+	//fntPath := filepath.Join(*onboardMntPtr, ".adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf")
+	// if err = kuprint.InitPrinter(fntPath); err != nil {
+	// 	log.Print(err)
+	// 	return genericError
+	// }
+	// defer kuprint.Close()
 	log.Println("Started Kobo-UNCaGED")
 	log.Println("Reading options")
 	opts, optErr := getUserOptions(*onboardMntPtr)
@@ -121,53 +127,60 @@ func mainWithErrCode() returnCode {
 	k, err := device.New(*onboardMntPtr, *sdMntPtr, *mdPtr, opts, kuVersion)
 	if err != nil {
 		log.Print(err)
-		return returncodeFromError(err)
+		return returncodeFromError(err, nil)
 	}
 	defer k.Close()
 	if optErr != nil {
-		kuprint.Println(kuprint.Body, optErr.Error())
+		k.MsgChan <- device.WebMsg{Body: optErr.Error(), Progress: -1}
+		//kuprint.Println(kuprint.Body, optErr.Error())
 	}
 	if *mdPtr {
 		log.Println("Updating Metadata")
-		kuprint.Println(kuprint.Body, "Updating Metadata!")
+		k.MsgChan <- device.WebMsg{Body: "Updating Metadata!", Progress: -1}
+		//kuprint.Println(kuprint.Body, "Updating Metadata!")
 		_, err = k.UpdateNickelDB()
 		if err != nil {
 			log.Print(err)
-			return returncodeFromError(err)
+			return returncodeFromError(err, k)
 		}
-		kuprint.Println(kuprint.Body, "Metadata Updated!\n\nReturning to Home screen")
+		k.MsgChan <- device.WebMsg{Body: "Metadata Updated!<br>Returning to Home screen", Progress: -1}
+		//kuprint.Println(kuprint.Body, "Metadata Updated!\n\nReturning to Home screen")
 	} else {
 		log.Println("Preparing Kobo UNCaGED!")
 		ku := kunc.New(k)
 		cc, err := uc.New(ku, k.KuConfig.EnableDebug)
 		if err != nil {
 			log.Print(err)
-			return returncodeFromError(err)
+			return returncodeFromError(err, k)
 		}
 		log.Println("Starting Calibre Connection")
 		err = cc.Start()
 		if err != nil {
 			log.Print(err)
-			return returncodeFromError(err)
+			return returncodeFromError(err, k)
 		}
 
 		if len(k.UpdatedMetadata) > 0 {
 			rerun, err := k.UpdateNickelDB()
 			if err != nil {
-				kuprint.Println(kuprint.Body, "Updating metadata failed")
+				k.MsgChan <- device.WebMsg{Body: "Updating metadata failed", Progress: -1}
+				//kuprint.Println(kuprint.Body, "Updating metadata failed")
 				log.Print(err)
-				return returncodeFromError(err)
+				return returncodeFromError(err, k)
 			}
 			if rerun {
 				if k.KuConfig.AddMetadataByTrigger {
-					kuprint.Println(kuprint.Body, "Books added!\n\nYour Kobo will perform another USB connect after content import")
+					k.MsgChan <- device.WebMsg{Body: "Books added!<br>Your Kobo will perform another USB connect after content import", Progress: -1}
+					//kuprint.Println(kuprint.Body, "Books added!\n\nYour Kobo will perform another USB connect after content import")
 					return successUSBMS
 				}
-				kuprint.Println(kuprint.Body, "Books added!\n\nKobo-UNCaGED will restart automatically to update metadata")
+				k.MsgChan <- device.WebMsg{Body: "Books added!<br>Kobo-UNCaGED will restart automatically to update metadata", Progress: -1}
+				//kuprint.Println(kuprint.Body, "Books added!\n\nKobo-UNCaGED will restart automatically to update metadata")
 				return successRerun
 			}
 		}
-		kuprint.Println(kuprint.Body, "Nothing more to do!\n\nReturning to Home screen")
+		k.MsgChan <- device.WebMsg{Body: "Nothing more to do!<br>Returning to Home screen", Progress: -1}
+		//kuprint.Println(kuprint.Body, "Nothing more to do!\n\nReturning to Home screen")
 	}
 
 	return successNoAction

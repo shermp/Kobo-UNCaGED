@@ -9,6 +9,7 @@ import (
 	"image"
 	"image/jpeg"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -19,7 +20,6 @@ import (
 	"github.com/geek1011/koboutils/v2/kobo"
 	"github.com/google/uuid"
 	"github.com/kapmahc/epub"
-	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/util"
 	"github.com/shermp/UNCaGED/uc"
 )
@@ -66,13 +66,27 @@ func New(dbRootDir, sdRootDir string, updatingMD bool, opts *KuOptions, vers str
 	k.SeriesIDMap = make(map[string]string, 0)
 	headerStr := "Kobo-UNCaGED " + vers
 	if k.useSDCard {
-		headerStr += "\nUsing SD Card"
+		headerStr += `<br><span style="font-size: 0.8rem;">Using SD Card</span>`
 	} else {
-		headerStr += "\nUsing Internal Storage"
+		headerStr += `<br><span style="font-size: 0.8rem;">Using Internal Storage</span>`
 	}
-
-	kuprint.Println(kuprint.Header, headerStr)
-	kuprint.Println(kuprint.Body, "Gathering information about your Kobo")
+	k.readyChan = make(chan bool)
+	k.MsgChan = make(chan WebMsg)
+	k.startChan = make(chan webStartRes)
+	k.initWeb()
+	go func() {
+		http.ListenAndServe("localhost:8282", k.mux)
+	}()
+	opt := <-k.startChan
+	if opt.err != nil {
+		return nil, fmt.Errorf("New: failed to get start config: %w", err)
+	}
+	k.KuConfig = &opt.opts
+	k.KuConfig.Thumbnail.SetRezFilter()
+	k.MsgChan <- WebMsg{Head: headerStr, Progress: -1}
+	//kuprint.Println(kuprint.Header, headerStr)
+	k.MsgChan <- WebMsg{Body: "Gathering information about your Kobo", Progress: -1}
+	//kuprint.Println(kuprint.Body, "Gathering information about your Kobo")
 	log.Println("Opening NickelDB")
 	if err = k.openNickelDB(); err != nil {
 		return nil, fmt.Errorf("New: failed to open Nickel DB: %w", err)

@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/device"
-	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/util"
 	"github.com/shermp/UNCaGED/uc"
 )
@@ -245,34 +244,41 @@ func (ku *koboUncaged) DeleteBook(book uc.BookID) error {
 
 // UpdateStatus gives status updates from the UNCaGED library
 func (ku *koboUncaged) UpdateStatus(status uc.Status, progress int) {
-	footerStr := " "
+	p := -1
 	if progress >= 0 && progress <= 100 {
-		footerStr = fmt.Sprintf("%d%%", progress)
+		p = progress
 	}
 	switch status {
 	case uc.Idle:
-		fallthrough
+		ku.k.MsgChan <- device.WebMsg{Progress: p}
 	case uc.Connected:
-		kuprint.Println(kuprint.Body, "Connected")
-		kuprint.Println(kuprint.Footer, footerStr)
+		ku.k.MsgChan <- device.WebMsg{Body: "Connected", Progress: p}
+		// kuprint.Println(kuprint.Body, "Connected")
+		// kuprint.Println(kuprint.Footer, footerStr)
 	case uc.Connecting:
-		kuprint.Println(kuprint.Body, "Connecting to Calibre")
-		kuprint.Println(kuprint.Footer, footerStr)
+		ku.k.MsgChan <- device.WebMsg{Body: "Connecting to Calibre", Progress: p}
+		// kuprint.Println(kuprint.Body, "Connecting to Calibre")
+		// kuprint.Println(kuprint.Footer, footerStr)
 	case uc.SearchingCalibre:
-		kuprint.Println(kuprint.Body, "Searching for Calibre")
-		kuprint.Println(kuprint.Footer, footerStr)
+		ku.k.MsgChan <- device.WebMsg{Body: "Searching for Calibre", Progress: p}
+		// kuprint.Println(kuprint.Body, "Searching for Calibre")
+		// kuprint.Println(kuprint.Footer, footerStr)
 	case uc.Disconnected:
-		kuprint.Println(kuprint.Body, "Disconnected")
-		kuprint.Println(kuprint.Footer, footerStr)
+		ku.k.MsgChan <- device.WebMsg{Body: "Disconnected", Progress: p}
+		// kuprint.Println(kuprint.Body, "Disconnected")
+		// kuprint.Println(kuprint.Footer, footerStr)
 	case uc.SendingBook:
-		kuprint.Println(kuprint.Body, "Sending book to Calibre")
-		kuprint.Println(kuprint.Footer, footerStr)
+		ku.k.MsgChan <- device.WebMsg{Body: "Sending book to Calibre", Progress: p}
+		// kuprint.Println(kuprint.Body, "Sending book to Calibre")
+		// kuprint.Println(kuprint.Footer, footerStr)
 	case uc.ReceivingBook:
-		kuprint.Println(kuprint.Body, "Receiving book(s) from Calibre")
-		kuprint.Println(kuprint.Footer, footerStr)
+		ku.k.MsgChan <- device.WebMsg{Body: "Receiving book(s) from Calibre", Progress: p}
+		// kuprint.Println(kuprint.Body, "Receiving book(s) from Calibre")
+		// kuprint.Println(kuprint.Footer, footerStr)
 	case uc.EmptyPasswordReceived:
-		kuprint.Println(kuprint.Body, "No valid password found!")
-		kuprint.Println(kuprint.Footer, footerStr)
+		ku.k.MsgChan <- device.WebMsg{Body: "No valid password found!", Progress: p}
+		// kuprint.Println(kuprint.Body, "No valid password found!")
+		// kuprint.Println(kuprint.Footer, footerStr)
 	}
 }
 
