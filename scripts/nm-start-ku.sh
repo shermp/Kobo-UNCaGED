@@ -69,6 +69,12 @@ KU_DIR=/mnt/onboard/.adds/kobo-uncaged
 KU_BIN=${KU_DIR}/bin/kobo-uncaged
 KU_LOG=${KU_DIR}/ku_error.log
 
+# Check if we have a ku.toml file. If not, copy it from the default file
+if [ ! -f "${KU_DIR}/config/ku.toml" ]; then
+    logmsg "I" "No existing config file. Using default."
+    cp -f "${KU_DIR}/config/ku.toml.default" "${KU_DIR}/config/ku.toml"
+fi
+
 cd ${KU_DIR}
 
 logmsg "I" "Starting Kobo UNCaGED"
