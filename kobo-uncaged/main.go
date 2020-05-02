@@ -112,7 +112,8 @@ func mainWithErrCode() returnCode {
 	}
 	onboardMntPtr := flag.String("onboardmount", "/mnt/onboard", "If changed, specify the new new mountpoint of '/mnt/onboard'")
 	sdMntPtr := flag.String("sdmount", "", "If changed, specify the new new mountpoint of '/mnt/sd'")
-	mdPtr := flag.Bool("metadata", false, "Updates the Kobo DB with new metadata")
+	bindAddrPtr := flag.String("bindaddr", "127.0.0.1:80", "Specify the network address and port <IP:POrt> to listen on")
+	//mdPtr := flag.Bool("metadata", false, "Updates the Kobo DB with new metadata")
 	flag.Parse()
 	//fntPath := filepath.Join(*onboardMntPtr, ".adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf")
 	// if err = kuprint.InitPrinter(fntPath); err != nil {
@@ -124,7 +125,7 @@ func mainWithErrCode() returnCode {
 	log.Println("Reading options")
 	opts, optErr := getUserOptions(*onboardMntPtr)
 	log.Println("Creating KU object")
-	k, err := device.New(*onboardMntPtr, *sdMntPtr, *mdPtr, opts, kuVersion)
+	k, err := device.New(*onboardMntPtr, *sdMntPtr, *bindAddrPtr, opts, kuVersion)
 	if err != nil {
 		log.Print(err)
 		return returncodeFromError(err, nil)
@@ -134,54 +135,54 @@ func mainWithErrCode() returnCode {
 		k.MsgChan <- device.WebMsg{Body: optErr.Error(), Progress: -1}
 		//kuprint.Println(kuprint.Body, optErr.Error())
 	}
-	if *mdPtr {
-		log.Println("Updating Metadata")
-		k.MsgChan <- device.WebMsg{Body: "Updating Metadata!", Progress: -1}
-		//kuprint.Println(kuprint.Body, "Updating Metadata!")
-		_, err = k.UpdateNickelDB()
-		if err != nil {
-			log.Print(err)
-			return returncodeFromError(err, k)
-		}
-		k.MsgChan <- device.WebMsg{Body: "Metadata Updated!<br>Returning to Home screen", Progress: -1}
-		//kuprint.Println(kuprint.Body, "Metadata Updated!\n\nReturning to Home screen")
-	} else {
-		log.Println("Preparing Kobo UNCaGED!")
-		ku := kunc.New(k)
-		cc, err := uc.New(ku, k.KuConfig.EnableDebug)
-		if err != nil {
-			log.Print(err)
-			return returncodeFromError(err, k)
-		}
-		log.Println("Starting Calibre Connection")
-		err = cc.Start()
-		if err != nil {
-			log.Print(err)
-			return returncodeFromError(err, k)
-		}
-
-		if len(k.UpdatedMetadata) > 0 {
-			rerun, err := k.UpdateNickelDB()
-			if err != nil {
-				k.MsgChan <- device.WebMsg{Body: "Updating metadata failed", Progress: -1}
-				//kuprint.Println(kuprint.Body, "Updating metadata failed")
-				log.Print(err)
-				return returncodeFromError(err, k)
-			}
-			if rerun {
-				if k.KuConfig.AddMetadataByTrigger {
-					k.MsgChan <- device.WebMsg{Body: "Books added!<br>Your Kobo will perform another USB connect after content import", Progress: -1}
-					//kuprint.Println(kuprint.Body, "Books added!\n\nYour Kobo will perform another USB connect after content import")
-					return successUSBMS
-				}
-				k.MsgChan <- device.WebMsg{Body: "Books added!<br>Kobo-UNCaGED will restart automatically to update metadata", Progress: -1}
-				//kuprint.Println(kuprint.Body, "Books added!\n\nKobo-UNCaGED will restart automatically to update metadata")
-				return successRerun
-			}
-		}
-		k.MsgChan <- device.WebMsg{Body: "Nothing more to do!<br>Returning to Home screen", Progress: -1}
-		//kuprint.Println(kuprint.Body, "Nothing more to do!\n\nReturning to Home screen")
+	// if *mdPtr {
+	// 	log.Println("Updating Metadata")
+	// 	k.MsgChan <- device.WebMsg{Body: "Updating Metadata!", Progress: -1}
+	// 	//kuprint.Println(kuprint.Body, "Updating Metadata!")
+	// 	_, err = k.UpdateNickelDB()
+	// 	if err != nil {
+	// 		log.Print(err)
+	// 		return returncodeFromError(err, k)
+	// 	}
+	// 	k.MsgChan <- device.WebMsg{Body: "Metadata Updated!<br>Returning to Home screen", Progress: -1}
+	// 	//kuprint.Println(kuprint.Body, "Metadata Updated!\n\nReturning to Home screen")
+	// } else {
+	log.Println("Preparing Kobo UNCaGED!")
+	ku := kunc.New(k)
+	cc, err := uc.New(ku, k.KuConfig.EnableDebug)
+	if err != nil {
+		log.Print(err)
+		return returncodeFromError(err, k)
 	}
+	log.Println("Starting Calibre Connection")
+	err = cc.Start()
+	if err != nil {
+		log.Print(err)
+		return returncodeFromError(err, k)
+	}
+
+	if len(k.UpdatedMetadata) > 0 {
+		rerun, err := k.UpdateNickelDB()
+		if err != nil {
+			k.MsgChan <- device.WebMsg{Body: "Updating metadata failed", Progress: -1}
+			//kuprint.Println(kuprint.Body, "Updating metadata failed")
+			log.Print(err)
+			return returncodeFromError(err, k)
+		}
+		if rerun {
+			if k.KuConfig.AddMetadataByTrigger {
+				k.MsgChan <- device.WebMsg{Body: "Books added!<br>Your Kobo will perform another USB connect after content import", Progress: -1}
+				//kuprint.Println(kuprint.Body, "Books added!\n\nYour Kobo will perform another USB connect after content import")
+				return successUSBMS
+			}
+			k.MsgChan <- device.WebMsg{Body: "Books added!<br>Kobo-UNCaGED will restart automatically to update metadata", Progress: -1}
+			//kuprint.Println(kuprint.Body, "Books added!\n\nKobo-UNCaGED will restart automatically to update metadata")
+			return successRerun
+		}
+	}
+	k.MsgChan <- device.WebMsg{Body: "Nothing more to do!<br>Returning to Home screen", Progress: -1}
+	//kuprint.Println(kuprint.Body, "Nothing more to do!\n\nReturning to Home screen")
+	//}
 
 	return successNoAction
 }

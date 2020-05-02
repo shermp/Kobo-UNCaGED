@@ -46,6 +46,16 @@ func ContentIDtoLpath(cid, cidPrefix string) string {
 	return strings.TrimPrefix(cid, cidPrefix)
 }
 
+// SafeSQLString constructs a safe string to feed to SQLite3 CLI
+// Queries made in Go should use prepared statements/parameters
+// instead. This is also not safe for LIKE queries
+func SafeSQLString(s *string) string {
+	if s != nil {
+		return fmt.Sprintf("'%s'", strings.ReplaceAll(*s, "'", "''"))
+	}
+	return "NULL"
+}
+
 // WriteJSON is a helper function to write JSON to a file
 func WriteJSON(fn string, v interface{}) error {
 	var err error
