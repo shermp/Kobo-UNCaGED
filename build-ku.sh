@@ -47,6 +47,7 @@ rm -rf ./Build/onboard
 mkdir -p ./Build/onboard/.adds/kobo-uncaged/bin
 mkdir -p ./Build/onboard/.adds/kobo-uncaged/scripts
 mkdir -p ./Build/onboard/.adds/kobo-uncaged/config
+mkdir -p ./Build/onboard/.adds/kobo-uncaged/templates
 # Only make the following directories if we are not building an upgrade package
 if [ -z $BUILD_UPGRADE ]; then
     mkdir -p ./Build/onboard/.adds/kobo-uncaged/fonts
@@ -98,6 +99,7 @@ printf "%bKobo-UNCaGED built%b\n" "${GREEN}" "${END}"
 
 # Copy the kobo-uncaged scripts to the build directory
 cp ../scripts/start-ku.sh ./onboard/.adds/kobo-uncaged/start-ku.sh
+cp ../scripts/nm-start-ku.sh ./onboard/.adds/kobo-uncaged/nm-start-ku.sh
 cp ../scripts/run-ku.sh ./onboard/.adds/kobo-uncaged/scripts/run-ku.sh
 cp ../scripts/nickel-usbms.sh ./onboard/.adds/kobo-uncaged/scripts/nickel-usbms.sh
 
@@ -107,6 +109,9 @@ cp ../kobo-uncaged/ku.toml ./onboard/.adds/kobo-uncaged/config/ku.toml.default
 # FBInk binaries
 cp ./prerequisites/output/fbink ./onboard/.adds/kobo-uncaged/bin/fbink
 cp ./prerequisites/output/button_scan ./onboard/.adds/kobo-uncaged/bin/button_scan
+
+# HTML templates
+cp -r ../kobo-uncaged/templates/. ./onboard/.adds/kobo-uncaged/templates/
 
 if [ -z $BUILD_UPGRADE ]; then
     # Font
