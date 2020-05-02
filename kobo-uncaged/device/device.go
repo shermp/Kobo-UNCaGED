@@ -21,6 +21,7 @@ import (
 	"github.com/geek1011/koboutils/v2/kobo"
 	"github.com/google/uuid"
 	"github.com/kapmahc/epub"
+	"github.com/pelletier/go-toml"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/util"
 	"github.com/shermp/UNCaGED/uc"
 )
@@ -49,15 +50,16 @@ func (pw *uncagedPassword) NextPassword() string {
 }
 
 // New creates a Kobo object, ready for use
-func New(dbRootDir, sdRootDir string, bindAddress string, opts *KuOptions, vers string) (*Kobo, error) {
+func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, error) {
 	var err error
 	k := &Kobo{}
 	k.Wg = &sync.WaitGroup{}
 	k.DBRootDir = dbRootDir
 	k.BKRootDir = dbRootDir
 	k.ContentIDprefix = onboardPrefix
-
-	k.KuConfig = opts
+	if err = k.getUserOptions(); err != nil {
+		return nil, fmt.Errorf("New: failed to read config file: %w", err)
+	}
 	if sdRootDir != "" && k.KuConfig.PreferSDCard {
 		k.useSDCard = true
 		k.BKRootDir = sdRootDir
@@ -87,6 +89,11 @@ func New(dbRootDir, sdRootDir string, bindAddress string, opts *KuOptions, vers 
 	}
 	k.KuConfig = &opt.opts
 	k.KuConfig.Thumbnail.SetRezFilter()
+	if opt.saveOpts {
+		if err = k.saveUserOptions(); err != nil {
+			return nil, fmt.Errorf("New: failed to save updated config options to file: %w", err)
+		}
+	}
 	k.MsgChan <- WebMsg{Head: headerStr, Progress: -1}
 	k.MsgChan <- WebMsg{Body: "Gathering information about your Kobo", Progress: -1}
 	log.Println("Opening NickelDB")
@@ -118,6 +125,34 @@ func New(dbRootDir, sdRootDir string, bindAddress string, opts *KuOptions, vers 
 		}
 	}
 	return k, nil
+}
+
+func (k *Kobo) getUserOptions() error {
+	// Note, we return opts, regardless of whether we successfully read the options file.
+	// Our code can handle the default struct gracefully
+	opts := &KuOptions{}
+	configBytes, err := ioutil.ReadFile(filepath.Join(k.DBRootDir, ".adds/kobo-uncaged/config/ku.toml"))
+	if err != nil {
+		return fmt.Errorf("error loading config file: %w", err)
+	}
+	if err := toml.Unmarshal(configBytes, opts); err != nil {
+		return fmt.Errorf("error reading config file: %w", err)
+	}
+	opts.Thumbnail.Validate()
+	opts.Thumbnail.SetRezFilter()
+	k.KuConfig = opts
+	return nil
+}
+
+func (k *Kobo) saveUserOptions() error {
+	configBytes, err := toml.Marshal(k.KuConfig)
+	if err != nil {
+		return fmt.Errorf("error marshaling config: %w", err)
+	}
+	if err = ioutil.WriteFile(filepath.Join(k.DBRootDir, ".adds/kobo-uncaged/config/ku.toml"), configBytes, 0644); err != nil {
+		return fmt.Errorf("error writing config file: %w", err)
+	}
+	return nil
 }
 
 func (k *Kobo) openNickelDB() error {

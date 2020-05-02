@@ -20,15 +20,11 @@ package main
 import (
 	"errors"
 	"flag"
-	"fmt"
-	"io/ioutil"
 	"log"
 	"log/syslog"
 	"os"
-	"path/filepath"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/pelletier/go-toml"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/device"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kunc"
 	"github.com/shermp/UNCaGED/uc"
@@ -47,33 +43,6 @@ const (
 	passwordError   returnCode = 100
 	calibreNotFound returnCode = 101
 )
-
-func getUserOptions(dbRootDir string) (*device.KuOptions, error) {
-	// Note, we return opts, regardless of whether we successfully read the options file.
-	// Our code can handle the default struct gracefully
-	opts := &device.KuOptions{}
-	configBytes, err := ioutil.ReadFile(filepath.Join(dbRootDir, ".adds/kobo-uncaged/config/ku.toml"))
-	if err != nil {
-		return opts, fmt.Errorf("error loading config file: %w", err)
-	}
-	if err := toml.Unmarshal(configBytes, opts); err != nil {
-		return opts, fmt.Errorf("error reading config file: %w", err)
-	}
-	opts.Thumbnail.Validate()
-	opts.Thumbnail.SetRezFilter()
-	return opts, nil
-}
-
-func saveUserOptions(dbRootDir string, opts *device.KuOptions) error {
-	configBytes, err := toml.Marshal(opts)
-	if err != nil {
-		return fmt.Errorf("error marshaling config: %w", err)
-	}
-	if err = ioutil.WriteFile(filepath.Join(dbRootDir, ".adds/kobo-uncaged/config/ku.toml"), configBytes, 0644); err != nil {
-		return fmt.Errorf("error writing config file: %w", err)
-	}
-	return nil
-}
 
 func returncodeFromError(err error, k *device.Kobo) returnCode {
 	rc := successNoAction
@@ -112,23 +81,18 @@ func mainWithErrCode() returnCode {
 	}
 	onboardMntPtr := flag.String("onboardmount", "/mnt/onboard", "If changed, specify the new new mountpoint of '/mnt/onboard'")
 	sdMntPtr := flag.String("sdmount", "", "If changed, specify the new new mountpoint of '/mnt/sd'")
-	bindAddrPtr := flag.String("bindaddr", "127.0.0.1:80", "Specify the network address and port <IP:POrt> to listen on")
+	bindAddrPtr := flag.String("bindaddr", "127.0.0.1:8181", "Specify the network address and port <IP:POrt> to listen on")
 
 	flag.Parse()
 	log.Println("Started Kobo-UNCaGED")
 	log.Println("Reading options")
-	opts, optErr := getUserOptions(*onboardMntPtr)
 	log.Println("Creating KU object")
-	k, err := device.New(*onboardMntPtr, *sdMntPtr, *bindAddrPtr, opts, kuVersion)
+	k, err := device.New(*onboardMntPtr, *sdMntPtr, *bindAddrPtr, kuVersion)
 	if err != nil {
 		log.Print(err)
 		return returncodeFromError(err, nil)
 	}
 	defer k.Close()
-	if optErr != nil {
-		k.MsgChan <- device.WebMsg{Body: optErr.Error(), Progress: -1}
-
-	}
 
 	log.Println("Preparing Kobo UNCaGED!")
 	ku := kunc.New(k)

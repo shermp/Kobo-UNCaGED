@@ -45,44 +45,44 @@ mkdir -p ./Build/prerequisites/output
 rm -rf ./Build/onboard
 
 mkdir -p ./Build/onboard/.adds/kobo-uncaged/bin
-mkdir -p ./Build/onboard/.adds/kobo-uncaged/scripts
+#mkdir -p ./Build/onboard/.adds/kobo-uncaged/scripts
 mkdir -p ./Build/onboard/.adds/kobo-uncaged/config
 mkdir -p ./Build/onboard/.adds/kobo-uncaged/templates
 # Only make the following directories if we are not building an upgrade package
-if [ -z $BUILD_UPGRADE ]; then
-    mkdir -p ./Build/onboard/.adds/kobo-uncaged/fonts
-    mkdir -p ./Build/onboard/.adds/kfmon/config
-fi
+# if [ -z $BUILD_UPGRADE ]; then
+#     mkdir -p ./Build/onboard/.adds/kobo-uncaged/fonts
+#     mkdir -p ./Build/onboard/.adds/kfmon/config
+# fi
 cd ./Build/prerequisites || exit 1
 
 # Retrieve and build FBInk, if required
-if [ ! -f ./output/fbink ] && [ ! -f ./output/button_scan ]; then
-    printf "%bFBInk binaries not found. Building from source%b\n" "${YELLOW}" "${END}"
-    if [ ! -d ./FBInk ]; then
-        # Note, master has a fix for button_scan
-        git clone --recursive https://github.com/NiLuJe/FBInk.git
-    fi
-    cd ./FBInk || exit 1
-    make clean
-    # Recent versions of FBInk allow building a minimal version with button_scan
-    if ! make MINIMAL=1 BUTTON_SCAN=1; then
-        printf "%bMake failed to build 'fbink'. Aborting%b\n" "${RED}" "${END}"
-        exit 1
-    fi
-    cp ./Release/fbink ../output/fbink
-    cp ./Release/button_scan ../output/button_scan
-    cd -
-    printf "%bFBInk binaries built%b\n" "${GREEN}" "${END}"
-fi
+# if [ ! -f ./output/fbink ] && [ ! -f ./output/button_scan ]; then
+#     printf "%bFBInk binaries not found. Building from source%b\n" "${YELLOW}" "${END}"
+#     if [ ! -d ./FBInk ]; then
+#         # Note, master has a fix for button_scan
+#         git clone --recursive https://github.com/NiLuJe/FBInk.git
+#     fi
+#     cd ./FBInk || exit 1
+#     make clean
+#     # Recent versions of FBInk allow building a minimal version with button_scan
+#     if ! make MINIMAL=1 BUTTON_SCAN=1; then
+#         printf "%bMake failed to build 'fbink'. Aborting%b\n" "${RED}" "${END}"
+#         exit 1
+#     fi
+#     cp ./Release/fbink ../output/fbink
+#     cp ./Release/button_scan ../output/button_scan
+#     cd -
+#     printf "%bFBInk binaries built%b\n" "${GREEN}" "${END}"
+# fi
 
 # Next, obtain a TTF font. LiberationSans in our case
-if [ ! -f ./output/LiberationSans-Regular.ttf ]; then
-    printf "%bFont not found. Downloading LiberationSans%b\n" "${YELLOW}" "${END}"
-    wget https://github.com/liberationfonts/liberation-fonts/files/2926169/liberation-fonts-ttf-2.00.5.tar.gz
-    tar -zxf ./liberation-fonts-ttf-2.00.5.tar.gz liberation-fonts-ttf-2.00.5/LiberationSans-Regular.ttf
-    cp ./liberation-fonts-ttf-2.00.5/LiberationSans-Regular.ttf ./output/LiberationSans-Regular.ttf
-    printf "%bLiberationSans-Regular.ttf downloaded%b\n" "${GREEN}" "${END}"
-fi
+# if [ ! -f ./output/LiberationSans-Regular.ttf ]; then
+#     printf "%bFont not found. Downloading LiberationSans%b\n" "${YELLOW}" "${END}"
+#     wget https://github.com/liberationfonts/liberation-fonts/files/2926169/liberation-fonts-ttf-2.00.5.tar.gz
+#     tar -zxf ./liberation-fonts-ttf-2.00.5.tar.gz liberation-fonts-ttf-2.00.5/LiberationSans-Regular.ttf
+#     cp ./liberation-fonts-ttf-2.00.5/LiberationSans-Regular.ttf ./output/LiberationSans-Regular.ttf
+#     printf "%bLiberationSans-Regular.ttf downloaded%b\n" "${GREEN}" "${END}"
+# fi
 # Back to the top level Build directory
 cd ..
 # Now that we have everything, time to build Kobo-UNCaGED
@@ -98,28 +98,28 @@ cd -
 printf "%bKobo-UNCaGED built%b\n" "${GREEN}" "${END}"
 
 # Copy the kobo-uncaged scripts to the build directory
-cp ../scripts/start-ku.sh ./onboard/.adds/kobo-uncaged/start-ku.sh
+# cp ../scripts/start-ku.sh ./onboard/.adds/kobo-uncaged/start-ku.sh
 cp ../scripts/nm-start-ku.sh ./onboard/.adds/kobo-uncaged/nm-start-ku.sh
-cp ../scripts/run-ku.sh ./onboard/.adds/kobo-uncaged/scripts/run-ku.sh
-cp ../scripts/nickel-usbms.sh ./onboard/.adds/kobo-uncaged/scripts/nickel-usbms.sh
+# cp ../scripts/run-ku.sh ./onboard/.adds/kobo-uncaged/scripts/run-ku.sh
+# cp ../scripts/nickel-usbms.sh ./onboard/.adds/kobo-uncaged/scripts/nickel-usbms.sh
 
 # Default config file
 cp ../kobo-uncaged/ku.toml ./onboard/.adds/kobo-uncaged/config/ku.toml.default
 
 # FBInk binaries
-cp ./prerequisites/output/fbink ./onboard/.adds/kobo-uncaged/bin/fbink
-cp ./prerequisites/output/button_scan ./onboard/.adds/kobo-uncaged/bin/button_scan
+# cp ./prerequisites/output/fbink ./onboard/.adds/kobo-uncaged/bin/fbink
+# cp ./prerequisites/output/button_scan ./onboard/.adds/kobo-uncaged/bin/button_scan
 
 # HTML templates
 cp -r ../kobo-uncaged/templates/. ./onboard/.adds/kobo-uncaged/templates/
 
-if [ -z $BUILD_UPGRADE ]; then
-    # Font
-    cp ./prerequisites/output/LiberationSans-Regular.ttf ./onboard/.adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf
-    # And the kfmon files
-    cp ../kfmon/kobo-uncaged.ini ./onboard/.adds/kfmon/config/kobo-uncaged.ini
-    cp ../kfmon/Kobo-UNCaGED.png ./onboard/Kobo-UNCaGED.png
-fi
+# if [ -z $BUILD_UPGRADE ]; then
+#     # Font
+#     cp ./prerequisites/output/LiberationSans-Regular.ttf ./onboard/.adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf
+#     # And the kfmon files
+#     cp ../kfmon/kobo-uncaged.ini ./onboard/.adds/kfmon/config/kobo-uncaged.ini
+#     cp ../kfmon/Kobo-UNCaGED.png ./onboard/Kobo-UNCaGED.png
+# fi
 
 # Finally, zip it all up
 printf "%bCreating release archive%b\n" "${YELLOW}" "${END}"
