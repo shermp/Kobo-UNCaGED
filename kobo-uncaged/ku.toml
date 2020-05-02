@@ -25,7 +25,7 @@ allowUSBPower = false
 # Kobo UNCaGED will not need to run a second time to update this metadata. This option
 # still requires a second fake USBMS connection for Nickel to parse the new metadata from the DB.
 # Note, this option adds a new table to your Kobo's database, and also creates a trigger
-addMetadataByTrigger = false
+addMetadataByTrigger = true
 
 # The following options tweak aspects of the thumbnail generation process
 [thumbnail]

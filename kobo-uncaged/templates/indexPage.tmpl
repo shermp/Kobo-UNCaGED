@@ -4,6 +4,10 @@
 <head>
     <meta charset="utf-8">
     <title>Index</title>
+    <style type="text/css">
+        html {font-size: 40px;}
+        label {min-width: 30%;}
+    </style>
 </head>
 <body>
 <form action="/start" method="post">
@@ -13,6 +17,8 @@
     <input type="checkbox" id="PreferKepub" name="PreferKepub" {{if .PreferKepub}}checked{{end}}><br>
     <label for="EnableDebug">Enable Debug: </label>
     <input type="checkbox" id="EnableDebug" name="EnableDebug" {{if .EnableDebug}}checked{{end}}><br>
+    <label for="AddMetadataByTrigger">Use Database Trigger: </label>
+    <input type="checkbox" id="AddMetadataByTrigger" name="AddMetadataByTrigger" {{if .AddMetadataByTrigger}}checked{{end}}><br>
 
     <label for="GenerateLevel">Thumbnail Level: </label>
     <select id="GenerateLevel" name="GenerateLevel">

@@ -56,6 +56,9 @@ func (k *Kobo) HandleStart(w http.ResponseWriter, r *http.Request) {
 	if r.PostFormValue("EnableDebug") != "" {
 		res.opts.EnableDebug = true
 	}
+	if r.PostFormValue("AddMetadataByTrigger") != "" {
+		res.opts.AddMetadataByTrigger = true
+	}
 	res.opts.Thumbnail.GenerateLevel = r.PostFormValue("GenerateLevel")
 	res.opts.Thumbnail.ResizeAlgorithm = r.PostFormValue("ResizeAlgorithm")
 	res.opts.Thumbnail.JpegQuality, _ = strconv.Atoi(r.PostFormValue("JpegQuality"))
