@@ -253,32 +253,24 @@ func (ku *koboUncaged) UpdateStatus(status uc.Status, progress int) {
 		ku.k.MsgChan <- device.WebMsg{Progress: p}
 	case uc.Connected:
 		ku.k.MsgChan <- device.WebMsg{Body: "Connected", Progress: p}
-		// kuprint.Println(kuprint.Body, "Connected")
-		// kuprint.Println(kuprint.Footer, footerStr)
+
 	case uc.Connecting:
 		ku.k.MsgChan <- device.WebMsg{Body: "Connecting to Calibre", Progress: p}
-		// kuprint.Println(kuprint.Body, "Connecting to Calibre")
-		// kuprint.Println(kuprint.Footer, footerStr)
+
 	case uc.SearchingCalibre:
 		ku.k.MsgChan <- device.WebMsg{Body: "Searching for Calibre", Progress: p}
-		// kuprint.Println(kuprint.Body, "Searching for Calibre")
-		// kuprint.Println(kuprint.Footer, footerStr)
+
 	case uc.Disconnected:
 		ku.k.MsgChan <- device.WebMsg{Body: "Disconnected", Progress: p}
-		// kuprint.Println(kuprint.Body, "Disconnected")
-		// kuprint.Println(kuprint.Footer, footerStr)
+
 	case uc.SendingBook:
 		ku.k.MsgChan <- device.WebMsg{Body: "Sending book to Calibre", Progress: p}
-		// kuprint.Println(kuprint.Body, "Sending book to Calibre")
-		// kuprint.Println(kuprint.Footer, footerStr)
+
 	case uc.ReceivingBook:
 		ku.k.MsgChan <- device.WebMsg{Body: "Receiving book(s) from Calibre", Progress: p}
-		// kuprint.Println(kuprint.Body, "Receiving book(s) from Calibre")
-		// kuprint.Println(kuprint.Footer, footerStr)
+
 	case uc.EmptyPasswordReceived:
 		ku.k.MsgChan <- device.WebMsg{Body: "No valid password found!", Progress: p}
-		// kuprint.Println(kuprint.Body, "No valid password found!")
-		// kuprint.Println(kuprint.Footer, footerStr)
 	}
 }
 

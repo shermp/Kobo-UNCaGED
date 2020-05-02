@@ -88,9 +88,7 @@ func New(dbRootDir, sdRootDir string, bindAddress string, opts *KuOptions, vers 
 	k.KuConfig = &opt.opts
 	k.KuConfig.Thumbnail.SetRezFilter()
 	k.MsgChan <- WebMsg{Head: headerStr, Progress: -1}
-	//kuprint.Println(kuprint.Header, headerStr)
 	k.MsgChan <- WebMsg{Body: "Gathering information about your Kobo", Progress: -1}
-	//kuprint.Println(kuprint.Body, "Gathering information about your Kobo")
 	log.Println("Opening NickelDB")
 	if err = k.openNickelDB(); err != nil {
 		return nil, fmt.Errorf("New: failed to open Nickel DB: %w", err)
@@ -119,14 +117,6 @@ func New(dbRootDir, sdRootDir string, bindAddress string, opts *KuOptions, vers 
 			return nil, fmt.Errorf("New: failed to remove metadata trigger: %w", err)
 		}
 	}
-	// if !updatingMD {
-	// 	return k, nil
-	// }
-	// if err = k.readUpdateMDfile(); err != nil {
-	// 	return nil, fmt.Errorf("New: failed to read updated metadata file: %w", err)
-	// }
-	// os.Remove(filepath.Join(k.BKRootDir, kuUpdatedMDfile))
-
 	return k, nil
 }
 
@@ -490,33 +480,6 @@ func (k *Kobo) WriteMDfile() error {
 	return err
 }
 
-// func (k *Kobo) readUpdateMDfile() error {
-// 	emptyOrNotExist, err := util.ReadJSON(filepath.Join(k.BKRootDir, kuUpdatedMDfile), &k.UpdatedMetadata)
-// 	if emptyOrNotExist {
-// 		// ignore
-// 	} else if err != nil {
-// 		return fmt.Errorf("readUpdateMDfile: error reading update metadata JSON: %w", err)
-// 	}
-// 	return nil
-// }
-
-// WriteUpdateMDfile writes updated metadata to file
-// func (k *Kobo) WriteUpdateMDfile() error {
-// 	var err error
-// 	// We only write the file if there is new or updated metadata to write
-// 	if len(k.UpdatedMetadata) == 0 {
-// 		return nil
-// 	}
-// 	// Don't write the file if we are updating metadata via DB trigger
-// 	if k.KuConfig.AddMetadataByTrigger {
-// 		return nil
-// 	}
-// 	if err = util.WriteJSON(filepath.Join(k.BKRootDir, kuUpdatedMDfile), k.UpdatedMetadata); err != nil {
-// 		err = fmt.Errorf("WriteUpdateMDfile: error writing update metadata JSON: %w", err)
-// 	}
-// 	return err
-// }
-
 func (k *Kobo) loadDeviceInfo() error {
 	emptyOrNotExist, err := util.ReadJSON(filepath.Join(k.BKRootDir, calibreDIfile), &k.DriveInfo.DevInfo)
 	if emptyOrNotExist {
@@ -757,10 +720,6 @@ func (k *Kobo) UpdateNickelDB() (bool, error) {
 	if err = tx.Commit(); err != nil {
 		return rerun, fmt.Errorf("UpdateNickelDB: Error committing transaction: %w", err)
 	}
-	// Note, this should only write to the file if new books are added, and AddMetadataByTrigger is false
-	// if err = k.WriteUpdateMDfile(); err != nil {
-	// 	return false, fmt.Errorf("UpdateNickelDB: %w", err)
-	// }
 	if len(k.UpdatedMetadata) > 0 {
 		if err = ioutil.WriteFile(filepath.Join(k.DBRootDir, kuUpdatedSQL), []byte(sqlSB.String()), 0644); err != nil {
 			return rerun, fmt.Errorf("UpdateNickelDB: Error writing update SQL: %w", err)
