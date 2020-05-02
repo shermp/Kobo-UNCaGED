@@ -6,41 +6,63 @@
     <title>Index</title>
     <style type="text/css">
         html {font-size: 40px;}
-        label {min-width: 30%;}
+        div#settings-form {width: 90%; margin: auto;}
+        form {display: table;}
+        form > p {display: table-row;}
+        label, input, select {display: table-cell;}
+        /* TODO: The default checkmark style on the Kobo browser is nigh on unusable
+         * One needs to try and find a solution */
     </style>
 </head>
 <body>
-<form action="/start" method="post">
-    <label for="PreferSDCard">Prefer SD Card: </label>
-    <input type="checkbox" id="PreferSDCard" name="PreferSDCard" {{if .PreferSDCard}}checked{{end}}><br>
-    <label for="PreferKepub">Prefer kepub: </label>
-    <input type="checkbox" id="PreferKepub" name="PreferKepub" {{if .PreferKepub}}checked{{end}}><br>
-    <label for="EnableDebug">Enable Debug: </label>
-    <input type="checkbox" id="EnableDebug" name="EnableDebug" {{if .EnableDebug}}checked{{end}}><br>
-    <label for="AddMetadataByTrigger">Use Database Trigger: </label>
-    <input type="checkbox" id="AddMetadataByTrigger" name="AddMetadataByTrigger" {{if .AddMetadataByTrigger}}checked{{end}}><br>
-
-    <label for="GenerateLevel">Thumbnail Level: </label>
-    <select id="GenerateLevel" name="GenerateLevel">
-        <option value="all" {{if eq .Thumbnail.GenerateLevel "all" }}selected{{end}}>All</option>
-        <option value="partial" {{if eq .Thumbnail.GenerateLevel "partial" }}selected{{end}}>Partial</option>
-        <option value="none" {{if eq .Thumbnail.GenerateLevel "none" }}selected{{end}}>None</option>
-    </select><br>
-
-    <label for="ResizeAlgorithm">Resize Algorithm: </label>
-    <select id="ResizeAlgorithm" name="ResizeAlgorithm">
-        <option value="bilinear" {{if eq .Thumbnail.ResizeAlgorithm "bilinear" }}selected{{end}}>Bilinear</option>
-        <option value="bicubic" {{if eq .Thumbnail.ResizeAlgorithm "bicubic" }}selected{{end}}>Bicubic</option>
-        <option value="lanczos2" {{if eq .Thumbnail.ResizeAlgorithm "lanczos2" }}selected{{end}}>Lanczos2</option>
-        <option value="lanczos3" {{if eq .Thumbnail.ResizeAlgorithm "lanczos3" }}selected{{end}}>Lanczos3</option>
-    </select><br>
-
-    <label for="JpegQuality">JPEG Quality (0-100): </label>
-    <input type="number" id="JpegQuality" name="JpegQuality" min="0" max="100" value="{{.Thumbnail.JpegQuality}}"><br>
-    <br>
-    <label for="updateConfig">Update Config? </label>
-    <input type="checkbox" id="updateConfig" name="updateConfig" checked><br>
-    <input type="submit" value="Start!">
-</form>
+<div id="settings-form">
+    <form action="/start" method="post">
+    <p>
+        <label for="PreferSDCard">Prefer SD Card: </label>
+        <input type="checkbox" id="PreferSDCard" name="PreferSDCard" {{if .PreferSDCard}}checked{{end}}><br>
+    </p>
+    <p>
+        <label for="PreferKepub">Prefer kepub: </label>
+        <input type="checkbox" id="PreferKepub" name="PreferKepub" {{if .PreferKepub}}checked{{end}}><br>
+    </p>
+    <p>
+        <label for="EnableDebug">Enable Debug: </label>
+        <input type="checkbox" id="EnableDebug" name="EnableDebug" {{if .EnableDebug}}checked{{end}}><br>
+    </p>
+    <p>
+        <label for="AddMetadataByTrigger">Use Database Trigger: </label>
+        <input type="checkbox" id="AddMetadataByTrigger" name="AddMetadataByTrigger" {{if .AddMetadataByTrigger}}checked{{end}}><br>
+    </p>
+    <p>
+        <label for="GenerateLevel">Thumbnail Level: </label>
+        <select id="GenerateLevel" name="GenerateLevel">
+            <option value="all" {{if eq .Thumbnail.GenerateLevel "all" }}selected{{end}}>All</option>
+            <option value="partial" {{if eq .Thumbnail.GenerateLevel "partial" }}selected{{end}}>Partial</option>
+            <option value="none" {{if eq .Thumbnail.GenerateLevel "none" }}selected{{end}}>None</option>
+        </select><br>
+    </p>
+    <p>
+        <label for="ResizeAlgorithm">Resize Algorithm: </label>
+        <select id="ResizeAlgorithm" name="ResizeAlgorithm">
+            <option value="bilinear" {{if eq .Thumbnail.ResizeAlgorithm "bilinear" }}selected{{end}}>Bilinear</option>
+            <option value="bicubic" {{if eq .Thumbnail.ResizeAlgorithm "bicubic" }}selected{{end}}>Bicubic</option>
+            <option value="lanczos2" {{if eq .Thumbnail.ResizeAlgorithm "lanczos2" }}selected{{end}}>Lanczos2</option>
+            <option value="lanczos3" {{if eq .Thumbnail.ResizeAlgorithm "lanczos3" }}selected{{end}}>Lanczos3</option>
+        </select><br>
+    </p>
+    <p>
+        <label for="JpegQuality">JPEG Quality (0-100): </label>
+        <input type="number" id="JpegQuality" name="JpegQuality" min="0" max="100" value="{{.Thumbnail.JpegQuality}}"><br>
+    </p>
+        <br>
+    <p>
+        <label for="updateConfig">Update Config? </label>
+        <input type="checkbox" id="updateConfig" name="updateConfig" checked><br>
+    </p>
+    <p>    
+        <input type="submit" value="Start!">
+    </p>
+    </form>
+</div>
 </body>
 </html>
