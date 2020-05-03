@@ -1,5 +1,10 @@
 #!/bin/sh
 
+KU_DIR=/mnt/onboard/.adds/kobo-uncaged
+KU_BIN=${KU_DIR}/bin/kobo-uncaged
+FBINK_BIN=${KU_DIR}/bin/fbink
+KU_LOG=${KU_DIR}/ku_error.log
+
 # Logging facilities
 logmsg() {
     # Set terminal color escape sequences
@@ -49,14 +54,10 @@ logmsg() {
 
     # Print to screen
     PRINT_ROW=4
-    # Keep notices visible by printing them one row higher
-    if [ "${LOG_LEVEL}" = "notice" ]; then
-        PRINT_ROW=3
-    fi
 
-    # Keep verbose debugging off-screen, though...
-    if [ "${LOG_LEVEL}" != "debug" ] ; then
-        ./fbink -q -y ${PRINT_ROW} -mp "${LOG_MSG}"
+    # Print warnings and errors to screen
+    if [ "${LOG_LEVEL}" != "debug" ] || [ "${LOG_LEVEL}" != "info" ] ; then
+        $FBINK_BIN -q -y ${PRINT_ROW} -mp "${LOG_MSG}"
     fi
 }
 
@@ -64,10 +65,6 @@ logmsg() {
 # We take care of it here
 ip link set lo up
 logmsg "I" "Enabled loopback interface"
-
-KU_DIR=/mnt/onboard/.adds/kobo-uncaged
-KU_BIN=${KU_DIR}/bin/kobo-uncaged
-KU_LOG=${KU_DIR}/ku_error.log
 
 # Check if we have a ku.toml file. If not, copy it from the default file
 if [ ! -f "${KU_DIR}/config/ku.toml" ]; then
