@@ -250,7 +250,7 @@ func (ku *koboUncaged) UpdateStatus(status uc.Status, progress int) {
 	}
 	switch status {
 	case uc.Idle:
-		ku.k.WebPrint(device.WebMsg{Progress: p})
+		fallthrough
 	case uc.Connected:
 		ku.k.WebPrint(device.WebMsg{Body: "Connected", Progress: p})
 

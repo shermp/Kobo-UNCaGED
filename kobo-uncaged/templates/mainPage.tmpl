@@ -35,11 +35,15 @@
 
     function hideProgress() {
         var prog = document.getElementById("ku_prog");
-        prog.style.display = "none";
+        if (prog.style.display !== "none") {
+            prog.style.display = "none";
+        }
     }
     function showProgress() {
         var prog = document.getElementById("ku_prog");
-        prog.style.display = "block";
+        if (prog.style.display === "none") {
+            prog.style.display = "block";
+        }
     }
     function setProgress(p) {
         var prog = document.getElementById("ku_prog");
