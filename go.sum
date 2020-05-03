@@ -7,6 +7,8 @@ github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/eknkc/amber v0.0.0-20171010120322-cdade1c07385/go.mod h1:0vRUJqYpeSZifjYj7uP3BG/gKcuzL9xWVV/Y+cK33KM=
 github.com/geek1011/koboutils/v2 v2.0.1-0.20200209164819-ab31aac12ee0 h1:S11UsODKf7jtsdUHZ9kMxRYnEe3ZteoPjZzZoCFDk90=
 github.com/geek1011/koboutils/v2 v2.0.1-0.20200209164819-ab31aac12ee0/go.mod h1:c/EwVM90qr2bHUrNBVi4jBUWdz+lH1ns2xlfQoiv1vk=
+github.com/geek1011/koboutils/v2 v2.0.2-0.20200408173210-50024f2afc6b h1:k9te5H4TDt5Xg17oxpKqNmwhQ1Mr0VzWQKb4+zMdk3w=
+github.com/geek1011/koboutils/v2 v2.0.2-0.20200408173210-50024f2afc6b/go.mod h1:c/EwVM90qr2bHUrNBVi4jBUWdz+lH1ns2xlfQoiv1vk=
 github.com/google/uuid v1.1.1 h1:Gkbcsh/GbpXz7lPftLA3P6TYMwjCLYm83jiFQZF/3gY=
 github.com/google/uuid v1.1.1/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/julienschmidt/httprouter v1.3.0 h1:U0609e9tgbseu3rBINet9P48AI/D3oJs4dN7jwJOQ1U=
