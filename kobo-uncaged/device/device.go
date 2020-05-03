@@ -93,7 +93,7 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 			return nil, fmt.Errorf("New: failed to save updated config options to file: %w", err)
 		}
 	}
-	k.MsgChan <- WebMsg{Body: "Gathering information about your Kobo", Progress: -1}
+	k.WebPrint(WebMsg{Body: "Gathering information about your Kobo", Progress: -1})
 	log.Println("Opening NickelDB")
 	if err = k.openNickelDB(); err != nil {
 		return nil, fmt.Errorf("New: failed to open Nickel DB: %w", err)

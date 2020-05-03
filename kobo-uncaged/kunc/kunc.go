@@ -250,27 +250,27 @@ func (ku *koboUncaged) UpdateStatus(status uc.Status, progress int) {
 	}
 	switch status {
 	case uc.Idle:
-		ku.k.MsgChan <- device.WebMsg{Progress: p}
+		ku.k.WebPrint(device.WebMsg{Progress: p})
 	case uc.Connected:
-		ku.k.MsgChan <- device.WebMsg{Body: "Connected", Progress: p}
+		ku.k.WebPrint(device.WebMsg{Body: "Connected", Progress: p})
 
 	case uc.Connecting:
-		ku.k.MsgChan <- device.WebMsg{Body: "Connecting to Calibre", Progress: p}
+		ku.k.WebPrint(device.WebMsg{Body: "Connecting to Calibre", Progress: p})
 
 	case uc.SearchingCalibre:
-		ku.k.MsgChan <- device.WebMsg{Body: "Searching for Calibre", Progress: p}
+		ku.k.WebPrint(device.WebMsg{Body: "Searching for Calibre", Progress: p})
 
 	case uc.Disconnected:
-		ku.k.MsgChan <- device.WebMsg{Body: "Disconnected", Progress: p}
+		ku.k.WebPrint(device.WebMsg{Body: "Disconnected", Progress: p})
 
 	case uc.SendingBook:
-		ku.k.MsgChan <- device.WebMsg{Body: "Sending book to Calibre", Progress: p}
+		ku.k.WebPrint(device.WebMsg{Body: "Sending book to Calibre", Progress: p})
 
 	case uc.ReceivingBook:
-		ku.k.MsgChan <- device.WebMsg{Body: "Receiving book(s) from Calibre", Progress: p}
+		ku.k.WebPrint(device.WebMsg{Body: "Receiving book(s) from Calibre", Progress: p})
 
 	case uc.EmptyPasswordReceived:
-		ku.k.MsgChan <- device.WebMsg{Body: "No valid password found!", Progress: p}
+		ku.k.WebPrint(device.WebMsg{Body: "No valid password found!", Progress: p})
 	}
 }
 

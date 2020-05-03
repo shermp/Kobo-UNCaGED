@@ -105,3 +105,9 @@ func (k *Kobo) HandleMessages(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 }
+
+// WebPrint is a small function to print a message to webclient, and wait for to be sent before returning
+func (k *Kobo) WebPrint(msg WebMsg) {
+	k.MsgChan <- msg
+	<-k.doneChan
+}
