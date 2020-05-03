@@ -9,12 +9,12 @@ RED="\033[31;1m"
 YELLOW="\033[33;1m"
 GREEN="\033[32;1m"
 
-BUILD_TYPE="full"
-# Set a variable if we only want to build an upgrade archive
-if [ "$1" = "upgrade" ] || [ "$1" = "UPGRADE" ]; then
-    BUILD_UPGRADE=1
-    BUILD_TYPE="upgrade"
-fi
+# BUILD_TYPE="full"
+# # Set a variable if we only want to build an upgrade archive
+# if [ "$1" = "upgrade" ] || [ "$1" = "UPGRADE" ]; then
+#     BUILD_UPGRADE=1
+#     BUILD_TYPE="upgrade"
+# fi
 
 # Check if the user has set their ARM toolchain name
 if [ -z "$CROSS_TC" ] && [ -z "$CROSS_COMPILE" ]; then
@@ -55,25 +55,25 @@ mkdir -p ./Build/onboard/.adds/kobo-uncaged/templates
 # fi
 cd ./Build/prerequisites || exit 1
 
-# Retrieve and build FBInk, if required
-# if [ ! -f ./output/fbink ] && [ ! -f ./output/button_scan ]; then
-#     printf "%bFBInk binaries not found. Building from source%b\n" "${YELLOW}" "${END}"
-#     if [ ! -d ./FBInk ]; then
-#         # Note, master has a fix for button_scan
-#         git clone --recursive https://github.com/NiLuJe/FBInk.git
-#     fi
-#     cd ./FBInk || exit 1
-#     make clean
-#     # Recent versions of FBInk allow building a minimal version with button_scan
-#     if ! make MINIMAL=1 BUTTON_SCAN=1; then
-#         printf "%bMake failed to build 'fbink'. Aborting%b\n" "${RED}" "${END}"
-#         exit 1
-#     fi
-#     cp ./Release/fbink ../output/fbink
-#     cp ./Release/button_scan ../output/button_scan
-#     cd -
-#     printf "%bFBInk binaries built%b\n" "${GREEN}" "${END}"
-# fi
+Retrieve and build FBInk, if required
+if [ ! -f ./output/fbink ] && [ ! -f ./output/button_scan ]; then
+    printf "%bFBInk binaries not found. Building from source%b\n" "${YELLOW}" "${END}"
+    if [ ! -d ./FBInk ]; then
+        # Note, master has a fix for button_scan
+        git clone --recursive --branch v1.22.1 https://github.com/NiLuJe/FBInk.git
+    fi
+    cd ./FBInk || exit 1
+    make clean
+    # Recent versions of FBInk allow building a minimal version with button_scan
+    if ! make MINIMAL=1 BUTTON_SCAN=1; then
+        printf "%bMake failed to build 'fbink'. Aborting%b\n" "${RED}" "${END}"
+        exit 1
+    fi
+    cp ./Release/fbink ../output/fbink
+    cp ./Release/button_scan ../output/button_scan
+    cd -
+    printf "%bFBInk binaries built%b\n" "${GREEN}" "${END}"
+fi
 
 # Next, obtain a TTF font. LiberationSans in our case
 # if [ ! -f ./output/LiberationSans-Regular.ttf ]; then
@@ -107,11 +107,13 @@ cp ../scripts/nm-start-ku.sh ./onboard/.adds/kobo-uncaged/nm-start-ku.sh
 cp ../kobo-uncaged/ku.toml ./onboard/.adds/kobo-uncaged/config/ku.toml.default
 
 # FBInk binaries
-# cp ./prerequisites/output/fbink ./onboard/.adds/kobo-uncaged/bin/fbink
+cp ./prerequisites/output/fbink ./onboard/.adds/kobo-uncaged/bin/fbink
 # cp ./prerequisites/output/button_scan ./onboard/.adds/kobo-uncaged/bin/button_scan
 
 # HTML templates
 cp -r ../kobo-uncaged/templates/. ./onboard/.adds/kobo-uncaged/templates/
+# Web UI static files (CSS, Javascript etc)
+cp -r ../kobo-uncaged/static/. ./onboard/.adds/kobo-uncaged/static/
 
 # if [ -z $BUILD_UPGRADE ]; then
 #     # Font
@@ -124,9 +126,11 @@ cp -r ../kobo-uncaged/templates/. ./onboard/.adds/kobo-uncaged/templates/
 # Finally, zip it all up
 printf "%bCreating release archive%b\n" "${YELLOW}" "${END}"
 cd ./onboard || exit 1
-if ! zip -r "../KoboUncaged-${ku_vers}-${BUILD_TYPE}.zip" .; then
+#if ! zip -r "../KoboUncaged-${ku_vers}-${BUILD_TYPE}.zip" .; then
+if ! zip -r "../KoboUncaged-${ku_vers}.zip" .; then
     printf "%bFailed to create zip archive. Aborting%b\n" "${RED}" "${END}"
     exit 1
 fi
 cd -
-printf "%b./Build/KoboUncaged-${ku_vers}-${BUILD_TYPE}.zip built%b\n" "${GREEN}" "${END}"
+#printf "%b./Build/KoboUncaged-${ku_vers}-${BUILD_TYPE}.zip built%b\n" "${GREEN}" "${END}"
+printf "%b./Build/KoboUncaged-${ku_vers}.zip built%b\n" "${GREEN}" "${END}"
