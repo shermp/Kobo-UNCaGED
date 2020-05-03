@@ -55,7 +55,7 @@ mkdir -p ./Build/onboard/.adds/kobo-uncaged/templates
 # fi
 cd ./Build/prerequisites || exit 1
 
-Retrieve and build FBInk, if required
+#Retrieve and build FBInk, if required
 if [ ! -f ./output/fbink ] && [ ! -f ./output/button_scan ]; then
     printf "%bFBInk binaries not found. Building from source%b\n" "${YELLOW}" "${END}"
     if [ ! -d ./FBInk ]; then
