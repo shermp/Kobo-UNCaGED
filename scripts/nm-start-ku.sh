@@ -56,7 +56,7 @@ logmsg() {
     PRINT_ROW=4
 
     # Print warnings and errors to screen
-    if [ "${LOG_LEVEL}" != "debug" ] || [ "${LOG_LEVEL}" != "info" ] ; then
+    if [ "${LOG_LEVEL}" != "debug" ] && [ "${LOG_LEVEL}" != "info" ] ; then
         $FBINK_BIN -q -y ${PRINT_ROW} -mp "${LOG_MSG}"
     fi
 }
