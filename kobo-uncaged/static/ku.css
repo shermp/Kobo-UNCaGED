@@ -1,0 +1,40 @@
+body {
+    font-family: sans-serif;
+}
+div#settings-form {
+    width: 90%; 
+    margin: auto;
+}
+form {
+    display: table;
+}
+form > p {
+    display: table-row;
+}
+label, input, select {
+    display: table-cell;
+    padding: 5pt;
+}
+#main_title,#main_storage_type {
+    text-align: center;
+}
+#main_title {
+    font-weight: bold;
+}
+#ku_prog {
+    width: 75%;
+    margin: auto;
+}
+#ku_version::before{
+    display:inline-block;
+    content:'';
+    height:100%;
+    vertical-align:bottom;
+  }
+#ku_version {
+    font-size: 0.8rem;
+    text-align: center;
+}
+
+/* TODO: The default checkmark style on the Kobo browser is nigh on unusable
+    * One needs to try and find a solution */

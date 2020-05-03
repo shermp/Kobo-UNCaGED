@@ -3,18 +3,21 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>{{.}}</title>
+    <title>Kobo-UNCaGED</title>
+    <link rel="stylesheet" type="text/css" href="/static/ku.css" />
 </head>
 <body>
-<div id="ku_head"></div>
-<div id="ku_body"></div>
-<progress id="ku_prog" value="0" max="100"></progress>
-<div id="ku_footer"></div>
+<div id="ku_container">
+    <h2 id="main_title">Kobo UNCaGED</h2>
+    <h3 id="main_storage_type">Using {{if .UseSDCard}}external SD card{{else}}internal storage{{end}}</h3>
+    <div id="ku_body"></div>
+    <progress id="ku_prog" value="0" max="100"></progress>
+    <div id="ku_footer"></div>
+    <div id="ku_version">{{.KuVers}}</div>
+</div>
+<script type="text/javascript" src="/static/ku.js"></script>
 <script type="text/javascript">
     var evtSource = new EventSource("/messages");
-    evtSource.addEventListener("head", function (event) {
-        setDivContent("ku_head", event.data);
-    });
     evtSource.addEventListener("body", function (event) {
         setDivContent("ku_body", event.data);
     });
@@ -26,7 +29,7 @@
             showProgress();
             setProgress(event.data);
         } else {
-            hideProgress;
+            hideProgress();
         }
     });
 
@@ -47,10 +50,14 @@
         el.innerHTML = content;
     }
     window.onload = function () {
+        setKoboSizes({{.Device.DisplayPPI}})
         hideProgress();
         setDivContent("ku_head", " ");
         setDivContent("ku_body", " ");
         setDivContent("ku_footer", " ");
+    }
+    window.onresize = function() {
+        setKoboSizes({{.Device.DisplayPPI}});
     }
 </script>
 </body>

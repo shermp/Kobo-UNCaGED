@@ -56,7 +56,6 @@ type webStartRes struct {
 
 // WebMsg is used to send messages to the web client
 type WebMsg struct {
-	Head     string
 	Body     string
 	Footer   string
 	Progress int
@@ -65,13 +64,14 @@ type WebMsg struct {
 // Kobo contains the variables and methods required to use
 // the UNCaGED library
 type Kobo struct {
+	KuVers          string
 	Device          kobo.Device
 	fw              firmwareVersion
 	KuConfig        *KuOptions
 	DBRootDir       string
 	BKRootDir       string
 	ContentIDprefix cidPrefix
-	useSDCard       bool
+	UseSDCard       bool
 	MetadataMap     map[string]uc.CalibreBookMeta
 	UpdatedMetadata map[string]struct{}
 	BooksInDB       map[string]struct{}
@@ -82,7 +82,7 @@ type Kobo struct {
 	Wg              *sync.WaitGroup
 	mux             *httprouter.Router
 	rend            *render.Render
-	readyChan       chan bool
+	doneChan        chan bool
 	startChan       chan webStartRes
 	MsgChan         chan WebMsg
 }

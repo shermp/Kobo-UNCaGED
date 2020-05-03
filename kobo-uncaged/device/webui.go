@@ -21,6 +21,7 @@ func (k *Kobo) initRouter() {
 	k.mux.HandlerFunc("POST", "/start", k.HandleStart)
 	k.mux.HandlerFunc("GET", "/main", k.HandleMain)
 	k.mux.HandlerFunc("GET", "/messages", k.HandleMessages)
+	k.mux.ServeFiles("/static/*filepath", http.Dir("./static"))
 }
 
 func (k *Kobo) initRender() {
@@ -34,7 +35,7 @@ func (k *Kobo) initRender() {
 // HandleIndex displays a form allowing the user to customize
 // KU. It uses the existing ku.toml file as a seed
 func (k *Kobo) HandleIndex(w http.ResponseWriter, r *http.Request) {
-	k.rend.HTML(w, http.StatusOK, "indexPage", k.KuConfig)
+	k.rend.HTML(w, http.StatusOK, "indexPage", k)
 }
 
 // HandleStart parses the configuration form data
@@ -71,7 +72,7 @@ func (k *Kobo) HandleStart(w http.ResponseWriter, r *http.Request) {
 
 // HandleMain renders the main KU interface page
 func (k *Kobo) HandleMain(w http.ResponseWriter, r *http.Request) {
-	k.rend.HTML(w, http.StatusOK, "mainPage", "Main")
+	k.rend.HTML(w, http.StatusOK, "mainPage", k)
 }
 
 // HandleMessages sends messages to the client using server sent events.
@@ -88,10 +89,6 @@ func (k *Kobo) HandleMessages(w http.ResponseWriter, r *http.Request) {
 		case msg := <-k.MsgChan:
 			// Note, we replace all newlines in the message with spaces. That is because server
 			// sent events are newline delimited
-			if msg.Head != "" {
-				fmt.Fprintf(w, "event: head\ndata: %s\n\n", strings.ReplaceAll(msg.Head, "\n", " "))
-				f.Flush()
-			}
 			if msg.Body != "" {
 				fmt.Fprintf(w, "event: body\ndata: %s\n\n", strings.ReplaceAll(msg.Body, "\n", " "))
 				f.Flush()
@@ -102,6 +99,7 @@ func (k *Kobo) HandleMessages(w http.ResponseWriter, r *http.Request) {
 			}
 			fmt.Fprintf(w, "event: progress\ndata: %d\n\n", msg.Progress)
 			f.Flush()
+			k.doneChan <- true
 		case <-r.Context().Done():
 			return
 		}

@@ -61,20 +61,19 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 		return nil, fmt.Errorf("New: failed to read config file: %w", err)
 	}
 	if sdRootDir != "" && k.KuConfig.PreferSDCard {
-		k.useSDCard = true
+		k.UseSDCard = true
 		k.BKRootDir = sdRootDir
 		k.ContentIDprefix = sdPrefix
 	}
 	k.Passwords = newUncagedPassword(k.KuConfig.PasswordList)
 	k.UpdatedMetadata = make(map[string]struct{}, 0)
 	k.SeriesIDMap = make(map[string]string, 0)
-	headerStr := "Kobo-UNCaGED " + vers
-	if k.useSDCard {
-		headerStr += `<br><span style="font-size: 0.8rem;">Using SD Card</span>`
-	} else {
-		headerStr += `<br><span style="font-size: 0.8rem;">Using Internal Storage</span>`
+	log.Println("Getting Kobo Info")
+	if err = k.getKoboInfo(); err != nil {
+		return nil, fmt.Errorf("New: failed to get kobo info: %w", err)
 	}
-	k.readyChan = make(chan bool)
+	k.KuVers = vers
+	k.doneChan = make(chan bool)
 	k.MsgChan = make(chan WebMsg)
 	k.startChan = make(chan webStartRes)
 	k.initWeb()
@@ -94,15 +93,10 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 			return nil, fmt.Errorf("New: failed to save updated config options to file: %w", err)
 		}
 	}
-	k.MsgChan <- WebMsg{Head: headerStr, Progress: -1}
 	k.MsgChan <- WebMsg{Body: "Gathering information about your Kobo", Progress: -1}
 	log.Println("Opening NickelDB")
 	if err = k.openNickelDB(); err != nil {
 		return nil, fmt.Errorf("New: failed to open Nickel DB: %w", err)
-	}
-	log.Println("Getting Kobo Info")
-	if err = k.getKoboInfo(); err != nil {
-		return nil, fmt.Errorf("New: failed to get kobo info: %w", err)
 	}
 	log.Println("Getting Device Info")
 	if err = k.loadDeviceInfo(); err != nil {
@@ -522,7 +516,7 @@ func (k *Kobo) loadDeviceInfo() error {
 		k.DriveInfo.DevInfo.LocationCode = "main"
 		k.DriveInfo.DevInfo.DeviceName = k.Device.Family()
 		k.DriveInfo.DevInfo.DeviceStoreUUID = uuid4.String()
-		if k.useSDCard {
+		if k.UseSDCard {
 			k.DriveInfo.DevInfo.LocationCode = "A"
 		}
 	} else if err != nil {
@@ -563,7 +557,7 @@ func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string)
 	}
 	for _, cover := range coverEndings {
 		nsz := k.Device.CoverSized(cover, sz)
-		nfn := filepath.Join(k.BKRootDir, cover.GeneratePath(k.useSDCard, imgID))
+		nfn := filepath.Join(k.BKRootDir, cover.GeneratePath(k.UseSDCard, imgID))
 		//fmt.Printf("Cover file path is: %s\n", nfn)
 		log.Printf("Resizing %s cover to %s (target %s) for %s\n", sz, nsz, k.Device.CoverSize(cover), cover)
 
