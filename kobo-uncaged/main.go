@@ -55,20 +55,20 @@ func returncodeFromError(err error, k *device.Kobo) returnCode {
 		if errors.As(err, &calErr) {
 			switch calErr {
 			case uc.CalibreNotFound:
-				k.WebPrint(device.WebMsg{Body: "Calibre not found!<br>Have you enabled the Calibre Wireless service?", Progress: -1})
+				k.WebSend(device.WebMsg{Body: "Calibre not found!<br>Have you enabled the Calibre Wireless service?", Progress: -1})
 
 				rc = calibreNotFound
 			case uc.NoPassword:
-				k.WebPrint(device.WebMsg{Body: "No valid password found!", Progress: -1})
+				k.WebSend(device.WebMsg{Body: "No valid password found!", Progress: -1})
 
 				rc = passwordError
 			default:
-				k.WebPrint(device.WebMsg{Body: calErr.Error(), Progress: -1})
+				k.WebSend(device.WebMsg{Body: calErr.Error(), Progress: -1})
 
 				rc = genericError
 			}
 		}
-		k.WebPrint(device.WebMsg{Body: err.Error(), Progress: -1})
+		k.WebSend(device.WebMsg{Body: err.Error(), Progress: -1})
 
 		rc = genericError
 	}
@@ -111,23 +111,23 @@ func mainWithErrCode() returnCode {
 	if len(k.UpdatedMetadata) > 0 {
 		rerun, err := k.UpdateNickelDB()
 		if err != nil {
-			k.WebPrint(device.WebMsg{Body: "Updating metadata failed", Progress: -1})
+			k.WebSend(device.WebMsg{Body: "Updating metadata failed", Progress: -1})
 
 			log.Print(err)
 			return returncodeFromError(err, k)
 		}
 		if rerun {
 			if k.KuConfig.AddMetadataByTrigger {
-				k.WebPrint(device.WebMsg{Body: "Books added!<br>Your Kobo will perform another USB connect after content import", Progress: -1})
+				k.WebSend(device.WebMsg{Body: "Books added!<br>Your Kobo will perform another USB connect after content import", Progress: -1})
 
 				return successUSBMS
 			}
-			k.WebPrint(device.WebMsg{Body: "Books added!<br>Kobo-UNCaGED will restart automatically to update metadata", Progress: -1})
+			k.WebSend(device.WebMsg{Body: "Books added!<br>Kobo-UNCaGED will restart automatically to update metadata", Progress: -1})
 
 			return successRerun
 		}
 	}
-	k.WebPrint(device.WebMsg{Body: "Nothing more to do!<br>Returning to Home screen", Progress: -1})
+	k.WebSend(device.WebMsg{Body: "Nothing more to do!<br>Returning to Home screen", Progress: -1})
 
 	return successNoAction
 }
