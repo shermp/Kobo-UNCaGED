@@ -56,9 +56,18 @@ type webStartRes struct {
 
 // WebMsg is used to send messages to the web client
 type WebMsg struct {
-	Body     string
-	Footer   string
-	Progress int
+	Body        string
+	Footer      string
+	Progress    int
+	GetPassword bool
+}
+
+type CalPassCache map[string]*CalPassword
+
+type CalPassword struct {
+	Attempts int    `json:"attempts"`
+	LibName  string `json:"libName"`
+	Password string `json:"password,omitempty"`
 }
 
 // Kobo contains the variables and methods required to use
@@ -76,7 +85,7 @@ type Kobo struct {
 	UpdatedMetadata map[string]struct{}
 	BooksInDB       map[string]struct{}
 	SeriesIDMap     map[string]string
-	Passwords       *uncagedPassword
+	PassCache       CalPassCache
 	DriveInfo       uc.DeviceInfo
 	nickelDB        *sql.DB
 	Wg              *sync.WaitGroup
@@ -85,6 +94,7 @@ type Kobo struct {
 	doneChan        chan bool
 	startChan       chan webStartRes
 	MsgChan         chan WebMsg
+	AuthChan        chan *CalPassword
 }
 
 // MetaIterator Kobo UNCaGED to lazy load book metadata

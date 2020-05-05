@@ -122,7 +122,8 @@ func (ku *koboUncaged) UpdateMetadata(mdList []uc.CalibreBookMeta) error {
 
 // GetPassword gets a password from the user.
 func (ku *koboUncaged) GetPassword(calibreInfo uc.CalibreInitInfo) (string, error) {
-	return ku.k.Passwords.NextPassword(), nil
+	return ku.k.GetPassword(calibreInfo.CurrentLibraryUUID, calibreInfo.CurrentLibraryName), nil
+	//return ku.k.Passwords.NextPassword(), nil
 }
 
 // GetFreeSpace reports the amount of free storage space to Calibre

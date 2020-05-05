@@ -32,22 +32,23 @@ const calibreMDfile = "metadata.calibre"
 const calibreDIfile = "driveinfo.calibre"
 const kuUpdatedMDfile = "metadata_update.kobouc"
 const kuUpdatedSQL = ".adds/kobo-uncaged/updated-md.sql"
+const kuPassCache = ".adds/kobo-uncaged/.ku_pwcache.json"
 
 const onboardPrefix cidPrefix = "file:///mnt/onboard/"
 const sdPrefix cidPrefix = "file:///mnt/sd/"
 
-func newUncagedPassword(passwordList []string) *uncagedPassword {
-	return &uncagedPassword{passwordList: passwordList}
-}
+// func newUncagedPassword(passwordList []string) *uncagedPassword {
+// 	return &uncagedPassword{passwordList: passwordList}
+// }
 
-func (pw *uncagedPassword) NextPassword() string {
-	var password string
-	if pw.currPassIndex < len(pw.passwordList) {
-		password = pw.passwordList[pw.currPassIndex]
-		pw.currPassIndex++
-	}
-	return password
-}
+// func (pw *uncagedPassword) NextPassword() string {
+// 	var password string
+// 	if pw.currPassIndex < len(pw.passwordList) {
+// 		password = pw.passwordList[pw.currPassIndex]
+// 		pw.currPassIndex++
+// 	}
+// 	return password
+// }
 
 // New creates a Kobo object, ready for use
 func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, error) {
@@ -65,9 +66,10 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 		k.BKRootDir = sdRootDir
 		k.ContentIDprefix = sdPrefix
 	}
-	k.Passwords = newUncagedPassword(k.KuConfig.PasswordList)
+	//k.Passwords = newUncagedPassword(k.KuConfig.PasswordList)
 	k.UpdatedMetadata = make(map[string]struct{}, 0)
 	k.SeriesIDMap = make(map[string]string, 0)
+	k.PassCache = make(CalPassCache)
 	log.Println("Getting Kobo Info")
 	if err = k.getKoboInfo(); err != nil {
 		return nil, fmt.Errorf("New: failed to get kobo info: %w", err)
@@ -76,6 +78,7 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 	k.doneChan = make(chan bool)
 	k.MsgChan = make(chan WebMsg)
 	k.startChan = make(chan webStartRes)
+	k.AuthChan = make(chan *CalPassword)
 	k.initWeb()
 	go func() {
 		if err = http.ListenAndServe(bindAddress, k.mux); err != nil {
@@ -106,6 +109,12 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 	if err = k.readMDfile(); err != nil {
 		return nil, fmt.Errorf("New: failed to read metadata file: %w", err)
 	}
+	log.Println("Reading password cache")
+	// Failing to retrieve the password cache isn't fatal. The user will be asked
+	// for their password if required.
+	if err = k.readPassCache(); err != nil {
+		log.Print(err)
+	}
 
 	if k.KuConfig.AddMetadataByTrigger {
 		if err = k.setupMetaTrigger(); err != nil {
@@ -119,6 +128,35 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 		}
 	}
 	return k, nil
+}
+
+func (k *Kobo) readPassCache() error {
+	if _, err := util.ReadJSON(kuPassCache, k.PassCache); err != nil {
+		return fmt.Errorf("readPassCache: failed to read password cache: %w", err)
+	}
+	for calUUID := range k.PassCache {
+		k.PassCache[calUUID].Attempts = 0
+	}
+	return nil
+}
+func (k *Kobo) writePassCache() error {
+	if err := util.WriteJSON(kuPassCache, k.PassCache); err != nil {
+		return fmt.Errorf("readPassCache: failed to write password cache: %w", err)
+	}
+	return nil
+}
+
+func (k *Kobo) GetPassword(calUUID, calLibName string) string {
+	if _, exists := k.PassCache[calUUID]; !exists {
+		k.PassCache[calUUID] = &CalPassword{LibName: calLibName}
+	}
+	k.PassCache[calUUID].Attempts++
+	if k.PassCache[calUUID].Attempts > 1 || k.PassCache[calUUID].Password == "" {
+		k.WebSend(WebMsg{GetPassword: true})
+		k.AuthChan <- k.PassCache[calUUID]
+		k.PassCache[calUUID] = <-k.AuthChan
+	}
+	return k.PassCache[calUUID].Password
 }
 
 func (k *Kobo) getUserOptions() error {

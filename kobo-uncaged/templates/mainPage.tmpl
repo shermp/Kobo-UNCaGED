@@ -14,9 +14,24 @@
     <progress id="ku_prog" value="0" max="100"></progress>
     <div id="ku_footer"></div>
     <div id="ku_version">{{.KuVers}}</div>
+
+    <!-- Auth modal -->
+    <div id="cal_auth_modal" class="modal">
+        <div class="modal-content">
+            <h3 id="cal_auth_title" class="modal-header"></h3>
+            <p class="modal-label">Password</p>
+            <input type="password" id="cal_auth_pw"><br>
+            <button id="cal_auth_login">Login</button>
+        </div>
+    </div>
 </div>
 <script type="text/javascript" src="/static/ku.js"></script>
 <script type="text/javascript">
+    var calAuth;
+    var authPath;
+    var authModal = document.getElementById("cal_auth_modal");
+    var authPW = document.getElementById("cal_auth_pw");
+    var authLogin = document.getElementById("cal_auth_login");
     var evtSource = new EventSource("/messages");
     evtSource.addEventListener("body", function (event) {
         setDivContent("ku_body", event.data);
@@ -31,6 +46,10 @@
         } else {
             hideProgress();
         }
+    });
+    evtSource.addEventListener("password", function (event) {
+        authPath = event.data
+        getPassword();
     });
 
     function hideProgress() {
@@ -53,6 +72,37 @@
         var el = document.getElementById(idName);
         el.innerHTML = content;
     }
+    function getPassword() {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', authPath);
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                calAuth = JSON.parse(xhr.responseText);
+                document.getElementById("cal_auth_title").innerHTML = calAuth.libName;
+                authModal.style.display = "block";
+            }
+            else {
+                console.log('Request failed.  Returned status of ' + xhr.status);
+            }
+        };
+        xhr.send();
+    }
+    authLogin.onclick = function() {
+        calAuth.password = authPW.value;
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', authPath);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.onload = function() {
+            if (xhr.status === 205) {
+                authPW.value = "";
+                authModal.style.display = "none";
+            } else {
+                console.log('Unexpected status code. Expected 205, got ' + xhr.status);
+            }
+        }
+        xhr.send(JSON.stringify(calAuth));
+    };
+
     window.onload = function () {
         setKoboSizes({{.Device.DisplayPPI}})
         hideProgress();

@@ -1,6 +1,7 @@
 package device
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -21,6 +22,8 @@ func (k *Kobo) initRouter() {
 	k.mux.HandlerFunc("POST", "/start", k.HandleStart)
 	k.mux.HandlerFunc("GET", "/main", k.HandleMain)
 	k.mux.HandlerFunc("GET", "/messages", k.HandleMessages)
+	k.mux.HandlerFunc("GET", "/calibreauth", k.HandleCalAuth)
+	k.mux.HandlerFunc("POST", "/calibreauth", k.HandleCalAuth)
 	k.mux.ServeFiles("/static/*filepath", http.Dir("./static"))
 }
 
@@ -87,22 +90,41 @@ func (k *Kobo) HandleMessages(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case msg := <-k.MsgChan:
-			// Note, we replace all newlines in the message with spaces. That is because server
-			// sent events are newline delimited
-			if msg.Body != "" {
-				fmt.Fprintf(w, "event: body\ndata: %s\n\n", strings.ReplaceAll(msg.Body, "\n", " "))
+			if !msg.GetPassword {
+				// Note, we replace all newlines in the message with spaces. That is because server
+				// sent events are newline delimited
+				if msg.Body != "" {
+					fmt.Fprintf(w, "event: body\ndata: %s\n\n", strings.ReplaceAll(msg.Body, "\n", " "))
+					f.Flush()
+				}
+				if msg.Footer != "" {
+					fmt.Fprintf(w, "event: footer\ndata: %s\n\n", strings.ReplaceAll(msg.Footer, "\n", " "))
+					f.Flush()
+				}
+				fmt.Fprintf(w, "event: progress\ndata: %d\n\n", msg.Progress)
+				f.Flush()
+			} else {
+				fmt.Fprintf(w, "event: password\ndata: %s\n\n", "/calibreauth")
 				f.Flush()
 			}
-			if msg.Footer != "" {
-				fmt.Fprintf(w, "event: footer\ndata: %s\n\n", strings.ReplaceAll(msg.Footer, "\n", " "))
-				f.Flush()
-			}
-			fmt.Fprintf(w, "event: progress\ndata: %d\n\n", msg.Progress)
-			f.Flush()
 			k.doneChan <- true
 		case <-r.Context().Done():
 			return
 		}
+	}
+}
+
+func (k *Kobo) HandleCalAuth(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		pwInfo := <-k.AuthChan
+		k.rend.JSON(w, http.StatusOK, pwInfo)
+	} else {
+		var pw CalPassword
+		if err := json.NewDecoder(r.Body).Decode(&pw); err != nil {
+			http.Error(w, "error getting password from client", http.StatusInternalServerError)
+		}
+		k.AuthChan <- &pw
+		w.WriteHeader(http.StatusResetContent)
 	}
 }
 
