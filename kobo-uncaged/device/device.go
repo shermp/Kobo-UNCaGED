@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/bamiaux/rez"
 	"github.com/geek1011/koboutils/v2/kobo"
@@ -79,22 +80,29 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 	k.MsgChan = make(chan WebMsg)
 	k.startChan = make(chan webStartRes)
 	k.AuthChan = make(chan *calPassword)
+	k.exitChan = make(chan bool)
 	k.initWeb()
 	go func() {
 		if err = http.ListenAndServe(bindAddress, k.mux); err != nil {
 			log.Println(err)
 		}
 	}()
-	opt := <-k.startChan
-	if opt.err != nil {
-		return nil, fmt.Errorf("New: failed to get start config: %w", err)
-	}
-	k.KuConfig = &opt.opts
-	k.KuConfig.Thumbnail.SetRezFilter()
-	if opt.saveOpts {
-		if err = k.saveUserOptions(); err != nil {
-			return nil, fmt.Errorf("New: failed to save updated config options to file: %w", err)
+	select {
+	case opt := <-k.startChan:
+		if opt.err != nil {
+			return nil, fmt.Errorf("New: failed to get start config: %w", err)
 		}
+		k.KuConfig = &opt.opts
+		k.KuConfig.Thumbnail.SetRezFilter()
+		if opt.saveOpts {
+			if err = k.saveUserOptions(); err != nil {
+				return nil, fmt.Errorf("New: failed to save updated config options to file: %w", err)
+			}
+		}
+	case <-k.exitChan:
+		// Give the client time to request and render the final exit page before quitting
+		time.Sleep(500 * time.Millisecond)
+		return nil, nil
 	}
 	k.WebSend(WebMsg{Body: "Gathering information about your Kobo", Progress: -1})
 	log.Println("Opening NickelDB")
@@ -150,7 +158,7 @@ func (k *Kobo) writePassCache() error {
 // the user for a new password
 func (k *Kobo) GetPassword(calUUID, calLibName string) string {
 	if _, exists := k.PassCache[calUUID]; !exists {
-		k.PassCache[calUUID] = &CalPassword{LibName: calLibName}
+		k.PassCache[calUUID] = &calPassword{LibName: calLibName}
 	}
 	k.PassCache[calUUID].Attempts++
 	if k.PassCache[calUUID].Attempts > 1 || k.PassCache[calUUID].Password == "" {

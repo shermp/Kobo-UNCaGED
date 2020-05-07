@@ -11,7 +11,7 @@ form {
 form > p {
     display: table-row;
 }
-label, input, select {
+label, input, select, button#exit_btn {
     display: table-cell;
     padding: 5pt;
 }

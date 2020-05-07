@@ -91,6 +91,8 @@ func mainWithErrCode() returnCode {
 	if err != nil {
 		log.Print(err)
 		return returncodeFromError(err, nil)
+	} else if k == nil {
+		return successNoAction // the user exited during config
 	}
 	defer k.Close()
 

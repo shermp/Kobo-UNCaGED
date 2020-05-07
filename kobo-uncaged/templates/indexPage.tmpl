@@ -9,7 +9,7 @@
 <body>
 <div id="ku_container">
     <div id="settings-form">
-        <form action="/start" method="post">
+        <form>
         <p>
             <label for="PreferSDCard">Prefer SD Card: </label>
             <input type="checkbox" id="PreferSDCard" name="PreferSDCard" {{if .KuConfig.PreferSDCard}}checked{{end}}><br>
@@ -53,13 +53,15 @@
             <input type="checkbox" id="updateConfig" name="updateConfig" checked><br>
         </p>
         <p>    
-            <input type="submit" value="Start!">
+            <input type="submit" value="Start!" formaction="/start" formmethod="post">
+            <button id="exit_btn" type="button" onclick="window.location = '/exit';">Exit</button>
         </p>
         </form>
     </div>
 </div>
 <script type="text/javascript" src="/static/ku.js"></script>
 <script type="text/javascript">
+
     window.onload = function() {
         setKoboSizes({{.Device.DisplayPPI}});
     };

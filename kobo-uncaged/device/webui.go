@@ -19,6 +19,7 @@ func (k *Kobo) initWeb() {
 func (k *Kobo) initRouter() {
 	k.mux = httprouter.New()
 	k.mux.HandlerFunc("GET", "/", k.HandleIndex)
+	k.mux.HandlerFunc("GET", "/exit", k.HandleExit)
 	k.mux.HandlerFunc("POST", "/start", k.HandleStart)
 	k.mux.HandlerFunc("GET", "/main", k.HandleMain)
 	k.mux.HandlerFunc("GET", "/messages", k.HandleMessages)
@@ -39,6 +40,13 @@ func (k *Kobo) initRender() {
 // KU. It uses the existing ku.toml file as a seed
 func (k *Kobo) HandleIndex(w http.ResponseWriter, r *http.Request) {
 	k.rend.HTML(w, http.StatusOK, "indexPage", k)
+}
+
+// HandleExit allows the client to exit at the config page.
+// Witout this, the only way to exit on the config page was to kill the process(es)
+func (k *Kobo) HandleExit(w http.ResponseWriter, r *http.Request) {
+	k.rend.HTML(w, http.StatusOK, "exitPage", nil)
+	k.exitChan <- true
 }
 
 // HandleStart parses the configuration form data

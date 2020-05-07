@@ -85,7 +85,7 @@ type Kobo struct {
 	UpdatedMetadata map[string]struct{}
 	BooksInDB       map[string]struct{}
 	SeriesIDMap     map[string]string
-	PassCache       CalPassCache
+	PassCache       calPassCache
 	DriveInfo       uc.DeviceInfo
 	nickelDB        *sql.DB
 	Wg              *sync.WaitGroup
@@ -94,7 +94,8 @@ type Kobo struct {
 	doneChan        chan bool
 	startChan       chan webStartRes
 	MsgChan         chan WebMsg
-	AuthChan        chan *CalPassword
+	AuthChan        chan *calPassword
+	exitChan        chan bool
 }
 
 // MetaIterator Kobo UNCaGED to lazy load book metadata

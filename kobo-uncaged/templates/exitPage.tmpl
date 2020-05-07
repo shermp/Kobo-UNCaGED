@@ -1,0 +1,23 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Exit</title>
+    <link rel="stylesheet" type="text/css" href="/static/ku.css" />
+</head>
+<body>
+<div id="ku_container">
+    <h2>Exiting Kobo UNCaGED...</h2>
+</div>
+<script type="text/javascript" src="/static/ku.js"></script>
+<script type="text/javascript">
+    window.onload = function() {
+        setKoboSizes({{.Device.DisplayPPI}});
+    };
+    window.onresize = function() {
+        setKoboSizes({{.Device.DisplayPPI}});
+    }
+</script>
+</body>
+</html>
