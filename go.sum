@@ -4,9 +4,8 @@ github.com/bamiaux/rez v0.0.0-20170731184118-29f4463c688b h1:5Ci5wpOL75rYF6RQGRo
 github.com/bamiaux/rez v0.0.0-20170731184118-29f4463c688b/go.mod h1:obBQGGIFbbv9KWg92Qu9UHeD94JXmHD1jovY/z6I3O8=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
+github.com/eknkc/amber v0.0.0-20171010120322-cdade1c07385 h1:clC1lXBpe2kTj2VHdaIu9ajZQe4kcEY9j0NsnDDBZ3o=
 github.com/eknkc/amber v0.0.0-20171010120322-cdade1c07385/go.mod h1:0vRUJqYpeSZifjYj7uP3BG/gKcuzL9xWVV/Y+cK33KM=
-github.com/geek1011/koboutils/v2 v2.0.1-0.20200209164819-ab31aac12ee0 h1:S11UsODKf7jtsdUHZ9kMxRYnEe3ZteoPjZzZoCFDk90=
-github.com/geek1011/koboutils/v2 v2.0.1-0.20200209164819-ab31aac12ee0/go.mod h1:c/EwVM90qr2bHUrNBVi4jBUWdz+lH1ns2xlfQoiv1vk=
 github.com/geek1011/koboutils/v2 v2.0.2-0.20200408173210-50024f2afc6b h1:k9te5H4TDt5Xg17oxpKqNmwhQ1Mr0VzWQKb4+zMdk3w=
 github.com/geek1011/koboutils/v2 v2.0.2-0.20200408173210-50024f2afc6b/go.mod h1:c/EwVM90qr2bHUrNBVi4jBUWdz+lH1ns2xlfQoiv1vk=
 github.com/google/uuid v1.1.1 h1:Gkbcsh/GbpXz7lPftLA3P6TYMwjCLYm83jiFQZF/3gY=
@@ -15,6 +14,11 @@ github.com/julienschmidt/httprouter v1.3.0 h1:U0609e9tgbseu3rBINet9P48AI/D3oJs4d
 github.com/julienschmidt/httprouter v1.3.0/go.mod h1:JR6WtHb+2LUe8TCKY3cZOxFyyO8IZAc4RVcycCCAKdM=
 github.com/kapmahc/epub v0.1.1 h1:a4fgmhh/q2vyzFR2QXOVohR2zAuQvbacCjMZ1LGr0lw=
 github.com/kapmahc/epub v0.1.1/go.mod h1:UpnUbQO78vpmp6TC4emDTAIG6XVcdnZTnaTx06qbtYM=
+github.com/kr/pretty v0.1.0 h1:L/CwN0zerZDmRFUapSPitk6f+Q3+0za1rQkzVuMiMFI=
+github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
+github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
+github.com/kr/text v0.1.0 h1:45sCR5RtlFHMR4UwH9sdQ5TC8v0qDQCHnXt+kaKSTVE=
+github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
 github.com/mattn/go-sqlite3 v2.0.3+incompatible h1:gXHsfypPkaMZrKbD5209QV9jbUTJKjyR5WD3HYQSd+U=
 github.com/mattn/go-sqlite3 v2.0.3+incompatible/go.mod h1:FPy6KqzDD04eiIsT53CuJW3U88zkxoIYsOqkbpncsNc=
 github.com/mitchellh/mapstructure v1.1.2/go.mod h1:FVVH3fgwuzCH5S8UJGiWEs2h04kUh9fWfEaFds41c1Y=
@@ -23,12 +27,12 @@ github.com/pelletier/go-toml v1.7.0/go.mod h1:vwGMzjaWMwyfHwgIBhI2YUM4fB6nL6lVAv
 github.com/pkg/errors v0.8.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/shermp/UNCaGED v0.5.0 h1:nPbhRkm9vVun0pMh0kf/1GyjubfclziutRmhze97514=
 github.com/shermp/UNCaGED v0.5.0/go.mod h1:s3cTLpKvfGYXll3BKUuLKKIC9N2O+/fYAS1WEM5XYgs=
-github.com/shermp/go-fbink-v2/v2 v2.21.0 h1:S2Q8B5zLGo7xTGILpqkVNZB94YwkehvTmECIYkxKH04=
-github.com/shermp/go-fbink-v2/v2 v2.21.0/go.mod h1:QPZ+LtEGpr7FkAwfS1AuCHXUrTJWg57PKRl4SmnzKak=
 github.com/spf13/pflag v1.0.5/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=
 github.com/unrolled/render v1.0.3 h1:baO+NG1bZSF2WR4zwh+0bMWauWky7DVrTOfvE2w+aFo=
 github.com/unrolled/render v1.0.3/go.mod h1:gN9T0NhL4Bfbwu8ann7Ry/TGHYfosul+J0obPf6NBdM=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+SDo693bJlVdllGtEeKM=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
+gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 h1:YR8cESwS4TdDjEe65xsg0ogRM/Nc3DYOhEAlW+xobZo=
+gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/yaml.v2 v2.2.8 h1:obN1ZagJSUGI0Ek/LBmuj4SNLPfIny3KsKFopxRdj10=
 gopkg.in/yaml.v2 v2.2.8/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
