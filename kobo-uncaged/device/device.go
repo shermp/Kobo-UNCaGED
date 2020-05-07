@@ -69,7 +69,7 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 	//k.Passwords = newUncagedPassword(k.KuConfig.PasswordList)
 	k.UpdatedMetadata = make(map[string]struct{}, 0)
 	k.SeriesIDMap = make(map[string]string, 0)
-	k.PassCache = make(CalPassCache)
+	k.PassCache = make(calPassCache)
 	log.Println("Getting Kobo Info")
 	if err = k.getKoboInfo(); err != nil {
 		return nil, fmt.Errorf("New: failed to get kobo info: %w", err)
@@ -78,7 +78,7 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 	k.doneChan = make(chan bool)
 	k.MsgChan = make(chan WebMsg)
 	k.startChan = make(chan webStartRes)
-	k.AuthChan = make(chan *CalPassword)
+	k.AuthChan = make(chan *calPassword)
 	k.initWeb()
 	go func() {
 		if err = http.ListenAndServe(bindAddress, k.mux); err != nil {

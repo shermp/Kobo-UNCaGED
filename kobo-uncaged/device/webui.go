@@ -120,7 +120,7 @@ func (k *Kobo) HandleCalAuth(w http.ResponseWriter, r *http.Request) {
 		pwInfo := <-k.AuthChan
 		k.rend.JSON(w, http.StatusOK, pwInfo)
 	} else {
-		var pw CalPassword
+		var pw calPassword
 		if err := json.NewDecoder(r.Body).Decode(&pw); err != nil {
 			http.Error(w, "error getting password from client", http.StatusInternalServerError)
 		}

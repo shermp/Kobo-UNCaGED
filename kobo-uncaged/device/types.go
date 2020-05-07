@@ -62,9 +62,9 @@ type WebMsg struct {
 	GetPassword bool
 }
 
-type CalPassCache map[string]*CalPassword
+type calPassCache map[string]*calPassword
 
-type CalPassword struct {
+type calPassword struct {
 	Attempts int    `json:"attempts"`
 	LibName  string `json:"libName"`
 	Password string `json:"password,omitempty"`
