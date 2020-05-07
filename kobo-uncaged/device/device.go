@@ -146,6 +146,8 @@ func (k *Kobo) writePassCache() error {
 	return nil
 }
 
+// GetPassword provides a method of either using a cached password, or prompting
+// the user for a new password
 func (k *Kobo) GetPassword(calUUID, calLibName string) string {
 	if _, exists := k.PassCache[calUUID]; !exists {
 		k.PassCache[calUUID] = &CalPassword{LibName: calLibName}

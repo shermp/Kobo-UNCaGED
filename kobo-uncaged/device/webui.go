@@ -114,6 +114,7 @@ func (k *Kobo) HandleMessages(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// HandleCalAuth gets user supplied password
 func (k *Kobo) HandleCalAuth(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		pwInfo := <-k.AuthChan
