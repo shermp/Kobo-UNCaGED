@@ -123,16 +123,16 @@ func mainWithErrCode() returnCode {
 		}
 		if rerun {
 			if k.KuConfig.AddMetadataByTrigger {
-				k.WebSend(device.WebMsg{Body: "Books added!<br>Your Kobo will perform another USB connect after content import", Progress: -1})
+				k.WebSend(device.WebMsg{Body: "Books added!<br><br>Please select <menu item scan name> from the main menu.<br>Your new books won't show until you do.", Progress: -1})
 
 				return successUSBMS
 			}
-			k.WebSend(device.WebMsg{Body: "Books added!<br>Kobo-UNCaGED will restart automatically to update metadata", Progress: -1})
+			k.WebSend(device.WebMsg{Body: "Books added!<br><br>Please select <menu item scan name> from the main menu.<br>Your new books won't show until you do.", Progress: -1})
 
 			return successRerun
 		}
 	}
-	k.WebSend(device.WebMsg{Body: "Nothing more to do!<br>Returning to Home screen", Progress: -1})
+	k.WebSend(device.WebMsg{Body: "All Done!<br><br>You may exit the browser.", Progress: -1})
 
 	return successNoAction
 }
