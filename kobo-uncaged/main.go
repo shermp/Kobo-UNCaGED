@@ -109,7 +109,10 @@ func mainWithErrCode() returnCode {
 		log.Print(err)
 		return returncodeFromError(err, k)
 	}
-
+	if err = k.WritePassCache(); err != nil {
+		// Not fatal, just log it
+		log.Print(err)
+	}
 	if len(k.UpdatedMetadata) > 0 {
 		rerun, err := k.UpdateNickelDB()
 		if err != nil {

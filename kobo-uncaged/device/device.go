@@ -139,7 +139,7 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 }
 
 func (k *Kobo) readPassCache() error {
-	if _, err := util.ReadJSON(kuPassCache, k.PassCache); err != nil {
+	if _, err := util.ReadJSON(filepath.Join(k.DBRootDir, kuPassCache), &k.PassCache); err != nil {
 		return fmt.Errorf("readPassCache: failed to read password cache: %w", err)
 	}
 	for calUUID := range k.PassCache {
@@ -147,8 +147,16 @@ func (k *Kobo) readPassCache() error {
 	}
 	return nil
 }
-func (k *Kobo) writePassCache() error {
-	if err := util.WriteJSON(kuPassCache, k.PassCache); err != nil {
+
+// WritePassCache writes the password cache to a file
+func (k *Kobo) WritePassCache() error {
+	// Delete any blank passwords in the cache before saving
+	for calUUID := range k.PassCache {
+		if k.PassCache[calUUID].Password == "" {
+			delete(k.PassCache, calUUID)
+		}
+	}
+	if err := util.WriteJSON(filepath.Join(k.DBRootDir, kuPassCache), k.PassCache); err != nil {
 		return fmt.Errorf("readPassCache: failed to write password cache: %w", err)
 	}
 	return nil
