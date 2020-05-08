@@ -25,6 +25,7 @@ func (k *Kobo) initRouter() {
 	k.mux.HandlerFunc("GET", "/messages", k.HandleMessages)
 	k.mux.HandlerFunc("GET", "/calibreauth", k.HandleCalAuth)
 	k.mux.HandlerFunc("POST", "/calibreauth", k.HandleCalAuth)
+	k.mux.HandlerFunc("GET", "/ucexit", k.HandleUCExit)
 	k.mux.ServeFiles("/static/*filepath", http.Dir("./static"))
 }
 
@@ -134,6 +135,18 @@ func (k *Kobo) HandleCalAuth(w http.ResponseWriter, r *http.Request) {
 		}
 		k.AuthChan <- &pw
 		w.WriteHeader(http.StatusResetContent)
+	}
+}
+
+// HandleUCExit lets the user stop UNCaGED client side, without having to disconnect via Calibre
+func (k *Kobo) HandleUCExit(w http.ResponseWriter, r *http.Request) {
+	exitOk := map[string]bool{"exitOK": false}
+	if k.UCExitChan != nil {
+		exitOk["exitOK"] = true
+		k.rend.JSON(w, http.StatusOK, exitOk)
+		k.UCExitChan <- true
+	} else {
+		k.rend.JSON(w, http.StatusServiceUnavailable, exitOk)
 	}
 }
 

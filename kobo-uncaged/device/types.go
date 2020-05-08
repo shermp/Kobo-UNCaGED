@@ -96,6 +96,7 @@ type Kobo struct {
 	MsgChan         chan WebMsg
 	AuthChan        chan *calPassword
 	exitChan        chan bool
+	UCExitChan      chan<- bool
 }
 
 // MetaIterator Kobo UNCaGED to lazy load book metadata

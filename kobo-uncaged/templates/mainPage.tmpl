@@ -13,8 +13,9 @@
     <div id="ku_body"></div>
     <progress id="ku_prog" value="0" max="100"></progress>
     <div id="ku_footer"></div>
+    <button id="uc_exit_btn" type="button">Disconnect</button><br>
+    <div id="uc_exit_status"></div>
     <div id="ku_version">{{.KuVers}}</div>
-
     <!-- Auth modal -->
     <div id="cal_auth_modal" class="modal">
         <div class="modal-content">
@@ -32,6 +33,7 @@
     var authModal = document.getElementById("cal_auth_modal");
     var authPW = document.getElementById("cal_auth_pw");
     var authLogin = document.getElementById("cal_auth_login");
+    var ucExit = document.getElementById("uc_exit_btn");
     var evtSource = new EventSource("/messages");
     evtSource.addEventListener("body", function (event) {
         setDivContent("ku_body", event.data);
@@ -102,6 +104,23 @@
         }
         xhr.send(JSON.stringify(calAuth));
     };
+    ucExit.onclick = function() {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/ucexit');
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                var resp = JSON.parse(xhr.responseText);
+                if (resp.exitOK) {
+                    document.getElementById("uc_exit_status").innerHTML = "Disconnecting from Calibre!";
+                }
+            } else if (xhr.status === 503) {
+                document.getElementById("uc_exit_status").innerHTML = "Unable to disconnect from Calibre.<br><br>Please try again in a few seconds.";
+            } else {
+                console.log('Request failed.  Returned status of ' + xhr.status);
+            }
+        }
+        xhr.send()
+    }
 
     window.onload = function () {
         setKoboSizes({{.Device.DisplayPPI}})

@@ -279,3 +279,7 @@ func (ku *koboUncaged) UpdateStatus(status uc.Status, progress int) {
 func (ku *koboUncaged) LogPrintf(logLevel uc.LogLevel, format string, a ...interface{}) {
 	log.Printf(format, a...)
 }
+
+func (ku *koboUncaged) SetExitChannel(exitChan chan<- bool) {
+	ku.k.UCExitChan = exitChan
+}
