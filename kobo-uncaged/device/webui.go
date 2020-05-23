@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/julienschmidt/httprouter"
+	"github.com/shermp/UNCaGED/uc"
 	"github.com/unrolled/render"
 )
 
@@ -25,6 +26,8 @@ func (k *Kobo) initRouter() {
 	k.mux.HandlerFunc("GET", "/messages", k.HandleMessages)
 	k.mux.HandlerFunc("GET", "/calibreauth", k.HandleCalAuth)
 	k.mux.HandlerFunc("POST", "/calibreauth", k.HandleCalAuth)
+	k.mux.HandlerFunc("GET", "/calibreinstance", k.HandleCalInstances)
+	k.mux.HandlerFunc("POST", "/calibreinstance", k.HandleCalInstances)
 	k.mux.HandlerFunc("GET", "/ucexit", k.HandleUCExit)
 	k.mux.ServeFiles("/static/*filepath", http.Dir("./static"))
 }
@@ -99,7 +102,7 @@ func (k *Kobo) HandleMessages(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case msg := <-k.MsgChan:
-			if !msg.GetPassword {
+			if !msg.GetPassword && !msg.GetCalInstance {
 				// Note, we replace all newlines in the message with spaces. That is because server
 				// sent events are newline delimited
 				if msg.Body != "" {
@@ -112,8 +115,11 @@ func (k *Kobo) HandleMessages(w http.ResponseWriter, r *http.Request) {
 				}
 				fmt.Fprintf(w, "event: progress\ndata: %d\n\n", msg.Progress)
 				f.Flush()
-			} else {
+			} else if msg.GetPassword {
 				fmt.Fprintf(w, "event: password\ndata: %s\n\n", "/calibreauth")
+				f.Flush()
+			} else if msg.GetCalInstance {
+				fmt.Fprintf(w, "event: calibreInstances\ndata: %s\n\n", "/calibreinstance")
 				f.Flush()
 			}
 			k.doneChan <- true
@@ -134,6 +140,19 @@ func (k *Kobo) HandleCalAuth(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "error getting password from client", http.StatusInternalServerError)
 		}
 		k.AuthChan <- &pw
+		w.WriteHeader(http.StatusResetContent)
+	}
+}
+
+func (k *Kobo) HandleCalInstances(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		k.rend.JSON(w, http.StatusOK, k.calInstances)
+	} else {
+		var instance uc.CalInstance
+		if err := json.NewDecoder(r.Body).Decode(&instance); err != nil {
+			http.Error(w, "error getting calibre instance from client", http.StatusInternalServerError)
+		}
+		k.calInstChan <- instance
 		w.WriteHeader(http.StatusResetContent)
 	}
 }

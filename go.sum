@@ -25,6 +25,8 @@ github.com/pelletier/go-toml v1.7.0 h1:7utD74fnzVc/cpcyy8sjrlFr5vYpypUixARcHIMIG
 github.com/pelletier/go-toml v1.7.0/go.mod h1:vwGMzjaWMwyfHwgIBhI2YUM4fB6nL6lVAvS1LBMMhTE=
 github.com/shermp/UNCaGED v0.6.0 h1:X90GFwUj2wycS/uSN5UM0Bd+9spDRnoDwFJt1kq+5AU=
 github.com/shermp/UNCaGED v0.6.0/go.mod h1:F5hiHeyt+yyCQxzYtDyacJDO7sp4cdbuXl8n8HmxWRk=
+github.com/shermp/UNCaGED v0.6.1-0.20200509012636-f7e9f14deddf h1:1h6MCOOc20zRdjAxwUP15Y/S1Iex5cMbROc/LV8O0iE=
+github.com/shermp/UNCaGED v0.6.1-0.20200509012636-f7e9f14deddf/go.mod h1:F5hiHeyt+yyCQxzYtDyacJDO7sp4cdbuXl8n8HmxWRk=
 github.com/spf13/pflag v1.0.5/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=
 github.com/unrolled/render v1.0.3 h1:baO+NG1bZSF2WR4zwh+0bMWauWky7DVrTOfvE2w+aFo=
 github.com/unrolled/render v1.0.3/go.mod h1:gN9T0NhL4Bfbwu8ann7Ry/TGHYfosul+J0obPf6NBdM=

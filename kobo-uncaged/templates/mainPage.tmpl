@@ -25,15 +25,27 @@
             <button id="cal_auth_login">Login</button>
         </div>
     </div>
+    <!-- Instance Select modal -->
+    <div id="cal_instance_modal" class="modal">
+        <div class="modal-content">
+            <h3 id="cal_instance_title" class="modal-header">Select Calibre Instance</h3>
+            <div id="cal_instance_list">
+            </div>
+        </div>
+    </div>
 </div>
 <script type="text/javascript" src="/static/ku.js"></script>
 <script type="text/javascript">
     var calAuth;
     var authPath;
+    var instancePath;
+    var instList;
     var authModal = document.getElementById("cal_auth_modal");
     var authPW = document.getElementById("cal_auth_pw");
     var authLogin = document.getElementById("cal_auth_login");
     var ucExit = document.getElementById("uc_exit_btn");
+    var instanceModal = document.getElementById("cal_instance_modal");
+    var instanceContainer = document.getElementById("cal_instance_list");
     var evtSource = new EventSource("/messages");
     evtSource.addEventListener("body", function (event) {
         setDivContent("ku_body", event.data);
@@ -50,8 +62,12 @@
         }
     });
     evtSource.addEventListener("password", function (event) {
-        authPath = event.data
+        authPath = event.data;
         getPassword();
+    });
+    evtSource.addEventListener("calibreInstances", function (event) {
+        instancePath = event.data;
+        getInstances();
     });
 
     function hideProgress() {
@@ -104,6 +120,46 @@
         }
         xhr.send(JSON.stringify(calAuth));
     };
+    function getInstances() {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', instancePath);
+        xhr.onload = function() {
+            if (xhr.status === 200) {
+                instList = JSON.parse(xhr.responseText);
+                for (var i = 0; i < instList.length; i++) {
+                    var instNode = document.createElement('div');
+                    instNode.dataset.instanceId = i;
+                    var pAddr = document.createElement('p');
+                    var pDesc = document.createElement('p');
+                    pAddr.innerHTML = instList[i].Addr;
+                    pDesc.innerHTML = instList[i].Description;
+                    instNode.append(pAddr, pDesc);
+                    instNode.id = 'cal_instance_' + i;
+                    instNode.onclick = function() {setInstance(instNode.id);};
+                    instanceContainer.append(instNode);
+                }
+                instanceModal.style.display = "block";
+            }
+            else {
+                console.log('Request failed.  Returned status of ' + xhr.status);
+            }
+        };
+        xhr.send();
+    }
+    function setInstance(id) {
+        var el = document.getElementById(id)
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', instancePath);
+        var instance = instList[el.dataset.instanceId];
+        xhr.onload = function() {
+            if (xhr.status === 205) {
+                instanceModal.style.display = "none";
+            } else {
+                console.log('Unexpected status code. Expected 205, got ' + xhr.status);
+            }
+        }
+        xhr.send(JSON.stringify(instance));
+    }
     ucExit.onclick = function() {
         var xhr = new XMLHttpRequest();
         xhr.open('GET', '/ucexit');

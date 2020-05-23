@@ -177,6 +177,16 @@ func (k *Kobo) GetPassword(calUUID, calLibName string) string {
 	return k.PassCache[calUUID].Password
 }
 
+func (k *Kobo) GetCalibreInstance(calInstances []uc.CalInstance) uc.CalInstance {
+	if len(calInstances) == 1 {
+		return calInstances[0]
+	}
+	k.calInstances = calInstances
+	k.WebSend(WebMsg{GetCalInstance: true})
+	instance := <-k.calInstChan
+	return instance
+}
+
 func (k *Kobo) getUserOptions() error {
 	// Note, we return opts, regardless of whether we successfully read the options file.
 	// Our code can handle the default struct gracefully

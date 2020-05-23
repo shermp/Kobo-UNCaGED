@@ -9,7 +9,7 @@ require (
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
 	github.com/pelletier/go-toml v1.7.0
-	github.com/shermp/UNCaGED v0.6.0
+	github.com/shermp/UNCaGED v0.6.1-0.20200509012636-f7e9f14deddf
 	github.com/unrolled/render v1.0.3
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 )

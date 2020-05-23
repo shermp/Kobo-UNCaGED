@@ -56,10 +56,11 @@ type webStartRes struct {
 
 // WebMsg is used to send messages to the web client
 type WebMsg struct {
-	Body        string
-	Footer      string
-	Progress    int
-	GetPassword bool
+	Body           string
+	Footer         string
+	Progress       int
+	GetPassword    bool
+	GetCalInstance bool
 }
 
 type calPassCache map[string]*calPassword
@@ -91,12 +92,14 @@ type Kobo struct {
 	Wg              *sync.WaitGroup
 	mux             *httprouter.Router
 	rend            *render.Render
+	calInstances    []uc.CalInstance
 	doneChan        chan bool
 	startChan       chan webStartRes
 	MsgChan         chan WebMsg
 	AuthChan        chan *calPassword
 	exitChan        chan bool
 	UCExitChan      chan<- bool
+	calInstChan     chan uc.CalInstance
 }
 
 // MetaIterator Kobo UNCaGED to lazy load book metadata

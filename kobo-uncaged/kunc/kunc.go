@@ -42,7 +42,7 @@ func New(kobo *device.Kobo) *koboUncaged {
 }
 
 func (ku *koboUncaged) SelectCalibreInstance(calInstances []uc.CalInstance) uc.CalInstance {
-	return calInstances[0]
+	return ku.k.GetCalibreInstance(calInstances)
 }
 
 // GetClientOptions returns all the client specific options required for UNCaGED
