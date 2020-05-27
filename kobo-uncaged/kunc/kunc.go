@@ -253,25 +253,25 @@ func (ku *koboUncaged) UpdateStatus(status uc.Status, progress int) {
 	case uc.Idle:
 		fallthrough
 	case uc.Connected:
-		ku.k.WebSend(device.WebMsg{Body: "Connected", Progress: p})
+		ku.k.WebSend(device.WebMsg{ShowMessage: "Connected", Progress: p})
 
 	case uc.Connecting:
-		ku.k.WebSend(device.WebMsg{Body: "Connecting to Calibre", Progress: p})
+		ku.k.WebSend(device.WebMsg{ShowMessage: "Connecting to Calibre", Progress: p})
 
 	case uc.SearchingCalibre:
-		ku.k.WebSend(device.WebMsg{Body: "Searching for Calibre", Progress: p})
+		ku.k.WebSend(device.WebMsg{ShowMessage: "Searching for Calibre", Progress: p})
 
 	case uc.Disconnected:
-		ku.k.WebSend(device.WebMsg{Body: "Disconnected", Progress: p})
+		ku.k.WebSend(device.WebMsg{ShowMessage: "Disconnected", Progress: p})
 
 	case uc.SendingBook:
-		ku.k.WebSend(device.WebMsg{Body: "Sending book to Calibre", Progress: p})
+		ku.k.WebSend(device.WebMsg{ShowMessage: "Sending book to Calibre", Progress: p})
 
 	case uc.ReceivingBook:
-		ku.k.WebSend(device.WebMsg{Body: "Receiving book(s) from Calibre", Progress: p})
+		ku.k.WebSend(device.WebMsg{ShowMessage: "Receiving book(s) from Calibre", Progress: p})
 
 	case uc.EmptyPasswordReceived:
-		ku.k.WebSend(device.WebMsg{Body: "No valid password found!", Progress: p})
+		ku.k.WebSend(device.WebMsg{ShowMessage: "No valid password found!", Progress: p})
 	}
 }
 

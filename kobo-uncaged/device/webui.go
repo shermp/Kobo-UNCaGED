@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/julienschmidt/httprouter"
@@ -20,15 +19,21 @@ func (k *Kobo) initWeb() {
 func (k *Kobo) initRouter() {
 	k.mux = httprouter.New()
 	k.mux.HandlerFunc("GET", "/", k.HandleIndex)
+	k.mux.HandlerFunc("GET", "/config", k.HandleConfig)
+	k.mux.HandlerFunc("POST", "/config", k.HandleConfig)
+	k.webInfo.ConfigPath = "/config"
 	k.mux.HandlerFunc("GET", "/exit", k.HandleExit)
-	k.mux.HandlerFunc("POST", "/start", k.HandleStart)
-	k.mux.HandlerFunc("GET", "/main", k.HandleMain)
+	k.webInfo.ExitPath = "/exit"
 	k.mux.HandlerFunc("GET", "/messages", k.HandleMessages)
+	k.webInfo.SSEPath = "/messages"
 	k.mux.HandlerFunc("GET", "/calibreauth", k.HandleCalAuth)
 	k.mux.HandlerFunc("POST", "/calibreauth", k.HandleCalAuth)
+	k.webInfo.AuthPath = "/calibreauth"
 	k.mux.HandlerFunc("GET", "/calibreinstance", k.HandleCalInstances)
 	k.mux.HandlerFunc("POST", "/calibreinstance", k.HandleCalInstances)
+	k.webInfo.InstancePath = "/calibreinstance"
 	k.mux.HandlerFunc("GET", "/ucexit", k.HandleUCExit)
+	k.webInfo.DisconnectPath = "/ucexit"
 	k.mux.ServeFiles("/static/*filepath", http.Dir("./static"))
 }
 
@@ -43,51 +48,30 @@ func (k *Kobo) initRender() {
 // HandleIndex displays a form allowing the user to customize
 // KU. It uses the existing ku.toml file as a seed
 func (k *Kobo) HandleIndex(w http.ResponseWriter, r *http.Request) {
-	k.rend.HTML(w, http.StatusOK, "indexPage", k)
+	k.rend.HTML(w, http.StatusOK, "kuPage", k.webInfo)
 }
 
 // HandleExit allows the client to exit at the config page.
 // Witout this, the only way to exit on the config page was to kill the process(es)
 func (k *Kobo) HandleExit(w http.ResponseWriter, r *http.Request) {
-	k.rend.HTML(w, http.StatusOK, "exitPage", nil)
+	w.WriteHeader(http.StatusNoContent)
 	k.exitChan <- true
 }
 
-// HandleStart parses the configuration form data
-func (k *Kobo) HandleStart(w http.ResponseWriter, r *http.Request) {
-	defer close(k.startChan)
-	var err error
-	res := webStartRes{}
-	if err = r.ParseForm(); err != nil {
-		res.err = err
+// HandleConfig sends and gets config from user
+func (k *Kobo) HandleConfig(w http.ResponseWriter, r *http.Request) {
+	res := webConfig{}
+	if r.Method == http.MethodGet {
+		res.Opts = *k.KuConfig
+		k.rend.JSON(w, http.StatusOK, res)
+	} else {
+		defer close(k.startChan)
+		if err := json.NewDecoder(r.Body).Decode(&res); err != nil {
+			http.Error(w, "error getting config from client", http.StatusInternalServerError)
+		}
 		k.startChan <- res
-		http.Error(w, "unable to parse config form", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusNoContent)
 	}
-	if r.PostFormValue("PreferSDCard") != "" {
-		res.opts.PreferSDCard = true
-	}
-	if r.PostFormValue("PreferKepub") != "" {
-		res.opts.PreferKepub = true
-	}
-	if r.PostFormValue("EnableDebug") != "" {
-		res.opts.EnableDebug = true
-	}
-	if r.PostFormValue("AddMetadataByTrigger") != "" {
-		res.opts.AddMetadataByTrigger = true
-	}
-	res.opts.Thumbnail.GenerateLevel = r.PostFormValue("GenerateLevel")
-	res.opts.Thumbnail.ResizeAlgorithm = r.PostFormValue("ResizeAlgorithm")
-	res.opts.Thumbnail.JpegQuality, _ = strconv.Atoi(r.PostFormValue("JpegQuality"))
-	if r.PostFormValue("updateConfig") != "" {
-		res.saveOpts = true
-	}
-	k.startChan <- res
-	http.Redirect(w, r, "/main", http.StatusSeeOther)
-}
-
-// HandleMain renders the main KU interface page
-func (k *Kobo) HandleMain(w http.ResponseWriter, r *http.Request) {
-	k.rend.HTML(w, http.StatusOK, "mainPage", k)
 }
 
 // HandleMessages sends messages to the client using server sent events.
@@ -105,21 +89,17 @@ func (k *Kobo) HandleMessages(w http.ResponseWriter, r *http.Request) {
 			if !msg.GetPassword && !msg.GetCalInstance {
 				// Note, we replace all newlines in the message with spaces. That is because server
 				// sent events are newline delimited
-				if msg.Body != "" {
-					fmt.Fprintf(w, "event: body\ndata: %s\n\n", strings.ReplaceAll(msg.Body, "\n", " "))
-					f.Flush()
-				}
-				if msg.Footer != "" {
-					fmt.Fprintf(w, "event: footer\ndata: %s\n\n", strings.ReplaceAll(msg.Footer, "\n", " "))
+				if msg.ShowMessage != "" {
+					fmt.Fprintf(w, "event: showMessage\ndata: %s\n\n", strings.ReplaceAll(msg.ShowMessage, "\n", " "))
 					f.Flush()
 				}
 				fmt.Fprintf(w, "event: progress\ndata: %d\n\n", msg.Progress)
 				f.Flush()
 			} else if msg.GetPassword {
-				fmt.Fprintf(w, "event: password\ndata: %s\n\n", "/calibreauth")
+				fmt.Fprintf(w, "event: auth\ndata: %s\n\n", "")
 				f.Flush()
 			} else if msg.GetCalInstance {
-				fmt.Fprintf(w, "event: calibreInstances\ndata: %s\n\n", "/calibreinstance")
+				fmt.Fprintf(w, "event: calibreInstances\ndata: %s\n\n", "")
 				f.Flush()
 			}
 			k.doneChan <- true
@@ -140,7 +120,7 @@ func (k *Kobo) HandleCalAuth(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "error getting password from client", http.StatusInternalServerError)
 		}
 		k.AuthChan <- &pw
-		w.WriteHeader(http.StatusResetContent)
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
 
@@ -153,19 +133,17 @@ func (k *Kobo) HandleCalInstances(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "error getting calibre instance from client", http.StatusInternalServerError)
 		}
 		k.calInstChan <- instance
-		w.WriteHeader(http.StatusResetContent)
+		w.WriteHeader(http.StatusNoContent)
 	}
 }
 
 // HandleUCExit lets the user stop UNCaGED client side, without having to disconnect via Calibre
 func (k *Kobo) HandleUCExit(w http.ResponseWriter, r *http.Request) {
-	exitOk := map[string]bool{"exitOK": false}
 	if k.UCExitChan != nil {
-		exitOk["exitOK"] = true
-		k.rend.JSON(w, http.StatusOK, exitOk)
 		k.UCExitChan <- true
+		w.WriteHeader(http.StatusNoContent)
 	} else {
-		k.rend.JSON(w, http.StatusServiceUnavailable, exitOk)
+		w.WriteHeader(http.StatusServiceUnavailable)
 	}
 }
 

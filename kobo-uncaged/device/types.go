@@ -40,24 +40,34 @@ type firmwareVersion struct {
 
 // KuOptions contains some options that are required
 type KuOptions struct {
-	PreferSDCard         bool
-	PreferKepub          bool
-	PasswordList         []string
-	EnableDebug          bool
-	AddMetadataByTrigger bool
-	Thumbnail            thumbnailOption
+	PreferSDCard         bool            `json:"preferSDCard"`
+	PreferKepub          bool            `json:"preferKepub"`
+	EnableDebug          bool            `json:"enableDebug"`
+	AddMetadataByTrigger bool            `json:"addMetadataByTrigger"`
+	Thumbnail            thumbnailOption `json:"thumbnail"`
 }
 
-type webStartRes struct {
-	opts     KuOptions
-	saveOpts bool
+type webUIinfo struct {
+	KUVersion      string `json:"kuVersion"`
+	StorageType    string `json:"storageType"`
+	ScreenDPI      int    `json:"screenDPI"`
+	ExitPath       string `json:"exitPath"`
+	DisconnectPath string `json:"disconnectPath"`
+	AuthPath       string `json:"authPath"`
+	SSEPath        string `json:"ssePath"`
+	ConfigPath     string `json:"configPath"`
+	InstancePath   string `json:"instancePath"`
+}
+
+type webConfig struct {
+	Opts     KuOptions `json:"opts"`
+	SaveOpts bool      `json:"saveOpts"`
 	err      error
 }
 
 // WebMsg is used to send messages to the web client
 type WebMsg struct {
-	Body           string
-	Footer         string
+	ShowMessage    string
 	Progress       int
 	GetPassword    bool
 	GetCalInstance bool
@@ -68,7 +78,7 @@ type calPassCache map[string]*calPassword
 type calPassword struct {
 	Attempts int    `json:"attempts"`
 	LibName  string `json:"libName"`
-	Password string `json:"password,omitempty"`
+	Password string `json:"password"`
 }
 
 // Kobo contains the variables and methods required to use
@@ -92,9 +102,10 @@ type Kobo struct {
 	Wg              *sync.WaitGroup
 	mux             *httprouter.Router
 	rend            *render.Render
+	webInfo         *webUIinfo
 	calInstances    []uc.CalInstance
 	doneChan        chan bool
-	startChan       chan webStartRes
+	startChan       chan webConfig
 	MsgChan         chan WebMsg
 	AuthChan        chan *calPassword
 	exitChan        chan bool
@@ -150,9 +161,9 @@ type uncagedPassword struct {
 }
 
 type thumbnailOption struct {
-	GenerateLevel   string
-	ResizeAlgorithm string
-	JpegQuality     int
+	GenerateLevel   string `json:"generateLevel"`
+	ResizeAlgorithm string `json:"resizeAlgorithm"`
+	JpegQuality     int    `json:"jpegQuality"`
 	rezFilter       rez.Filter
 }
 

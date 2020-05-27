@@ -76,10 +76,15 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 		return nil, fmt.Errorf("New: failed to get kobo info: %w", err)
 	}
 	k.KuVers = vers
+	k.webInfo = &webUIinfo{ScreenDPI: k.Device.DisplayPPI(), KUVersion: k.KuVers, StorageType: "Internal Storage"}
+	if k.UseSDCard {
+		k.webInfo.StorageType = "External SD Storage"
+	}
 	k.doneChan = make(chan bool)
 	k.MsgChan = make(chan WebMsg)
-	k.startChan = make(chan webStartRes)
+	k.startChan = make(chan webConfig)
 	k.AuthChan = make(chan *calPassword)
+	k.calInstChan = make(chan uc.CalInstance)
 	k.exitChan = make(chan bool)
 	k.initWeb()
 	go func() {
@@ -92,9 +97,9 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 		if opt.err != nil {
 			return nil, fmt.Errorf("New: failed to get start config: %w", err)
 		}
-		k.KuConfig = &opt.opts
+		k.KuConfig = &opt.Opts
 		k.KuConfig.Thumbnail.SetRezFilter()
-		if opt.saveOpts {
+		if opt.SaveOpts {
 			if err = k.saveUserOptions(); err != nil {
 				return nil, fmt.Errorf("New: failed to save updated config options to file: %w", err)
 			}
@@ -104,7 +109,7 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 		time.Sleep(500 * time.Millisecond)
 		return nil, nil
 	}
-	k.WebSend(WebMsg{Body: "Gathering information about your Kobo", Progress: -1})
+	k.WebSend(WebMsg{ShowMessage: "Gathering information about your Kobo", Progress: -1})
 	log.Println("Opening NickelDB")
 	if err = k.openNickelDB(); err != nil {
 		return nil, fmt.Errorf("New: failed to open Nickel DB: %w", err)

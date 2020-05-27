@@ -1,64 +1,45 @@
 body {
     font-family: sans-serif;
 }
-div#settings-form {
-    width: 90%; 
+#kuconfig {
+    display: table;
     margin: auto;
 }
-form {
-    display: table;
-}
-form > p {
+.ku-cfg-row {
     display: table-row;
 }
-label, input, select, button#exit_btn {
+.ku-cfg-row > label, .ku-cfg-row > input, .ku-cfg-row > select, .ku-cfg-row > button {
     display: table-cell;
     padding: 5pt;
 }
-#main_title,#main_storage_type {
+#kuhead {
     text-align: center;
 }
-#main_title {
+#kuhead > h1 {
     font-weight: bold;
 }
-#ku_prog {
+#kumessage {
+    width: 80%;
+    margin: auto;
+    text-align: center;
+}
+#ku-progress {
     width: 75%;
     margin: auto;
 }
-#ku_version::before{
-    display:inline-block;
-    content:'';
-    height:100%;
-    vertical-align:bottom;
-  }
-#ku_version {
-    font-size: 0.8rem;
+#calInstanceList {
+    width: 80%;
+    margin: auto;
+    list-style: none;
+}
+#calInstanceList > li {
+    padding: 0.2rem;
+    border-top: 2px solid black;
+    border-bottom: 2px solid black;
+}
+#kuexit {
     text-align: center;
 }
-
-/* The Modal (background) */
-.modal {
-    display: none; /* Hidden by default */
-    position: fixed; /* Stay in place */
-    z-index: 1; /* Sit on top */
-    left: 0;
-    top: 0;
-    width: 100%; /* Full width */
-    height: 100%; /* Full height */
-    overflow: auto; /* Enable scroll if needed */
-    background-color: rgb(0,0,0); /* Fallback color */
-    background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
-}
-
-/* Modal Content/Box */
-.modal-content {
-    background-color: #ffffff;
-    margin: 15% auto; /* 15% from the top and centered */
-    padding: 20px;
-    border: 1px solid #000000;
-    width: 80%; /* Could be more or less, depending on screen size */
-}
-
 
 /* TODO: The default checkmark style on the Kobo browser is nigh on unusable
     * One needs to try and find a solution */

@@ -1,0 +1,103 @@
+<!doctype html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+
+    <title>Kobo UNCaGED</title>
+    <link rel="stylesheet" type="text/css" href="/static/ku.css" />
+</head>
+
+<body>
+    <div id="kuhead">
+        <h1>Kobo UNCaGED</h1>
+        <h3>Using {{.StorageType}}</h3>
+    </div>
+    <div id="kuapp">
+        <!-- Config screen -->
+        <div id="kuconfig" style="display: none;">
+            <div class="ku-cfg-row">
+                <label for="preferSDCard">Prefer SD Card</label>
+                <input type="checkbox" id="preferSDCard" name="preferSDCard">
+            </div>
+            <div class="ku-cfg-row">
+                <label for="preferKepub">Prefer kepub</label>
+                <input type="checkbox" id="preferKepub" name="preferKepub">
+            </div>
+            <div class="ku-cfg-row">
+                <label for="enableDebug">Enable Debug</label>
+                <input type="checkbox" id="enableDebug" name="enableDebug">
+            </div>
+            <div class="ku-cfg-row">
+                <label for="addMetadataByTrigger">Add Metadata by Trigger</label>
+                <input type="checkbox" id="addMetadataByTrigger" name="addMetadataByTrigger">
+            </div>
+            <div class="ku-cfg-row">
+                <label for="generateLevel">Generate thumbnail level</label>
+                <select id="generateLevel" name="generateLevel">
+                    <option value="all">All</option>
+                    <option value="partial">Partial</option>
+                    <option value="none">None</option>
+                </select>
+            </div>
+            <div class="ku-cfg-row">
+                <label for="resizeAlgorithm">Thumbnail Resize Algorithm</label>
+                <select id="resizeAlgorithm" name="resizeAlgorithm">
+                    <option value="bilinear">Bilinear</option>
+                    <option value="bicubic">Bicubic</option>
+                    <option value="lanczos2">Lanczos2</option>
+                    <option value="lanczos3">Lanczos3</option>
+                </select>
+            </div>
+            <div class="ku-cfg-row">
+                <label for="jpegQuality">Thumbnail JPEG Quality</label>
+                <input type="number" id="jpegQuality" name="jpegQuality" min="0">
+            </div>
+            <div class="ku-cfg-row">
+                <label for="saveOpts">Save Options</label>
+                <input type="checkbox" id="saveOpts" name="saveOpts">
+            </div>
+            <div class="ku-cfg-row">
+                <button type="button" id="cfgStartBtn" data-event-start="false">Start</button>
+                <button type="button" id="cfgExitBtn" data-event-exit="false">Exit</button>
+            </div>
+        </div>
+        <!-- Message display -->
+        <div id="kumessage" style="display: none;">
+            <div id="ku-msgbox"></div>
+            <progress id="ku-progress" max="100" style="visibility: hidden;"></progress><br>
+            <button type="button" id="cfgDisconnectBtn" data-event-disconnect="false">Disconnect</button>
+        </div>
+        <!-- Auth dialog -->
+        <div id="kuauth" style="display: none;">
+            <h3 id="authLibName"></h3>
+            <label for="password">Password</label><br>
+            <input type="password" id="password" name="password" data-event-auth-login-ent="false"><br>
+            <button type="button" id="authLoginBtn" data-event-auth-login="false">Login</button>
+        </div>
+        <!-- Instance selection dialog -->
+        <div id="kuinstances" style="display: none;">
+            <ul id="calInstanceList" data-event-instances="false"></ul>
+        </div>
+        <!-- Exit screen -->
+        <div id="kuexit" style="display: none;"></div>
+    </div>
+    <div id="kufoot">
+        <p>{{.KUVersion}}</p>
+    </div>
+    <script type="text/javascript">
+        var kuInfo = {
+            screenDPI: {{.ScreenDPI}},
+            exitPath: {{.ExitPath}},
+            disconnectPath: {{.DisconnectPath}},
+            authPath: {{.AuthPath}},
+            ssePath: {{.SSEPath}},
+            configPath: {{.ConfigPath}},
+            instancePath: {{.InstancePath}},
+        }
+    </script>
+    <script type="text/javascript" src="/static/ku.js"></script>
+</body>
+
+</html>
