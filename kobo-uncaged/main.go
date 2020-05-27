@@ -123,11 +123,11 @@ func mainWithErrCode() returnCode {
 		}
 		if rerun {
 			if k.KuConfig.AddMetadataByTrigger {
-				k.WebSend(device.WebMsg{ShowMessage: "Books added!<br><br>Please select <menu item scan name> from the main menu.<br>Your new books won't show until you do.", Progress: -1})
+				k.WebSend(device.WebMsg{ShowMessage: "Books added!<br><br>Please select :menu item scan name: from the main menu.<br>Your new books won't show until you do.", Progress: -1})
 
 				return successUSBMS
 			}
-			k.WebSend(device.WebMsg{ShowMessage: "Books added!<br><br>Please select <menu item scan name> from the main menu.<br>Your new books won't show until you do.", Progress: -1})
+			k.WebSend(device.WebMsg{ShowMessage: "Books added!<br><br>Please select :menu item scan name: from the main menu.<br>Your new books won't show until you do.", Progress: -1})
 
 			return successRerun
 		}
