@@ -239,5 +239,5 @@ window.onload = function() {
     getKUJson(kuInfo.configPath, handleShowKUCfg);
 };
 window.onresize = function() {
-    setKoboSizes();
+    setKoboSizes(kuInfo.screenDPI);
 };
