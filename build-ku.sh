@@ -48,6 +48,8 @@ mkdir -p ./Build/onboard/.adds/kobo-uncaged/bin
 #mkdir -p ./Build/onboard/.adds/kobo-uncaged/scripts
 mkdir -p ./Build/onboard/.adds/kobo-uncaged/config
 mkdir -p ./Build/onboard/.adds/kobo-uncaged/templates
+
+mkdir -p ./Build/onboard/.adds/nm
 # Only make the following directories if we are not building an upgrade package
 # if [ -z $BUILD_UPGRADE ]; then
 #     mkdir -p ./Build/onboard/.adds/kobo-uncaged/fonts
@@ -105,6 +107,9 @@ cp ../scripts/nm-start-ku.sh ./onboard/.adds/kobo-uncaged/nm-start-ku.sh
 
 # Default config file
 cp ../kobo-uncaged/ku.toml ./onboard/.adds/kobo-uncaged/config/ku.toml.default
+
+# NickelMenu config file
+cp ../config/nm-ku ./onboard/.adds/nm/kobo_uncaged
 
 # FBInk binaries
 cp ./prerequisites/output/fbink ./onboard/.adds/kobo-uncaged/bin/fbink

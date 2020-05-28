@@ -1,0 +1,5 @@
+# This is the config file to launch Kobo UNCaGED using NickelMenu
+menu_item :main :Kobo UNCaGED :cmd_spawn :exec /mnt/onboard/.adds/kobo-uncaged/nm-start-ku.sh
+chain  :cmd_output :5000 : quiet : sleep 2
+chain  :nickel_extras :web_browser
+menu_item :main :KU - Import Books :nickel_misc :rescan_books_full
