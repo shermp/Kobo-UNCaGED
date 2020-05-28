@@ -86,7 +86,7 @@ func (k *Kobo) HandleMessages(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case msg := <-k.MsgChan:
-			if !msg.GetPassword && !msg.GetCalInstance {
+			if !msg.GetPassword && !msg.GetCalInstance && msg.Finished == "" {
 				// Note, we replace all newlines in the message with spaces. That is because server
 				// sent events are newline delimited
 				if msg.ShowMessage != "" {
@@ -100,6 +100,9 @@ func (k *Kobo) HandleMessages(w http.ResponseWriter, r *http.Request) {
 				f.Flush()
 			} else if msg.GetCalInstance {
 				fmt.Fprintf(w, "event: calibreInstances\ndata: %s\n\n", "")
+				f.Flush()
+			} else if msg.Finished != "" {
+				fmt.Fprintf(w, "event: kuFinished\ndata: %s\n\n", strings.ReplaceAll(msg.Finished, "\n", " "))
 				f.Flush()
 			}
 			k.doneChan <- true

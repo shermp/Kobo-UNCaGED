@@ -831,5 +831,9 @@ func (k *Kobo) UpdateNickelDB() (bool, error) {
 // Close the kobo object when we're finished with it
 func (k *Kobo) Close() {
 	k.Wg.Wait()
-	k.nickelDB.Close()
+	if err := k.nickelDB.Close(); err != nil {
+		k.WebSend(WebMsg{Finished: fmt.Sprintf("There was an error closing database: %s<br><br>Please reboot your kobo IMMEDIATELY", err.Error())})
+	}
+	// Ensure that the final message to the client gets sent AFTER the database is closed
+	k.WebSend(WebMsg{Finished: k.FinishedMsg})
 }

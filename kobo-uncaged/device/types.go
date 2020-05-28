@@ -71,6 +71,7 @@ type WebMsg struct {
 	Progress       int
 	GetPassword    bool
 	GetCalInstance bool
+	Finished       string
 }
 
 type calPassCache map[string]*calPassword
@@ -104,6 +105,7 @@ type Kobo struct {
 	rend            *render.Render
 	webInfo         *webUIinfo
 	calInstances    []uc.CalInstance
+	FinishedMsg     string
 	doneChan        chan bool
 	startChan       chan webConfig
 	MsgChan         chan WebMsg

@@ -46,6 +46,7 @@ function setupSSE() {
     msgEvtSrc.addEventListener('calibreInstances', function (ev) {
         getKUJson(kuInfo.instancePath, showCalInstances);
     });
+    msgEvtSrc.addEventListener('kuFinished', showFinishedMsg);
 }
 function setupEventHandlers() {
     var startBtn = document.getElementById('cfgStartBtn');
@@ -203,13 +204,15 @@ function exitKU() {
         }
     });
 }
+function showFinishedMsg(ev) {
+    hideAllComponents();
+    var exitDiv = document.getElementById('kuexit');
+    exitDiv.innerHTML = '<h2>' + ev.data + '</h2>';
+    exitDiv.style.display = 'block';
+}
 function disconnectKU() {
     getKUJson(kuInfo.disconnectPath, function(resp) {
         if (resp.status === 204) {
-            hideAllComponents();
-            var exitDiv = document.getElementById('kuexit');
-            exitDiv.innerHTML = '<h2>Goodbye!</h2>';
-            exitDiv.style.display = 'block';
             document.getElementById('cfgDisconnectBtn').style.display = 'none';
         }
     });

@@ -55,21 +55,17 @@ func returncodeFromError(err error, k *device.Kobo) returnCode {
 		if errors.As(err, &calErr) {
 			switch calErr {
 			case uc.CalibreNotFound:
-				k.WebSend(device.WebMsg{ShowMessage: "Calibre not found!<br>Have you enabled the Calibre Wireless service?", Progress: -1})
-
+				k.FinishedMsg = "Calibre not found!<br>Have you enabled the Calibre Wireless service?"
 				rc = calibreNotFound
 			case uc.NoPassword:
-				k.WebSend(device.WebMsg{ShowMessage: "No valid password found!", Progress: -1})
-
+				k.FinishedMsg = "No valid password found!"
 				rc = passwordError
 			default:
-				k.WebSend(device.WebMsg{ShowMessage: calErr.Error(), Progress: -1})
-
+				k.FinishedMsg = calErr.Error()
 				rc = genericError
 			}
 		}
-		k.WebSend(device.WebMsg{ShowMessage: err.Error(), Progress: -1})
-
+		k.FinishedMsg = err.Error()
 		rc = genericError
 	}
 	return rc
@@ -116,24 +112,20 @@ func mainWithErrCode() returnCode {
 	if len(k.UpdatedMetadata) > 0 {
 		rerun, err := k.UpdateNickelDB()
 		if err != nil {
-			k.WebSend(device.WebMsg{ShowMessage: "Updating metadata failed", Progress: -1})
-
+			k.FinishedMsg = "Updating metadata failed"
 			log.Print(err)
 			return returncodeFromError(err, k)
 		}
 		if rerun {
 			if k.KuConfig.AddMetadataByTrigger {
-				k.WebSend(device.WebMsg{ShowMessage: "Books added!<br><br>Please select :menu item scan name: from the main menu.<br>Your new books won't show until you do.", Progress: -1})
-
+				k.FinishedMsg = "Books added!<br><br>Please select :menu item scan name: from the main menu.<br>Your new books won't show until you do."
 				return successUSBMS
 			}
-			k.WebSend(device.WebMsg{ShowMessage: "Books added!<br><br>Please select :menu item scan name: from the main menu.<br>Your new books won't show until you do.", Progress: -1})
-
+			k.FinishedMsg = "Books added!<br><br>Please select :menu item scan name: from the main menu.<br>Your new books won't show until you do."
 			return successRerun
 		}
 	}
-	k.WebSend(device.WebMsg{ShowMessage: "All Done!<br><br>You may exit the browser.", Progress: -1})
-
+	k.FinishedMsg = "All Done!<br><br>You may exit the browser."
 	return successNoAction
 }
 func main() {
