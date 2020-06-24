@@ -280,3 +280,10 @@ func (ku *koboUncaged) UpdateStatus(status uc.Status, progress int) {
 func (ku *koboUncaged) LogPrintf(logLevel uc.LogLevel, format string, a ...interface{}) {
 	log.Printf(format, a...)
 }
+
+// SetExitChannel provides the client with a channel to prematurely stop UNCaGED.
+// when true is sent on the channel, UNCaGED will stop after finishing the current job.
+// UNCaGED will exit Start() with a nil error if no other errors were detected
+func (ku *koboUncaged) SetExitChannel(exitChan chan<- bool) {
+
+}
