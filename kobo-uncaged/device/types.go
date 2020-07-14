@@ -24,7 +24,7 @@ import (
 	"sync"
 
 	"github.com/bamiaux/rez"
-	"github.com/geek1011/koboutils/v2/kobo"
+	"github.com/pgaskin/koboutils/v2/kobo"
 	"github.com/shermp/UNCaGED/uc"
 )
 

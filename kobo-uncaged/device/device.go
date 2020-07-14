@@ -16,9 +16,9 @@ import (
 	"sync"
 
 	"github.com/bamiaux/rez"
-	"github.com/geek1011/koboutils/v2/kobo"
 	"github.com/google/uuid"
 	"github.com/kapmahc/epub"
+	"github.com/pgaskin/koboutils/v2/kobo"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/util"
 	"github.com/shermp/UNCaGED/uc"

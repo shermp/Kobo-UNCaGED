@@ -2,14 +2,14 @@ github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/bamiaux/rez v0.0.0-20170731184118-29f4463c688b h1:5Ci5wpOL75rYF6RQGRoqhEAU6xLJ6n/D4SckXX1yB74=
 github.com/bamiaux/rez v0.0.0-20170731184118-29f4463c688b/go.mod h1:obBQGGIFbbv9KWg92Qu9UHeD94JXmHD1jovY/z6I3O8=
-github.com/geek1011/koboutils/v2 v2.0.1-0.20200209164819-ab31aac12ee0 h1:S11UsODKf7jtsdUHZ9kMxRYnEe3ZteoPjZzZoCFDk90=
-github.com/geek1011/koboutils/v2 v2.0.1-0.20200209164819-ab31aac12ee0/go.mod h1:c/EwVM90qr2bHUrNBVi4jBUWdz+lH1ns2xlfQoiv1vk=
 github.com/google/uuid v1.1.1 h1:Gkbcsh/GbpXz7lPftLA3P6TYMwjCLYm83jiFQZF/3gY=
 github.com/google/uuid v1.1.1/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
 github.com/kapmahc/epub v0.1.1 h1:a4fgmhh/q2vyzFR2QXOVohR2zAuQvbacCjMZ1LGr0lw=
 github.com/kapmahc/epub v0.1.1/go.mod h1:UpnUbQO78vpmp6TC4emDTAIG6XVcdnZTnaTx06qbtYM=
 github.com/mattn/go-sqlite3 v2.0.3+incompatible h1:gXHsfypPkaMZrKbD5209QV9jbUTJKjyR5WD3HYQSd+U=
 github.com/mattn/go-sqlite3 v2.0.3+incompatible/go.mod h1:FPy6KqzDD04eiIsT53CuJW3U88zkxoIYsOqkbpncsNc=
+github.com/pgaskin/koboutils/v2 v2.1.0 h1:J5KzLWvj0zDvoP5aJ7RxWuzFA32CcnD+hqH6tw/3uRE=
+github.com/pgaskin/koboutils/v2 v2.1.0/go.mod h1:wTzkDIlsxmUyfwfspGcm0Ap+HOxSUYV0S8kMYrf+0gM=
 github.com/shermp/UNCaGED v0.6.1 h1:0sVBNdztSftI6lnjN4Ue3szgvUid6GuQlmbROqTk9vU=
 github.com/shermp/UNCaGED v0.6.1/go.mod h1:F5hiHeyt+yyCQxzYtDyacJDO7sp4cdbuXl8n8HmxWRk=
 github.com/shermp/go-fbink-v2/v2 v2.21.0 h1:S2Q8B5zLGo7xTGILpqkVNZB94YwkehvTmECIYkxKH04=
