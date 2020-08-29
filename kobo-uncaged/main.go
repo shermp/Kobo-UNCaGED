@@ -117,10 +117,6 @@ func mainWithErrCode() returnCode {
 			return returncodeFromError(err, k)
 		}
 		if rerun {
-			if k.KuConfig.AddMetadataByTrigger {
-				k.FinishedMsg = "Books added!<br><br>Please select :menu item scan name: from the main menu.<br>Your new books won't show until you do."
-				return successUSBMS
-			}
 			k.FinishedMsg = "Books added!<br><br>Please select :menu item scan name: from the main menu.<br>Your new books won't show until you do."
 			return successRerun
 		}

@@ -40,11 +40,10 @@ type firmwareVersion struct {
 
 // KuOptions contains some options that are required
 type KuOptions struct {
-	PreferSDCard         bool            `json:"preferSDCard"`
-	PreferKepub          bool            `json:"preferKepub"`
-	EnableDebug          bool            `json:"enableDebug"`
-	AddMetadataByTrigger bool            `json:"addMetadataByTrigger"`
-	Thumbnail            thumbnailOption `json:"thumbnail"`
+	PreferSDCard bool            `json:"preferSDCard"`
+	PreferKepub  bool            `json:"preferKepub"`
+	EnableDebug  bool            `json:"enableDebug"`
+	Thumbnail    thumbnailOption `json:"thumbnail"`
 }
 
 type webUIinfo struct {
