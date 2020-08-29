@@ -19,10 +19,10 @@ import (
 	"time"
 
 	"github.com/bamiaux/rez"
-	"github.com/geek1011/koboutils/v2/kobo"
 	"github.com/google/uuid"
 	"github.com/kapmahc/epub"
 	"github.com/pelletier/go-toml"
+	"github.com/pgaskin/koboutils/v2/kobo"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/util"
 	"github.com/shermp/UNCaGED/uc"
 )
