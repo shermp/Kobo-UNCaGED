@@ -33,6 +33,7 @@ const calibreMDfile = "metadata.calibre"
 const calibreDIfile = "driveinfo.calibre"
 const kuUpdatedMDfile = "metadata_update.kobouc"
 const kuUpdatedSQL = ".adds/kobo-uncaged/updated-md.sql"
+const kuBookReplaceSQL = ".adds/kobo-uncaged/replace-book.sql"
 const kuPassCache = ".adds/kobo-uncaged/.ku_pwcache.json"
 
 const onboardPrefix cidPrefix = "file:///mnt/onboard/"
@@ -398,9 +399,10 @@ func (k *Kobo) readMDfile() error {
 		dbSeries     *string
 		dbbSeriesNum *string
 		dbMimeType   string
+		dbFileSize   int
 	)
 	query := `
-		SELECT ContentID, Title, Attribution, Description, Publisher, Series, SeriesNumber, MimeType 
+		SELECT ContentID, Title, Attribution, Description, Publisher, Series, SeriesNumber, MimeType, ___FileSize 
 		FROM content
 		WHERE ContentType=6
 		AND MimeType NOT LIKE 'image%%'
@@ -415,7 +417,7 @@ func (k *Kobo) readMDfile() error {
 	}
 	defer bkRows.Close()
 	for bkRows.Next() {
-		err = bkRows.Scan(&dbCID, &dbTitle, &dbAttr, &dbDesc, &dbPublisher, &dbSeries, &dbbSeriesNum, &dbMimeType)
+		err = bkRows.Scan(&dbCID, &dbTitle, &dbAttr, &dbDesc, &dbPublisher, &dbSeries, &dbbSeriesNum, &dbMimeType, &dbFileSize)
 		if err != nil {
 			return fmt.Errorf("readMDfile: row decoding error: %w", err)
 		}
@@ -447,16 +449,17 @@ func (k *Kobo) readMDfile() error {
 			// 		log.Print(err)
 			// 	}
 			// }
+			bkMD.Size = dbFileSize
 			fi, err := os.Stat(filepath.Join(k.BKRootDir, bkMD.Lpath))
 			if err == nil {
-				bkSz := fi.Size()
 				lastMod := uc.ConvertTime(fi.ModTime())
 				bkMD.LastModified = &lastMod
-				bkMD.Size = int(bkSz)
 			}
 			//spew.Dump(bkMD)
 			k.MetadataMap[dbCID] = bkMD
 		} else {
+			// Make sure we are using the filesize as exists in the DB
+			koboMD[tmpMap[dbCID]].Size = dbFileSize
 			k.MetadataMap[dbCID] = koboMD[tmpMap[dbCID]]
 		}
 	}
