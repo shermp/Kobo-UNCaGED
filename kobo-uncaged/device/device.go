@@ -19,6 +19,8 @@ import (
 	"time"
 
 	"github.com/bamiaux/rez"
+	"github.com/doug-martin/goqu/v9"
+	_ "github.com/doug-martin/goqu/v9/dialect/sqlite3"
 	"github.com/google/uuid"
 	"github.com/kapmahc/epub"
 	"github.com/pelletier/go-toml"
@@ -111,10 +113,6 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 		return nil, nil
 	}
 	k.WebSend(WebMsg{ShowMessage: "Gathering information about your Kobo", Progress: -1})
-	log.Println("Opening NickelDB")
-	if err = k.openNickelDB(); err != nil {
-		return nil, fmt.Errorf("New: failed to open Nickel DB: %w", err)
-	}
 	log.Println("Getting Device Info")
 	if err = k.loadDeviceInfo(); err != nil {
 		return nil, fmt.Errorf("New: failed to load device info: %w", err)
@@ -209,50 +207,23 @@ func (k *Kobo) saveUserOptions() error {
 	return nil
 }
 
-func (k *Kobo) openNickelDB() error {
-	var err error
-	dsn := "file:" + filepath.Join(k.DBRootDir, koboDBpath) + "?_timeout=2000&_journal=WAL&mode=rw&_mutex=full&_sync=NORMAL"
-	if k.nickelDB, err = sql.Open("sqlite3", dsn); err != nil {
-		err = fmt.Errorf("openNickelDB: sql open failed: %w", err)
-	}
-	return err
-}
-
 // UpdateIfExists updates onboard metadata if it exists in the Nickel database
 func (k *Kobo) UpdateIfExists(cID string, len int) error {
+	var err error
 	if _, exists := k.MetadataMap[cID]; exists {
-		var err error
-		tx, err := k.nickelDB.Begin()
-		if err != nil {
-			return fmt.Errorf("removeMetaTrigger: Error beginning transaction: %w", err)
+		if k.MetadataMap[cID].Size == len {
+			return nil
 		}
-		var currSize int
-		// Make really sure this is in the Nickel DB
-		// The query helpfully comes from Calibre
-		testQuery := `
-			SELECT ___FileSize 
-			FROM content 
-			WHERE ContentID = ? 
-			AND ContentType = 6;`
-		if err := tx.QueryRow(testQuery, cID).Scan(&currSize); err != nil {
-			tx.Rollback()
-			return fmt.Errorf("UpdateIfExists: error querying row: %w", err)
-		}
-		if currSize != len {
-			updateQuery := `
-				UPDATE content 
-				SET ___FileSize = ? 
-				WHERE ContentId = ? 
-				AND ContentType = 6;`
-			if _, err := tx.Exec(updateQuery, len, cID); err != nil {
-				tx.Rollback()
-				return fmt.Errorf("UpdateIfExists: error updating filesize field: %w", err)
+		if k.replSQLWriter == nil {
+			if k.replSQLWriter, err = newSQLWriter(filepath.Join(k.BKRootDir, kuBookReplaceSQL)); err != nil {
+				return err
 			}
-			log.Println("Updated existing book file length")
+			k.replSQLWriter.writeBegin()
 		}
-		if err = tx.Commit(); err != nil {
-			return fmt.Errorf("UpdateIfExists: Error committing transaction: %w", err)
-		}
+		dialect := goqu.Dialect("sqlite3")
+		ds := dialect.Update("content").Set(goqu.Record{"___FileSize": len}).Where(goqu.Ex{"ContentID": cID, "ContentType": 6})
+		sqlStr, _, _ := ds.ToSQL()
+		k.replSQLWriter.writeQuery(sqlStr)
 	}
 	return nil
 }
@@ -387,6 +358,12 @@ func (k *Kobo) readMDfile() error {
 		tmpMap[contentID] = n
 	}
 	log.Println("Gathering metadata")
+	var nickelDB *sql.DB
+	dsn := "file:" + filepath.Join(k.DBRootDir, koboDBpath) + "?_timeout=2000&_journal=WAL&mode=r&_mutex=full&_sync=NORMAL"
+	if nickelDB, err = sql.Open("sqlite3", dsn); err != nil {
+		return fmt.Errorf("openNickelDB: sql open failed: %w", err)
+	}
+	defer nickelDB.Close()
 	//spew.Dump(k.MetadataMap)
 	// Now that we have our map, we need to check for any books in the DB not in our
 	// metadata cache, or books that are in our cache but not in the DB
@@ -411,7 +388,7 @@ func (k *Kobo) readMDfile() error {
 		AND Accessibility=-1
 		AND ContentID LIKE ?;`
 
-	bkRows, err := k.nickelDB.Query(query, fmt.Sprintf("%s%%", k.ContentIDprefix))
+	bkRows, err := nickelDB.Query(query, fmt.Sprintf("%s%%", k.ContentIDprefix))
 	if err != nil {
 		return fmt.Errorf("readMDfile: error getting book rows: %w", err)
 	}
@@ -578,154 +555,72 @@ func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string)
 	}
 }
 
-// UpdateNickelDB updates the Nickel database with updated metadata obtained from a previous run,
-// or this run if updating via triggers
-func (k *Kobo) UpdateNickelDB() (bool, error) {
-	rerun := false
+// WriteUpdatedMetadataSQL writes SQL to write updated metadata to
+// the Kobo database. The SQLite CLI client will be used to perform the import.
+func (k *Kobo) WriteUpdatedMetadataSQL() error {
 	var err error
-	var updateErr error
-	var desc, series, seriesID, seriesNum *string
+	if len(k.UpdatedMetadata) == 0 {
+		return nil
+	}
+	updateSQL, err := newSQLWriter(filepath.Join(k.BKRootDir, kuUpdatedSQL))
+	if err != nil {
+		return fmt.Errorf("WriteUpdatedMetadataSQL: failed to create SQL writer: %w", err)
+	}
+	defer updateSQL.close()
+	updateSQL.writeBegin()
+	dialect := goqu.Dialect("sqlite3")
+	var desc, series, seriesNum *string
 	var seriesNumFloat *float64
-	tx, err := k.nickelDB.Begin()
-	if err != nil {
-		return rerun, fmt.Errorf("UpdateNickelDB: Error beginning SeriesID transaction: %w", err)
-	}
-	// Get Series and SeriesID from the DB for non-sideloaded books
-	getSeriesQ := `
-		SELECT DISTINCT Series, SeriesID FROM content 
-		WHERE ContentType == 6 AND ContentID NOT LIKE 'file://%' AND (Series IS NOT NULL AND Series != '') AND (SeriesID IS NOT NULL AND SeriesID != '');`
-	seriesRows, err := tx.Query(getSeriesQ)
-	if err != nil {
-		tx.Rollback()
-		return rerun, fmt.Errorf("UpdateNickelDB: error getting series rows: %w", err)
-	}
-	defer seriesRows.Close()
-	for seriesRows.Next() {
-		if err = seriesRows.Scan(&series, &seriesID); err != nil {
-			tx.Rollback()
-			return rerun, fmt.Errorf("UpdateNickelDB: error decoding row: %w", err)
-		}
-		// The WHERE clause in the SQL query should ensure we never get NULL values
-		k.SeriesIDMap[*series] = *seriesID
-	}
-	if err = seriesRows.Err(); err != nil {
-		tx.Rollback()
-		return rerun, fmt.Errorf("UpdateNickelDB: seriesRows error: %w", err)
-	}
-
-	// Update SeriesID column for all series that have Kobo derived SeriesID values
-	// We do this because a user could download a book from Kobo which is in a series that
-	// the user already has other (sideloaded) books on device
-	seriesIDQuery := `UPDATE content SET SeriesID=? WHERE Series=?;`
-	seriesIDstmt, err := tx.Prepare(seriesIDQuery)
-	if err != nil {
-		tx.Rollback()
-		return rerun, fmt.Errorf("UpdateNickelDB: SeriesID prepared statement failed: %w", err)
-	}
-	for s, sID := range k.SeriesIDMap {
-		if _, err = seriesIDstmt.Exec(sID, s); err != nil {
-			tx.Rollback()
-			return rerun, fmt.Errorf("UpdateNickelDB: %w", err)
-		}
-	}
-	if err = tx.Commit(); err != nil {
-		return rerun, fmt.Errorf("UpdateNickelDB: Error committing SeriesID transaction: %w", err)
-	}
-
-	// Once we've done that, also check if there are still empty SeriesID columns that have Series set,
-	// and update if required. This shouldn't have much, if any, effect if KU has been run before, or
-	// the device has been connected to calibre
-	seriesIDQuery = `
-		UPDATE content SET SeriesID=Series
-		WHERE ContentType == 6 AND (Series IS NOT NULL OR Series != '') AND (SeriesID IS NULL OR SeriesID == '');`
-	if _, err = k.nickelDB.Exec(seriesIDQuery); err != nil {
-		return rerun, fmt.Errorf("UpdateNickelDB: %w", err)
-	}
-
-	// Begin a new transaction for updating metadata
-	tx, err = k.nickelDB.Begin()
-	if err != nil {
-		return rerun, fmt.Errorf("UpdateNickelDB: Error beginning update transaction: %w", err)
-	}
-
-	// Prepare database with some statements
-	// Update statment for books already in the content table
-	updateQuery := `
-		UPDATE content SET 
-		Description=?,
-		Series=?,
-		SeriesNumber=?,
-		SeriesNumberFloat=?,
-		SeriesID=?
-		WHERE ContentID=?;`
-	updateStmt, err := tx.Prepare(updateQuery)
-	if err != nil {
-		tx.Rollback()
-		return rerun, fmt.Errorf("UpdateNickelDB: prepared statement failed: %w", err)
-	}
-	var sqlSB strings.Builder
-	sqlSB.WriteString("BEGIN;\n")
 	for cid := range k.UpdatedMetadata {
-		desc, series, seriesID, seriesNum, seriesNumFloat = nil, nil, nil, nil, nil
+		desc, series, seriesNum, seriesNumFloat = nil, nil, nil, nil
 		if k.MetadataMap[cid].Comments != nil && *k.MetadataMap[cid].Comments != "" {
 			desc = k.MetadataMap[cid].Comments
 		}
 		if k.MetadataMap[cid].Series != nil && *k.MetadataMap[cid].Series != "" {
 			// TODO: Fuzzy series matching to deal with 'The' prefixes and 'Series' postfixes?
 			series = k.MetadataMap[cid].Series
-			seriesID = series
-			if sID, ok := k.SeriesIDMap[*series]; ok {
-				seriesID = &sID
-			}
 		}
 		if k.MetadataMap[cid].SeriesIndex != nil && *k.MetadataMap[cid].SeriesIndex != 0.0 {
 			sn := strconv.FormatFloat(*k.MetadataMap[cid].SeriesIndex, 'f', -1, 64)
 			seriesNum = &sn
 			seriesNumFloat = k.MetadataMap[cid].SeriesIndex
 		}
-		// We rollback on any sort of error, to lessen any chance of database corruption
-		if _, ok := k.BooksInDB[cid]; ok {
-			_, err = updateStmt.Exec(desc, series, seriesNum, seriesNumFloat, seriesID, cid)
-			if err != nil {
-				tx.Rollback()
-				return rerun, fmt.Errorf("UpdateNickelDB: %w", err)
-			}
-			delete(k.UpdatedMetadata, cid)
-		} else {
-			rerun = true
-			fs := "NULL"
-			if seriesNumFloat != nil {
-				fs = fmt.Sprintf("%f", *seriesNumFloat)
-			}
-			sqlSB.WriteString(fmt.Sprintf(
-				"UPDATE content SET Description=%s, Series=%s, SeriesNumber=%s, SeriesNumberFloat=%s, SeriesID=%s WHERE ContentID=%s;\n",
-				util.SafeSQLString(desc),
-				util.SafeSQLString(series),
-				util.SafeSQLString(seriesNum),
-				fs,
-				util.SafeSQLString(seriesID),
-				util.SafeSQLString(&cid),
-			))
-
+		ds := dialect.Update("content").Set(goqu.Record{
+			"Description": desc, "Series": series, "SeriesNumber": seriesNum, "SeriesNumberFloat": seriesNumFloat,
+		}).Where(goqu.Ex{"ContentID": cid})
+		sqlStr, _, err := ds.ToSQL()
+		if err != nil {
+			return fmt.Errorf("WriteUpdatedMetadataSQL: failed ")
 		}
+		updateSQL.writeQuery(sqlStr)
 	}
-	sqlSB.WriteString("COMMIT;")
-	if err = tx.Commit(); err != nil {
-		return rerun, fmt.Errorf("UpdateNickelDB: Error committing transaction: %w", err)
-	}
-	if len(k.UpdatedMetadata) > 0 {
-		if err = ioutil.WriteFile(filepath.Join(k.DBRootDir, kuUpdatedSQL), []byte(sqlSB.String()), 0644); err != nil {
-			return rerun, fmt.Errorf("UpdateNickelDB: Error writing update SQL: %w", err)
-		}
-	}
-	return rerun, updateErr
+	updateSQL.writeCommit()
+	// Set the SeriesID column correctly
+	updateSQL.writeBegin()
+	// Note, UPDATE FROM is brand spanking new in SQLite 3.33.0 (2020-08-14). We're going to need the latest
+	// client for this one
+	updateSQL.writeQuery(`
+		UPDATE content SET SeriesID = c.SeriesID 
+		FROM (
+			SELECT DISTINCT Series, SeriesID FROM content 
+			WHERE ContentType == 6 AND ContentID NOT LIKE 'file://%' AND (Series IS NOT NULL AND Series != '') AND (SeriesID IS NOT NULL AND SeriesID != '')
+		) AS c 
+		WHERE content.Series = c.Series;
+	`)
+	updateSQL.writeQuery(`
+		UPDATE content SET SeriesID=Series
+		WHERE ContentType == 6 AND (Series IS NOT NULL OR Series != '') AND (SeriesID IS NULL OR SeriesID == '');
+	`)
+	updateSQL.writeCommit()
+	return nil
 }
 
 // Close the kobo object when we're finished with it
 func (k *Kobo) Close() {
 	k.Wg.Wait()
-	if err := k.nickelDB.Close(); err != nil {
-		k.WebSend(WebMsg{Finished: fmt.Sprintf("There was an error closing database: %s<br><br>Please reboot your kobo IMMEDIATELY", err.Error())})
+	if k.replSQLWriter != nil {
+		k.replSQLWriter.writeCommit()
+		k.replSQLWriter.close()
 	}
 	// Ensure that the final message to the client gets sent AFTER the database is closed
 	k.WebSend(WebMsg{Finished: k.FinishedMsg})

@@ -110,16 +110,22 @@ func mainWithErrCode() returnCode {
 		log.Print(err)
 	}
 	if len(k.UpdatedMetadata) > 0 {
-		rerun, err := k.UpdateNickelDB()
-		if err != nil {
+		if err := k.WriteUpdatedMetadataSQL(); err != nil {
 			k.FinishedMsg = "Updating metadata failed"
 			log.Print(err)
 			return returncodeFromError(err, k)
 		}
-		if rerun {
-			k.FinishedMsg = "Books added!<br><br>Please select :menu item scan name: from the main menu.<br>Your new books won't show until you do."
-			return successRerun
-		}
+		k.FinishedMsg = "All Done!<br>Metadata will be updated."
+		// rerun, err := k.UpdateNickelDB()
+		// if err != nil {
+		// 	k.FinishedMsg = "Updating metadata failed"
+		// 	log.Print(err)
+		// 	return returncodeFromError(err, k)
+		// }
+		// if rerun {
+		// 	k.FinishedMsg = "Books added!<br><br>Please select :menu item scan name: from the main menu.<br>Your new books won't show until you do."
+		// 	return successRerun
+		// }
 	}
 	k.FinishedMsg = "All Done!<br><br>You may exit the browser."
 	return successNoAction

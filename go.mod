@@ -2,6 +2,7 @@ module github.com/shermp/Kobo-UNCaGED
 
 require (
 	github.com/bamiaux/rez v0.0.0-20170731184118-29f4463c688b
+	github.com/doug-martin/goqu/v9 v9.9.0
 	github.com/google/uuid v1.1.1
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/kapmahc/epub v0.1.1

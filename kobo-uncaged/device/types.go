@@ -19,7 +19,6 @@ package device
 
 import (
 	"bufio"
-	"database/sql"
 	"fmt"
 	"os"
 	"strings"
@@ -100,11 +99,11 @@ type Kobo struct {
 	SeriesIDMap     map[string]string
 	PassCache       calPassCache
 	DriveInfo       uc.DeviceInfo
-	nickelDB        *sql.DB
 	Wg              *sync.WaitGroup
 	mux             *httprouter.Router
 	rend            *render.Render
 	webInfo         *webUIinfo
+	replSQLWriter   *sqlWriter
 	calInstances    []uc.CalInstance
 	FinishedMsg     string
 	doneChan        chan bool
