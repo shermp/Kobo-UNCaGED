@@ -127,6 +127,7 @@ func (k *Kobo) HandleCalAuth(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// HandleCalInstances gets the user selected calibre instance to connect to
 func (k *Kobo) HandleCalInstances(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		k.rend.JSON(w, http.StatusOK, k.calInstances)

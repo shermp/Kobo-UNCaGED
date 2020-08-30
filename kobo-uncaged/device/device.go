@@ -20,6 +20,8 @@ import (
 
 	"github.com/bamiaux/rez"
 	"github.com/doug-martin/goqu/v9"
+
+	// Lets gpqu emit SQLite3 compatible code
 	_ "github.com/doug-martin/goqu/v9/dialect/sqlite3"
 	"github.com/google/uuid"
 	"github.com/kapmahc/epub"
@@ -169,6 +171,8 @@ func (k *Kobo) GetPassword(calUUID, calLibName string) string {
 	return k.PassCache[calUUID].Password
 }
 
+// GetCalibreInstance instructs the user to select from a list of available
+// Calibre instances on their network
 func (k *Kobo) GetCalibreInstance(calInstances []uc.CalInstance) uc.CalInstance {
 	if len(calInstances) == 1 {
 		return calInstances[0]
