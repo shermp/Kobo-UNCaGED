@@ -18,8 +18,10 @@
 package device
 
 import (
+	"bufio"
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 
@@ -215,4 +217,37 @@ func (to *thumbnailOption) SetRezFilter() {
 	default:
 		to.rezFilter = rez.NewBicubicFilter()
 	}
+}
+
+type sqlWriter struct {
+	sqlFile       *os.File
+	sqlBuffWriter *bufio.Writer
+}
+
+func newSQLWriter(path string) (*sqlWriter, error) {
+	var err error
+	s := &sqlWriter{}
+	if s.sqlFile, err = os.Create(path); err != nil {
+		return nil, err
+	}
+	s.sqlBuffWriter = bufio.NewWriter(s.sqlFile)
+	return s, nil
+}
+
+func (s *sqlWriter) writeBegin() {
+	s.sqlBuffWriter.WriteString("BEGIN;\n")
+}
+
+func (s *sqlWriter) writeCommit() {
+	s.sqlBuffWriter.WriteString("COMMIT;\n")
+}
+
+func (s *sqlWriter) writeQuery(query string) {
+	s.sqlBuffWriter.WriteString(query)
+	s.sqlBuffWriter.WriteRune('\n')
+}
+
+func (s *sqlWriter) close() {
+	defer s.sqlFile.Close()
+	s.sqlBuffWriter.Flush()
 }
