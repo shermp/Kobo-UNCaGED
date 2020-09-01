@@ -1,5 +1,13 @@
 # This is the config file to launch Kobo UNCaGED using NickelMenu
-menu_item :main :Kobo UNCaGED :cmd_spawn :exec /mnt/onboard/.adds/kobo-uncaged/nm-start-ku.sh
-chain  :cmd_output :5000 : quiet : sleep 2
-chain  :nickel_extras :web_browser
-menu_item :main :KU - Import Books :nickel_misc :rescan_books_full
+menu_item :main :Kobo UNCaGED :cmd_output :500:/mnt/onboard/.adds/kobo-uncaged/scripts/ku-prereq-check.sh -f "4.13.12638"
+    chain_success : skip       : 2
+        chain_failure : dbg_error : Firmware 4.13.12638 or newer is required.
+        chain_always  : skip      : -1
+    chain_success : cmd_output :500:/mnt/onboard/.adds/kobo-uncaged/scripts/ku-prereq-check.sh -n
+    chain_success : skip       : 4
+        chain_failure : dbg_toast   : Installing NickelDBus...
+        chain_success : cmd_output  :500:quiet: cp /mnt/onboard/.adds/kobo-uncaged/NickelDBus/KoboRoot.tgz /mnt/onboard/.kobo/KoboRoot.tgz
+        chain_success : nickel_misc : rescan_books_full
+        chain_always  : skip        : -1
+    chain_success : dbg_toast   : Starting Kobo UNCaGED
+    chain_success : cmd_spawn   : exec /mnt/onboard/.adds/kobo-uncaged/nm-start-ku.sh
