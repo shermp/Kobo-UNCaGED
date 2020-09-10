@@ -20,6 +20,7 @@ import (
 
 	"github.com/bamiaux/rez"
 	"github.com/doug-martin/goqu/v9"
+	"github.com/godbus/dbus/v5"
 
 	// Lets gpqu emit SQLite3 compatible code
 	_ "github.com/doug-martin/goqu/v9/dialect/sqlite3"
@@ -39,6 +40,8 @@ const kuUpdatedMDfile = "metadata_update.kobouc"
 const kuUpdatedSQL = ".adds/kobo-uncaged/updated-md.sql"
 const kuBookReplaceSQL = ".adds/kobo-uncaged/replace-book.sql"
 const kuPassCache = ".adds/kobo-uncaged/.ku_pwcache.json"
+const ndbInterface = "com.github.shermp.nickeldbus"
+const viewChangedName = ndbInterface + ".ndbViewChanged"
 
 const onboardPrefix cidPrefix = "file:///mnt/onboard/"
 const sdPrefix cidPrefix = "file:///mnt/sd/"
@@ -55,6 +58,13 @@ const sdPrefix cidPrefix = "file:///mnt/sd/"
 // 	}
 // 	return password
 // }
+
+func isBrowserViewSignal(vs *dbus.Signal) (bool, error) {
+	if vs.Name != viewChangedName || len(vs.Body) <= 0 {
+		return false, fmt.Errorf("isBrowserViewSignal: not valid 'ndbViewChanged' signal")
+	}
+	return vs.Body[0].(string) == "N3BrowserView", nil
+}
 
 // New creates a Kobo object, ready for use
 func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, error) {
@@ -85,18 +95,64 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 	if k.UseSDCard {
 		k.webInfo.StorageType = "External SD Storage"
 	}
+	k.useNDB = true
+	if k.useNDB {
+		if k.ndbConn, err = dbus.SystemBus(); err != nil {
+			return nil, fmt.Errorf("New: failed to connect to system d-bus: %w", err)
+		}
+		k.ndbObj = k.ndbConn.Object(ndbInterface, "/nickeldbus")
+	}
 	k.doneChan = make(chan bool)
 	k.MsgChan = make(chan WebMsg)
 	k.startChan = make(chan webConfig)
 	k.AuthChan = make(chan *calPassword)
 	k.calInstChan = make(chan uc.CalInstance)
 	k.exitChan = make(chan bool)
+	k.browserOpened = make(chan bool)
 	k.initWeb()
 	go func() {
 		if err = http.ListenAndServe(bindAddress, k.mux); err != nil {
 			log.Println(err)
 		}
 	}()
+	if k.useNDB {
+		k.viewSignal = make(chan *dbus.Signal, 10)
+		if err := k.ndbConn.AddMatchSignal(dbus.WithMatchObjectPath("/nickeldbus"),
+			dbus.WithMatchInterface(ndbInterface),
+			dbus.WithMatchMember("ndbViewChanged")); err != nil {
+			return nil, fmt.Errorf("New: error adding ndbViewChanged match signal: %w", err)
+		}
+		k.ndbConn.Signal(k.viewSignal)
+		res := k.ndbObj.Call(ndbInterface+".bwmOpenBrowser", 0, true, "http://127.0.0.1:8181/")
+		if res.Err != nil {
+			return nil, fmt.Errorf("New: failed to open web browser")
+		}
+		select {
+		case vs := <-k.viewSignal:
+			valid, err := isBrowserViewSignal(vs)
+			if err != nil {
+				return nil, fmt.Errorf("New: %w", err)
+			} else if !valid {
+				return nil, fmt.Errorf("New: expected 'N3BrowserView', got '%s'", vs.Body[0].(string))
+			}
+		case <-time.After(1 * time.Second):
+			return nil, fmt.Errorf("New: timeout waiting for browser to open")
+		}
+		// Exit if we encounter a view changed signal from Nickel away from 'N3BrowserView'
+		go func() {
+			for v := range k.viewSignal {
+				if isBV, err := isBrowserViewSignal(v); err == nil && !isBV {
+					k.ndbObj.Call(ndbInterface+".mwcToast", 0, 3000, "Browser closed. Kobo UNCaGED exiting")
+					if k.UCExitChan != nil {
+						k.UCExitChan <- true
+					} else {
+						k.exitChan <- true
+					}
+					return
+				}
+			}
+		}()
+	}
 	select {
 	case opt := <-k.startChan:
 		if opt.err != nil {
@@ -129,7 +185,12 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 	if err = k.readPassCache(); err != nil {
 		log.Print(err)
 	}
-	return k, nil
+	select {
+	case <-k.exitChan:
+		return nil, fmt.Errorf("New: browser exited prematurely")
+	default:
+		return k, nil
+	}
 }
 
 func (k *Kobo) readPassCache() error {
@@ -222,7 +283,6 @@ func (k *Kobo) UpdateIfExists(cID string, len int) error {
 			if k.replSQLWriter, err = newSQLWriter(filepath.Join(k.BKRootDir, kuBookReplaceSQL)); err != nil {
 				return err
 			}
-			k.replSQLWriter.writeBegin()
 		}
 		dialect := goqu.Dialect("sqlite3")
 		ds := dialect.Update("content").Set(goqu.Record{"___FileSize": len}).Where(goqu.Ex{"ContentID": cID, "ContentType": 6})
@@ -242,10 +302,7 @@ func (k *Kobo) getKoboInfo() error {
 	} else {
 		return fmt.Errorf("New: unknown device")
 	}
-	fwStr := strings.Split(vers, ".")
-	k.fw.major, _ = strconv.Atoi(fwStr[0])
-	k.fw.minor, _ = strconv.Atoi(fwStr[1])
-	k.fw.build, _ = strconv.Atoi(fwStr[2])
+	k.fw = firmwareVersion(vers)
 	return nil
 }
 
@@ -363,7 +420,7 @@ func (k *Kobo) readMDfile() error {
 	}
 	log.Println("Gathering metadata")
 	var nickelDB *sql.DB
-	dsn := "file:" + filepath.Join(k.DBRootDir, koboDBpath) + "?_timeout=2000&_journal=WAL&mode=r&_mutex=full&_sync=NORMAL"
+	dsn := "file:" + filepath.Join(k.DBRootDir, koboDBpath) + "?_timeout=2000&_journal=WAL&mode=ro&_mutex=full&_sync=NORMAL"
 	if nickelDB, err = sql.Open("sqlite3", dsn); err != nil {
 		return fmt.Errorf("openNickelDB: sql open failed: %w", err)
 	}
@@ -571,7 +628,6 @@ func (k *Kobo) WriteUpdatedMetadataSQL() error {
 		return fmt.Errorf("WriteUpdatedMetadataSQL: failed to create SQL writer: %w", err)
 	}
 	defer updateSQL.close()
-	updateSQL.writeBegin()
 	dialect := goqu.Dialect("sqlite3")
 	var desc, series, seriesNum *string
 	var seriesNumFloat *float64
@@ -598,24 +654,20 @@ func (k *Kobo) WriteUpdatedMetadataSQL() error {
 		}
 		updateSQL.writeQuery(sqlStr)
 	}
-	updateSQL.writeCommit()
-	// Set the SeriesID column correctly
-	updateSQL.writeBegin()
-	// Note, UPDATE FROM is brand spanking new in SQLite 3.33.0 (2020-08-14). We're going to need the latest
-	// client for this one
-	updateSQL.writeQuery(`
-		UPDATE content SET SeriesID = c.SeriesID 
-		FROM (
-			SELECT DISTINCT Series, SeriesID FROM content 
-			WHERE ContentType == 6 AND ContentID NOT LIKE 'file://%' AND (Series IS NOT NULL AND Series != '') AND (SeriesID IS NOT NULL AND SeriesID != '')
-		) AS c 
-		WHERE content.Series = c.Series;
-	`)
-	updateSQL.writeQuery(`
-		UPDATE content SET SeriesID=Series
-		WHERE ContentType == 6 AND (Series IS NOT NULL OR Series != '') AND (SeriesID IS NULL OR SeriesID == '');
-	`)
-	updateSQL.writeCommit()
+	// Note, the SeriesID stuff was implemented in FW 4.20.14601
+	if kobo.VersionCompare(string(k.fw), "4.20.14601") >= 0 {
+		// Set the SeriesID column correctly
+		// Note, UPDATE FROM is brand spanking new in SQLite 3.33.0 (2020-08-14). We're going to need the latest
+		// client for this one
+		updateSQL.writeQuery(
+			`UPDATE content SET SeriesID = c.SeriesID 
+FROM (
+	SELECT DISTINCT Series, SeriesID FROM content 
+	WHERE ContentType = 6 AND ContentID NOT LIKE 'file://%' AND (Series IS NOT NULL AND Series <> '') AND (SeriesID IS NOT NULL AND SeriesID <> '')
+) AS c 
+WHERE content.Series = c.Series;`)
+		updateSQL.writeQuery(`UPDATE content SET SeriesID=Series WHERE ContentType = 6 AND (Series IS NOT NULL OR Series <> '') AND (SeriesID IS NULL OR SeriesID <> '');`)
+	}
 	return nil
 }
 
@@ -623,9 +675,14 @@ func (k *Kobo) WriteUpdatedMetadataSQL() error {
 func (k *Kobo) Close() {
 	k.Wg.Wait()
 	if k.replSQLWriter != nil {
-		k.replSQLWriter.writeCommit()
 		k.replSQLWriter.close()
 	}
-	// Ensure that the final message to the client gets sent AFTER the database is closed
-	k.WebSend(WebMsg{Finished: k.FinishedMsg})
+	if k.useNDB {
+		k.ndbObj.Call(ndbInterface+".mwcToast", 0, 3000, k.FinishedMsg)
+	} else {
+		k.WebSend(WebMsg{Finished: k.FinishedMsg})
+	}
+	if k.ndbConn != nil {
+		k.ndbConn.Close()
+	}
 }

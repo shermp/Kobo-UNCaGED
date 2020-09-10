@@ -25,6 +25,7 @@ import (
 	"sync"
 
 	"github.com/bamiaux/rez"
+	"github.com/godbus/dbus/v5"
 	"github.com/julienschmidt/httprouter"
 	"github.com/pgaskin/koboutils/v2/kobo"
 	"github.com/shermp/UNCaGED/uc"
@@ -33,11 +34,7 @@ import (
 
 type cidPrefix string
 
-type firmwareVersion struct {
-	major int
-	minor int
-	build int
-}
+type firmwareVersion string
 
 // KuOptions contains some options that are required
 type KuOptions struct {
@@ -104,7 +101,11 @@ type Kobo struct {
 	rend            *render.Render
 	webInfo         *webUIinfo
 	replSQLWriter   *sqlWriter
+	ndbConn         *dbus.Conn
+	ndbObj          dbus.BusObject
 	calInstances    []uc.CalInstance
+	useNDB          bool
+	BrowserOpen     bool
 	FinishedMsg     string
 	doneChan        chan bool
 	startChan       chan webConfig
@@ -113,6 +114,8 @@ type Kobo struct {
 	exitChan        chan bool
 	UCExitChan      chan<- bool
 	calInstChan     chan uc.CalInstance
+	browserOpened   chan<- bool
+	viewSignal      chan *dbus.Signal
 }
 
 // MetaIterator Kobo UNCaGED to lazy load book metadata
@@ -243,6 +246,10 @@ func (s *sqlWriter) writeCommit() {
 
 func (s *sqlWriter) writeQuery(query string) {
 	s.sqlBuffWriter.WriteString(query)
+	// Make sure our query always ends with a terminating ';'
+	if !strings.HasSuffix(query, ";") {
+		s.sqlBuffWriter.WriteRune(';')
+	}
 	s.sqlBuffWriter.WriteRune('\n')
 }
 

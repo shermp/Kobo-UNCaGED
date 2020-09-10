@@ -45,7 +45,7 @@ mkdir -p ./Build/prerequisites/output
 rm -rf ./Build/onboard
 
 mkdir -p ./Build/onboard/.adds/kobo-uncaged/bin
-#mkdir -p ./Build/onboard/.adds/kobo-uncaged/scripts
+mkdir -p ./Build/onboard/.adds/kobo-uncaged/scripts
 mkdir -p ./Build/onboard/.adds/kobo-uncaged/config
 mkdir -p ./Build/onboard/.adds/kobo-uncaged/templates
 
@@ -57,25 +57,37 @@ mkdir -p ./Build/onboard/.adds/nm
 # fi
 cd ./Build/prerequisites || exit 1
 
-#Retrieve and build FBInk, if required
-if [ ! -f ./output/fbink ] && [ ! -f ./output/button_scan ]; then
-    printf "%bFBInk binaries not found. Building from source%b\n" "${YELLOW}" "${END}"
-    if [ ! -d ./FBInk ]; then
-        # Note, master has a fix for button_scan
-        git clone --recursive --branch v1.22.1 https://github.com/NiLuJe/FBInk.git
-    fi
-    cd ./FBInk || exit 1
-    make clean
-    # Recent versions of FBInk allow building a minimal version with button_scan
-    if ! make MINIMAL=1 BUTTON_SCAN=1; then
-        printf "%bMake failed to build 'fbink'. Aborting%b\n" "${RED}" "${END}"
-        exit 1
-    fi
-    cp ./Release/fbink ../output/fbink
-    cp ./Release/button_scan ../output/button_scan
-    cd -
-    printf "%bFBInk binaries built%b\n" "${GREEN}" "${END}"
+# Retrieve and build SQLite, if required
+SQLITE_VER=sqlite-amalgamation-3330000
+if [ ! -f ./$SQLITE_VER/sqlite3 ] ; then
+    printf "%bSQLite binary not found. Building from source%b\n" "${YELLOW}" "${END}"
+    [ -f ./$SQLITE_VER.zip ] || wget https://www.sqlite.org/2020/$SQLITE_VER.zip
+    unzip ./$SQLITE_VER.zip
+    $CC -DSQLITE_THREADSAFE=0 \
+        -DSQLITE_OMIT_LOAD_EXTENSION \
+        -O2 \
+        $SQLITE_VER/shell.c $SQLITE_VER/sqlite3.c -o $SQLITE_VER/sqlite3
 fi
+
+# #Retrieve and build FBInk, if required
+# if [ ! -f ./output/fbink ] && [ ! -f ./output/button_scan ]; then
+#     printf "%bFBInk binaries not found. Building from source%b\n" "${YELLOW}" "${END}"
+#     if [ ! -d ./FBInk ]; then
+#         # Note, master has a fix for button_scan
+#         git clone --recursive --branch v1.22.1 https://github.com/NiLuJe/FBInk.git
+#     fi
+#     cd ./FBInk || exit 1
+#     make clean
+#     # Recent versions of FBInk allow building a minimal version with button_scan
+#     if ! make MINIMAL=1 BUTTON_SCAN=1; then
+#         printf "%bMake failed to build 'fbink'. Aborting%b\n" "${RED}" "${END}"
+#         exit 1
+#     fi
+#     cp ./Release/fbink ../output/fbink
+#     cp ./Release/button_scan ../output/button_scan
+#     cd -
+#     printf "%bFBInk binaries built%b\n" "${GREEN}" "${END}"
+# fi
 
 # Next, obtain a TTF font. LiberationSans in our case
 # if [ ! -f ./output/LiberationSans-Regular.ttf ]; then
@@ -102,6 +114,8 @@ printf "%bKobo-UNCaGED built%b\n" "${GREEN}" "${END}"
 # Copy the kobo-uncaged scripts to the build directory
 # cp ../scripts/start-ku.sh ./onboard/.adds/kobo-uncaged/start-ku.sh
 cp ../scripts/nm-start-ku.sh ./onboard/.adds/kobo-uncaged/nm-start-ku.sh
+cp ../scripts/ku-prereq-check.sh ./onboard/.adds/kobo-uncaged/scripts/ku-prereq-check.sh
+cp ../scripts/ku-lib.sh ./onboard/.adds/kobo-uncaged/scripts/ku-lib.sh
 # cp ../scripts/run-ku.sh ./onboard/.adds/kobo-uncaged/scripts/run-ku.sh
 # cp ../scripts/nickel-usbms.sh ./onboard/.adds/kobo-uncaged/scripts/nickel-usbms.sh
 
@@ -111,8 +125,11 @@ cp ../kobo-uncaged/ku.toml ./onboard/.adds/kobo-uncaged/config/ku.toml.default
 # NickelMenu config file
 cp ../config/nm-ku ./onboard/.adds/nm/kobo_uncaged
 
+# SQLite binary
+cp ./prerequisites/$SQLITE_VER/sqlite3 ./onboard/.adds/kobo-uncaged/bin/sqlite3
+
 # FBInk binaries
-cp ./prerequisites/output/fbink ./onboard/.adds/kobo-uncaged/bin/fbink
+# cp ./prerequisites/output/fbink ./onboard/.adds/kobo-uncaged/bin/fbink
 # cp ./prerequisites/output/button_scan ./onboard/.adds/kobo-uncaged/bin/button_scan
 
 # HTML templates
