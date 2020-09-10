@@ -165,7 +165,7 @@ func (ku *koboUncaged) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, 
 	if err != nil {
 		return fmt.Errorf("SaveBook: error making book directories: %w", err)
 	}
-	destBook, err := os.OpenFile(bkPath, os.O_WRONLY|os.O_CREATE, 0644)
+	destBook, err := os.Create(bkPath)
 	if err != nil {
 		return fmt.Errorf("SaveBook: error opening ebook file: %w", err)
 	}
