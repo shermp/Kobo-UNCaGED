@@ -40,6 +40,7 @@ logmsg() {
 
     # Actual message ;)
     LOG_MSG="${2}"
+    TOAST_DURATION=${3:-0}
 
     # Send to syslog
     logger -t "UNCaGED" -p daemon.${LOG_LEVEL} "${LOG_MSG}"
@@ -47,6 +48,10 @@ logmsg() {
     # Print to console
     printf "%b%s%b\n" "${PRINT_COLOR}" "${LOG_MSG}" "${END}"
 
+    # Optionally show toast via qndb, if third argument is set to a number
+    if [ $TOAST_DURATION -gt 0 ] ; then
+        qndb -m mwcToast "${TOAST_DURATION}" "${LOG_MSG}"
+    fi
     # # Print to screen
     # PRINT_ROW=4
 

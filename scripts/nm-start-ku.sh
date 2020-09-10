@@ -47,34 +47,27 @@ $KU_BIN > $KU_LOG
 KU_RES=$?
 
 if [ -f $KU_REPL_MD ] ; then
-    logmsg "I" "Updating replacement book filesize(s)"
-    qndb -m mwcToast 3000 "Updating replacement book filesize(s)"
+    logmsg "I" "Updating replacement book filesize(s)" 3000
     sqlite_err=$($SQLITE_BIN $NICKEL_DB ".read ${KU_REPL_MD}" 2>&1 >/dev/null)
     sqlite_res=$?
     if [ $sqlite_res -ne 0 ] ; then 
-        logmsg "E" "$sqlite_err"
-        qndb -m mwcToast 3000 "SQL error updating filesize"
+        logmsg "E" "$sqlite_err" 3000
     fi
 fi
 if [ -f $KU_REPL_MD ] || [ -f $KU_UPDATE_MD ] ; then
-    logmsg "I" "Running book rescan"
-    qndb -m mwcToast 3000 "Running book rescan"
+    logmsg "I" "Running book rescan" 3000
     qndb -s pfmDoneProcessing -m pfmRescanBooksFull
     if [ -f $KU_UPDATE_MD ] ; then
-        logmsg "I" "Updating metadata"
-        qndb -m mwcToast 3000 "Updating metadata"
+        logmsg "I" "Updating metadata" 3000
         sqlite_err=$($SQLITE_BIN $NICKEL_DB ".read ${KU_UPDATE_MD}" 2>&1 >/dev/null)
         sqlite_res=$?
         if [ $sqlite_res -ne 0 ] ; then
-            logmsg "E" "$sqlite_err"
-            qndb -m mwcToast 3000 "SQL error updating metadata"
+            logmsg "E" "$sqlite_err" 3000
         fi
-        logmsg "I" "Running book rescan after metadata update"
-        qndb -m mwcToast 3000 "Running book rescan after metadata update"
+        logmsg "I" "Running book rescan after metadata update" 3000
         qndb -s pfmDoneProcessing -m pfmRescanBooksFull
     fi
-    logmsg "I" "Metadata updated"
-    qndb -m mwcToast 3000 "Metadata updated"
+    logmsg "I" "Metadata updated" 3000
 fi
 [ -f $KU_REPL_MD ] && rm $KU_REPL_MD
 [ -f $KU_UPDATE_MD ] && rm $KU_UPDATE_MD
