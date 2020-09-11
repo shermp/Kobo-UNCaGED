@@ -105,7 +105,6 @@ type Kobo struct {
 	ndbObj          dbus.BusObject
 	calInstances    []uc.CalInstance
 	useNDB          bool
-	BrowserOpen     bool
 	FinishedMsg     string
 	doneChan        chan bool
 	startChan       chan webConfig
@@ -114,7 +113,6 @@ type Kobo struct {
 	exitChan        chan bool
 	UCExitChan      chan<- bool
 	calInstChan     chan uc.CalInstance
-	browserOpened   chan<- bool
 	viewSignal      chan *dbus.Signal
 }
 

@@ -108,7 +108,6 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 	k.AuthChan = make(chan *calPassword)
 	k.calInstChan = make(chan uc.CalInstance)
 	k.exitChan = make(chan bool)
-	k.browserOpened = make(chan bool)
 	k.initWeb()
 	go func() {
 		if err = http.ListenAndServe(bindAddress, k.mux); err != nil {
