@@ -135,7 +135,9 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 			} else if !valid {
 				return nil, fmt.Errorf("New: expected 'N3BrowserView', got '%s'", vs.Body[0].(string))
 			}
-		case <-time.After(1 * time.Second):
+		// Give the user some time to connect to Wifi if required
+		case <-time.After(60 * time.Second):
+			k.ndbObj.Call(ndbInterface+".mwcToast", 0, 3000, "Kobo UNCaGED: Browser did not open after timeout")
 			return nil, fmt.Errorf("New: timeout waiting for browser to open")
 		}
 		// Exit if we encounter a view changed signal from Nickel away from 'N3BrowserView'
