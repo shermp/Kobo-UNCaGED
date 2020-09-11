@@ -77,7 +77,7 @@ EOF
 $min_fw
 EOF
 
-    IFS="oldifs"
+    IFS="$oldifs"
     # Make sure that build only contains digits
     cur_build=$(expr "${cur_build}" : '\([0-9][0-9]*\)')
     min_build=$(expr "${min_build}" : '\([0-9][0-9]*\)')
@@ -96,13 +96,15 @@ EOF
     return 1
 }
 
-# Checks to see if NickelDBus and qndb is installed, and that the
-# NickelDBus version can be obtailed via qndb
+# Checks whether 'qndb' exists, and that NickelDBus is available on the system bus.
 ndb_installed() {
-    if (which qndb > /dev/null 2>&1) && (qndb -m ndbVersion > /dev/null 2>&1) ; then
+    if  (command -v qndb > /dev/null 2>&1) && \
+        [ -f /usr/local/Kobo/imageformats/libndb.so ] && \
+        (dbus-send --system --print-reply --dest=org.freedesktop.DBus  /org/freedesktop/DBus org.freedesktop.DBus.ListNames | grep -q com.github.shermp.nickeldbus) 
+    then
         return 0
     else
-        logmsg "E" "NickelDBus not found or unable to get version"
+        logmsg "E" "NickelDBus not found"
         return 1
     fi
 }
