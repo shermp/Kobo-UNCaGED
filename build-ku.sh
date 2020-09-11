@@ -48,6 +48,7 @@ mkdir -p ./Build/onboard/.adds/kobo-uncaged/bin
 mkdir -p ./Build/onboard/.adds/kobo-uncaged/scripts
 mkdir -p ./Build/onboard/.adds/kobo-uncaged/config
 mkdir -p ./Build/onboard/.adds/kobo-uncaged/templates
+mkdir -p ./Build/onboard/.adds/kobo-uncaged/NickelDBus
 
 mkdir -p ./Build/onboard/.adds/nm
 # Only make the following directories if we are not building an upgrade package
@@ -56,6 +57,11 @@ mkdir -p ./Build/onboard/.adds/nm
 #     mkdir -p ./Build/onboard/.adds/kfmon/config
 # fi
 cd ./Build/prerequisites || exit 1
+
+# Retrieve NickelDBus, if required
+if [ ! -f ./output/ndb-kr.tgz ] ; then
+    wget -O ./output/ndb-kr.tgz https://github.com/shermp/NickelDBus/releases/download/0.1.0/KoboRoot.tgz
+fi
 
 # Retrieve and build SQLite, if required
 SQLITE_VER=sqlite-amalgamation-3330000
@@ -127,6 +133,9 @@ cp ../config/nm-ku ./onboard/.adds/nm/kobo_uncaged
 
 # SQLite binary
 cp ./prerequisites/$SQLITE_VER/sqlite3 ./onboard/.adds/kobo-uncaged/bin/sqlite3
+
+# NickelDBus KoboRoot
+cp ./prerequisites/output/ndb-kr.tgz ./onboard/.adds/kobo-uncaged/NickelDBus/ndb-kr.tgz
 
 # FBInk binaries
 # cp ./prerequisites/output/fbink ./onboard/.adds/kobo-uncaged/bin/fbink
