@@ -28,18 +28,6 @@ if [ ! -f "${KU_DIR}/config/ku.toml" ]; then
     cp -f "${KU_DIR}/config/ku.toml.default" "${KU_DIR}/config/ku.toml"
 fi
 
-# # Use NickelDBus to connect to Wifi
-# WIFI_OUTPUT=$(qndb -s wmNetworkConnected -s wmNetworkFailedToConnect -t 60000 -m wfmConnectWireless)
-# if ! $? ; then
-#     qndb -m mwcToast "Connecting to Wifi errored or timed out"
-#     logmsg "E" "$WIFI_OUTPUT"
-#     exit 1
-# elif [ "$WIFI_OUTPUT" = "wmNetworkFailedToConnect" ] ; then
-#     qndb -m mwcToast "Could not connect to WiFi"
-#     logmsg "E" "Could not connect to WiFi"
-#     exit 1
-# fi
-
 cd ${KU_DIR}
 
 logmsg "I" "Starting Kobo UNCaGED" 3000
