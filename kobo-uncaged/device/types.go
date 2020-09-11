@@ -106,6 +106,7 @@ type Kobo struct {
 	calInstances    []uc.CalInstance
 	useNDB          bool
 	FinishedMsg     string
+	BrowserOpen     bool
 	doneChan        chan bool
 	startChan       chan webConfig
 	MsgChan         chan WebMsg

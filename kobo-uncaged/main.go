@@ -36,21 +36,22 @@ type returnCode int
 var kuVersion string
 
 const (
-	genericError    returnCode = 250
-	successNoAction returnCode = 0
-	successRerun    returnCode = 1
-	successUSBMS    returnCode = 10
-	passwordError   returnCode = 100
-	calibreNotFound returnCode = 101
+	genericError     returnCode = 250
+	succsess         returnCode = 0
+	successEarlyExit returnCode = 10
+	passwordError    returnCode = 100
+	calibreNotFound  returnCode = 101
 )
 
 func returncodeFromError(err error, k *device.Kobo) returnCode {
-	rc := successNoAction
+	rc := succsess
 	if err != nil {
 		log.Print(err)
 		if k == nil {
 			return genericError
 		}
+		k.FinishedMsg = err.Error()
+		rc = genericError
 		var calErr uc.CalError
 		if errors.As(err, &calErr) {
 			switch calErr {
@@ -65,8 +66,6 @@ func returncodeFromError(err error, k *device.Kobo) returnCode {
 				rc = genericError
 			}
 		}
-		k.FinishedMsg = err.Error()
-		rc = genericError
 	}
 	return rc
 }
@@ -88,7 +87,7 @@ func mainWithErrCode() returnCode {
 		log.Print(err)
 		return returncodeFromError(err, nil)
 	} else if k == nil {
-		return successNoAction // the user exited during config
+		return successEarlyExit // the user exited during config
 	}
 	defer k.Close()
 
@@ -115,20 +114,14 @@ func mainWithErrCode() returnCode {
 			log.Print(err)
 			return returncodeFromError(err, k)
 		}
-		k.FinishedMsg = "All Done!<br>Metadata will be updated."
-		// rerun, err := k.UpdateNickelDB()
-		// if err != nil {
-		// 	k.FinishedMsg = "Updating metadata failed"
-		// 	log.Print(err)
-		// 	return returncodeFromError(err, k)
-		// }
-		// if rerun {
-		// 	k.FinishedMsg = "Books added!<br><br>Please select :menu item scan name: from the main menu.<br>Your new books won't show until you do."
-		// 	return successRerun
-		// }
+		k.FinishedMsg = "Calibre disconnected<br>Metadata will be updated"
 	}
-	k.FinishedMsg = "All Done!<br><br>You may exit the browser."
-	return successNoAction
+	if k.BrowserOpen {
+		k.FinishedMsg = "Calibre disconnected<br><br>You may exit the browser."
+	} else {
+		k.FinishedMsg = "Calibre disconnected"
+	}
+	return succsess
 }
 func main() {
 	os.Exit(int(mainWithErrCode()))

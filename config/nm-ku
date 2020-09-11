@@ -9,5 +9,4 @@ menu_item :main :Kobo UNCaGED :cmd_output :1000:quiet: /mnt/onboard/.adds/kobo-u
         chain_success : cmd_output  :1000:quiet: cp /mnt/onboard/.adds/kobo-uncaged/NickelDBus/ndb-kr.tgz /mnt/onboard/.kobo/KoboRoot.tgz
         chain_success : nickel_misc : rescan_books_full
         chain_always  : skip        : -1
-    chain_success : dbg_toast   : Starting Kobo UNCaGED
     chain_success : cmd_spawn   :quiet: exec /mnt/onboard/.adds/kobo-uncaged/nm-start-ku.sh

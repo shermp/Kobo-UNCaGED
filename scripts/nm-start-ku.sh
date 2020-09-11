@@ -24,7 +24,7 @@ logmsg "I" "Enabled loopback interface"
 
 # Check if we have a ku.toml file. If not, copy it from the default file
 if [ ! -f "${KU_DIR}/config/ku.toml" ]; then
-    logmsg "I" "No existing config file. Using default."
+    logmsg "I" "No existing config file. Using default." 3000
     cp -f "${KU_DIR}/config/ku.toml.default" "${KU_DIR}/config/ku.toml"
 fi
 
@@ -42,39 +42,45 @@ fi
 
 cd ${KU_DIR}
 
-logmsg "I" "Starting Kobo UNCaGED"
-$KU_BIN > $KU_LOG
+logmsg "I" "Starting Kobo UNCaGED" 3000
+$KU_BIN
 KU_RES=$?
-
-if [ -f $KU_REPL_MD ] ; then
-    logmsg "I" "Updating replacement book filesize(s)" 3000
-    sqlite_err=$($SQLITE_BIN $NICKEL_DB ".read ${KU_REPL_MD}" 2>&1 >/dev/null)
-    sqlite_res=$?
-    if [ $sqlite_res -ne 0 ] ; then 
-        logmsg "E" "$sqlite_err" 3000
-    fi
-fi
-# Always run library rescan, just in case. Especially to catch book deletion
-logmsg "I" "Running library rescan" 3000
-qndb -s pfmDoneProcessing -m pfmRescanBooksFull
-if [ -f $KU_REPL_MD ] || [ -f $KU_UPDATE_MD ] ; then
-    if [ -f $KU_UPDATE_MD ] ; then
-        logmsg "I" "Updating metadata" 3000
-        sqlite_err=$($SQLITE_BIN $NICKEL_DB ".read ${KU_UPDATE_MD}" 2>&1 >/dev/null)
+if [ "$KU_RES" -eq 0 ] ; then
+    if [ -f $KU_REPL_MD ] ; then
+        logmsg "I" "Updating replacement book filesize(s)" 3000
+        sqlite_err=$($SQLITE_BIN $NICKEL_DB ".read ${KU_REPL_MD}" 2>&1 >/dev/null)
         sqlite_res=$?
-        if [ $sqlite_res -ne 0 ] ; then
+        if [ $sqlite_res -ne 0 ] ; then 
             logmsg "E" "$sqlite_err" 3000
         fi
-        logmsg "I" "Running library rescan after metadata update" 3000
-        qndb -s pfmDoneProcessing -m pfmRescanBooksFull
     fi
-    logmsg "I" "Metadata updated" 3000
+    # Always run library rescan, just in case. Especially to catch book deletion
+    logmsg "I" "Running library rescan" 3000
+    qndb -s pfmDoneProcessing -m pfmRescanBooksFull
+    if [ -f $KU_REPL_MD ] || [ -f $KU_UPDATE_MD ] ; then
+        if [ -f $KU_UPDATE_MD ] ; then
+            logmsg "I" "Updating metadata" 3000
+            sqlite_err=$($SQLITE_BIN $NICKEL_DB ".read ${KU_UPDATE_MD}" 2>&1 >/dev/null)
+            sqlite_res=$?
+            if [ $sqlite_res -ne 0 ] ; then
+                logmsg "E" "$sqlite_err" 3000
+            fi
+            logmsg "I" "Running library rescan after metadata update" 3000
+            qndb -s pfmDoneProcessing -m pfmRescanBooksFull
+        fi
+        logmsg "I" "Metadata updated" 3000
+    fi
+    [ -f $KU_REPL_MD ] && rm $KU_REPL_MD
+    [ -f $KU_UPDATE_MD ] && rm $KU_UPDATE_MD
+elif [ "$KU_RES" -eq 250 ] ; then
+    logmsg "I" "Running precautionary library rescan" 3000
+    qndb -s pfmDoneProcessing -m pfmRescanBooksFull
 fi
-[ -f $KU_REPL_MD ] && rm $KU_REPL_MD
-[ -f $KU_UPDATE_MD ] && rm $KU_UPDATE_MD
 
 cd -
 
 # Disable the loopback interface when we are done
 ip link set lo down
 logmsg "I" "Disabled loopback interface"
+
+logmsg "I" "Kobo UNCaGED exiting" 3000

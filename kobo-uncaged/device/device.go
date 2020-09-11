@@ -95,6 +95,7 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 	if k.UseSDCard {
 		k.webInfo.StorageType = "External SD Storage"
 	}
+	k.BrowserOpen = true
 	k.useNDB = true
 	if k.useNDB {
 		if k.ndbConn, err = dbus.SystemBus(); err != nil {
@@ -130,12 +131,15 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 		case vs := <-k.viewSignal:
 			valid, err := isBrowserViewSignal(vs)
 			if err != nil {
+				k.BrowserOpen = false
 				return nil, fmt.Errorf("New: %w", err)
 			} else if !valid {
+				k.BrowserOpen = false
 				return nil, fmt.Errorf("New: expected 'N3BrowserView', got '%s'", vs.Body[0].(string))
 			}
 		// Give the user some time to connect to Wifi if required
 		case <-time.After(60 * time.Second):
+			k.BrowserOpen = false
 			k.ndbObj.Call(ndbInterface+".mwcToast", 0, 3000, "Kobo UNCaGED: Browser did not open after timeout")
 			return nil, fmt.Errorf("New: timeout waiting for browser to open")
 		}
@@ -143,6 +147,7 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 		go func() {
 			for v := range k.viewSignal {
 				if isBV, err := isBrowserViewSignal(v); err == nil && !isBV {
+					k.BrowserOpen = false
 					k.ndbObj.Call(ndbInterface+".mwcToast", 0, 3000, "Browser closed. Kobo UNCaGED exiting")
 					if k.UCExitChan != nil {
 						k.UCExitChan <- true
@@ -678,7 +683,7 @@ func (k *Kobo) Close() {
 	if k.replSQLWriter != nil {
 		k.replSQLWriter.close()
 	}
-	if k.useNDB {
+	if k.useNDB && !k.BrowserOpen {
 		k.ndbObj.Call(ndbInterface+".mwcToast", 0, 3000, k.FinishedMsg)
 	} else {
 		k.WebSend(WebMsg{Finished: k.FinishedMsg})
