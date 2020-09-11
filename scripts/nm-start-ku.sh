@@ -54,9 +54,10 @@ if [ -f $KU_REPL_MD ] ; then
         logmsg "E" "$sqlite_err" 3000
     fi
 fi
+# Always run library rescan, just in case. Especially to catch book deletion
+logmsg "I" "Running library rescan" 3000
+qndb -s pfmDoneProcessing -m pfmRescanBooksFull
 if [ -f $KU_REPL_MD ] || [ -f $KU_UPDATE_MD ] ; then
-    logmsg "I" "Running book rescan" 3000
-    qndb -s pfmDoneProcessing -m pfmRescanBooksFull
     if [ -f $KU_UPDATE_MD ] ; then
         logmsg "I" "Updating metadata" 3000
         sqlite_err=$($SQLITE_BIN $NICKEL_DB ".read ${KU_UPDATE_MD}" 2>&1 >/dev/null)
@@ -64,7 +65,7 @@ if [ -f $KU_REPL_MD ] || [ -f $KU_UPDATE_MD ] ; then
         if [ $sqlite_res -ne 0 ] ; then
             logmsg "E" "$sqlite_err" 3000
         fi
-        logmsg "I" "Running book rescan after metadata update" 3000
+        logmsg "I" "Running library rescan after metadata update" 3000
         qndb -s pfmDoneProcessing -m pfmRescanBooksFull
     fi
     logmsg "I" "Metadata updated" 3000
