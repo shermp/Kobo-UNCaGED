@@ -18,19 +18,29 @@
         <!-- Config screen -->
         <div id="kuconfig" style="display: none;">
             <div class="ku-cfg-row">
-                <label for="preferSDCard">Prefer SD Card</label>
+                <label for="preferSDCard" data-help-text="Prefer saving books to external SD card when available.">
+                    Prefer SD Card
+                </label>
                 <input type="checkbox" id="preferSDCard" name="preferSDCard">
             </div>
             <div class="ku-cfg-row">
-                <label for="preferKepub">Prefer kepub</label>
+                <label for="preferKepub" data-help-text="Prefer sending kepub over epub when both are available">
+                    Prefer kepub
+                </label>
                 <input type="checkbox" id="preferKepub" name="preferKepub">
             </div>
             <div class="ku-cfg-row">
-                <label for="enableDebug">Enable Debug</label>
+                <label for="enableDebug" data-help-text="Enable debug logging">
+                    Enable Debug
+                </label>
                 <input type="checkbox" id="enableDebug" name="enableDebug">
             </div>
             <div class="ku-cfg-row">
-                <label for="generateLevel">Generate thumbnail level</label>
+                <label for="generateLevel" data-help-text="Pre-generate thumbnails if set to 'All' or 'Partial'. 
+                'Partial' generates library thumbnails, 'All' additionally generates the sleep thumbnail. 
+                Set 'None' to get Nickel to generate thumbnails">
+                    Generate thumbnail level
+                </label>
                 <select id="generateLevel" name="generateLevel">
                     <option value="all">All</option>
                     <option value="partial">Partial</option>
@@ -38,7 +48,9 @@
                 </select>
             </div>
             <div class="ku-cfg-row">
-                <label for="resizeAlgorithm">Thumbnail Resize Algorithm</label>
+                <label for="resizeAlgorithm" data-help-text="Algorithm used to resize thumbnails. 'Bilinear' is fastest, 'Lanczos3' is slowest.">
+                    Thumbnail Resize Algorithm
+                </label>
                 <select id="resizeAlgorithm" name="resizeAlgorithm">
                     <option value="bilinear">Bilinear</option>
                     <option value="bicubic">Bicubic</option>
@@ -47,13 +59,16 @@
                 </select>
             </div>
             <div class="ku-cfg-row">
-                <label for="jpegQuality">Thumbnail JPEG Quality</label>
+                <label for="jpegQuality" data-help-text="The JPEG compression quality. Range is 0-100, higher is better.">
+                    Thumbnail JPEG Quality
+                </label>
                 <input type="number" id="jpegQuality" name="jpegQuality" min="0">
             </div>
             <div class="ku-cfg-row">
                 <button type="button" id="cfgStartBtn" data-event-start="false">Start</button>
                 <button type="button" id="cfgExitBtn" data-event-exit="false">Exit</button>
             </div>
+            <div class="ku-cfg-help" id="cfgHelp"></div>
         </div>
         <!-- Message display -->
         <div id="kumessage" style="display: none;">

@@ -84,6 +84,10 @@ function setupEventHandlers() {
         instList.addEventListener('click', selectCalInstance);
         instList.dataset.eventInstances = "true";
     }
+    var cfgLabels = document.querySelectorAll(".ku-cfg-row > label");
+    for (var i = 0; i < cfgLabels.length; i++) {
+        cfgLabels[i].addEventListener('click', showCfgHelpText);
+    }
 }
 
 function showMessage(ev) {
@@ -228,11 +232,19 @@ function handleShowKUCfg(resp) {
         document.getElementById('kuconfig').style.display = 'block';
     }
 }
+function showCfgHelpText(ev) {
+    var lbl = ev.target;
+    if ("helpText" in lbl.dataset) {
+        var help = document.getElementById("cfgHelp");
+        help.innerHTML = "<b>" + lbl.innerText + "</b><br/>" + lbl.dataset.helpText;
+    }
+}
+
 window.onload = function() {
-    setKoboSizes();
     setupEventHandlers();
     setupSSE();
     getKUJson(kuInfo.configPath, handleShowKUCfg);
+    setKoboSizes();
 };
 window.onresize = function() {
     setKoboSizes(kuInfo.screenDPI);

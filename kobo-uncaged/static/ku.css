@@ -12,6 +12,10 @@ body {
     display: table-cell;
     padding: 5pt;
 }
+.ku-cfg-help {
+    margin: 12pt 0 0 0;
+    text-align: center;
+}
 #kuhead {
     text-align: center;
 }
