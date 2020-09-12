@@ -22,12 +22,6 @@ KU_UPDATE_MD=${KU_DIR}/updated-md.sql
 ip link set lo up
 logmsg "I" "Enabled loopback interface"
 
-# Check if we have a ku.toml file. If not, copy it from the default file
-if [ ! -f "${KU_DIR}/config/ku.toml" ]; then
-    logmsg "I" "No existing config file. Using default." 3000
-    cp -f "${KU_DIR}/config/ku.toml.default" "${KU_DIR}/config/ku.toml"
-fi
-
 cd ${KU_DIR}
 
 logmsg "I" "Starting Kobo UNCaGED" 3000

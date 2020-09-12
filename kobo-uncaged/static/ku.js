@@ -178,11 +178,9 @@ function sendConfig() {
     kuConfig.opts.preferSDCard = document.getElementById('preferSDCard').checked;
     kuConfig.opts.preferKepub = document.getElementById('preferKepub').checked;
     kuConfig.opts.enableDebug = document.getElementById('enableDebug').checked;
-    kuConfig.opts.addMetadataByTrigger = document.getElementById('addMetadataByTrigger').checked;
     kuConfig.opts.thumbnail.generateLevel = gl.options[gl.selectedIndex].value;
     kuConfig.opts.thumbnail.resizeAlgorithm = rs.options[rs.selectedIndex].value;
     kuConfig.opts.thumbnail.jpegQuality = parseInt(document.getElementById('jpegQuality').value);
-    kuConfig.saveOpts = document.getElementById('saveOpts').checked;
     var xhr = new XMLHttpRequest();
     xhr.open('POST', kuInfo.configPath);
     xhr.onload = function () {
@@ -224,11 +222,9 @@ function handleShowKUCfg(resp) {
         document.getElementById('preferSDCard').checked = kuConfig.opts.preferSDCard;
         document.getElementById('preferKepub').checked = kuConfig.opts.preferKepub;
         document.getElementById('enableDebug').checked = kuConfig.opts.enableDebug;
-        document.getElementById('addMetadataByTrigger').checked = kuConfig.opts.addMetadataByTrigger;
         document.getElementById('generateLevel').value = kuConfig.opts.thumbnail.generateLevel;
         document.getElementById('resizeAlgorithm').value = kuConfig.opts.thumbnail.resizeAlgorithm;
         document.getElementById('jpegQuality').value = kuConfig.opts.thumbnail.jpegQuality;
-        document.getElementById('saveOpts').checked = kuConfig.saveOpts;
         document.getElementById('kuconfig').style.display = 'block';
     }
 }

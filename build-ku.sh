@@ -106,9 +106,6 @@ cp ../scripts/nm-start-ku.sh ./onboard/.adds/kobo-uncaged/nm-start-ku.sh
 cp ../scripts/ku-prereq-check.sh ./onboard/.adds/kobo-uncaged/scripts/ku-prereq-check.sh
 cp ../scripts/ku-lib.sh ./onboard/.adds/kobo-uncaged/scripts/ku-lib.sh
 
-# Default config file
-cp ../kobo-uncaged/ku.toml ./onboard/.adds/kobo-uncaged/config/ku.toml.default
-
 # NickelMenu config file
 cp ../config/nm-ku ./onboard/.adds/nm/kobo_uncaged
 

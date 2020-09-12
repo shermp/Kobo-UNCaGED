@@ -8,10 +8,10 @@ import (
 	"html"
 	"image"
 	"image/jpeg"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -26,7 +26,6 @@ import (
 	_ "github.com/doug-martin/goqu/v9/dialect/sqlite3"
 	"github.com/google/uuid"
 	"github.com/kapmahc/epub"
-	"github.com/pelletier/go-toml"
 	"github.com/pgaskin/koboutils/v2/kobo"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/util"
 	"github.com/shermp/UNCaGED/uc"
@@ -40,6 +39,7 @@ const kuUpdatedMDfile = "metadata_update.kobouc"
 const kuUpdatedSQL = ".adds/kobo-uncaged/updated-md.sql"
 const kuBookReplaceSQL = ".adds/kobo-uncaged/replace-book.sql"
 const kuPassCache = ".adds/kobo-uncaged/.ku_pwcache.json"
+const kuConfigFile = ".adds/kobo-uncaged/config/kuconfig.json"
 const ndbInterface = "com.github.shermp.nickeldbus"
 const viewChangedName = ndbInterface + ".ndbViewChanged"
 
@@ -166,10 +166,8 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 		}
 		k.KuConfig = &opt.Opts
 		k.KuConfig.Thumbnail.SetRezFilter()
-		if opt.SaveOpts {
-			if err = k.saveUserOptions(); err != nil {
-				return nil, fmt.Errorf("New: failed to save updated config options to file: %w", err)
-			}
+		if err = k.saveUserOptions(); err != nil {
+			return nil, fmt.Errorf("New: failed to save updated config options to file: %w", err)
 		}
 	case <-k.exitChan:
 		// Give the client time to request and render the final exit page before quitting
@@ -254,12 +252,13 @@ func (k *Kobo) getUserOptions() error {
 	// Note, we return opts, regardless of whether we successfully read the options file.
 	// Our code can handle the default struct gracefully
 	opts := &KuOptions{}
-	configBytes, err := ioutil.ReadFile(filepath.Join(k.DBRootDir, ".adds/kobo-uncaged/config/ku.toml"))
+	notExists, err := util.ReadJSON(path.Join(k.DBRootDir, kuConfigFile), opts)
 	if err != nil {
-		return fmt.Errorf("error loading config file: %w", err)
-	}
-	if err := toml.Unmarshal(configBytes, opts); err != nil {
-		return fmt.Errorf("error reading config file: %w", err)
+		return err
+	} else if notExists {
+		opts.PreferKepub = true
+		// Note that opts.Thumbnail.Validate() sets thumbnail defaults, so no need
+		// to set them here.
 	}
 	opts.Thumbnail.Validate()
 	opts.Thumbnail.SetRezFilter()
@@ -268,14 +267,7 @@ func (k *Kobo) getUserOptions() error {
 }
 
 func (k *Kobo) saveUserOptions() error {
-	configBytes, err := toml.Marshal(k.KuConfig)
-	if err != nil {
-		return fmt.Errorf("error marshaling config: %w", err)
-	}
-	if err = ioutil.WriteFile(filepath.Join(k.DBRootDir, ".adds/kobo-uncaged/config/ku.toml"), configBytes, 0644); err != nil {
-		return fmt.Errorf("error writing config file: %w", err)
-	}
-	return nil
+	return util.WriteJSON(path.Join(k.DBRootDir, kuConfigFile), k.KuConfig)
 }
 
 // UpdateIfExists updates onboard metadata if it exists in the Nickel database

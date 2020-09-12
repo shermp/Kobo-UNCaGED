@@ -57,9 +57,8 @@ type webUIinfo struct {
 }
 
 type webConfig struct {
-	Opts     KuOptions `json:"opts"`
-	SaveOpts bool      `json:"saveOpts"`
-	err      error
+	Opts KuOptions `json:"opts"`
+	err  error
 }
 
 // WebMsg is used to send messages to the web client
