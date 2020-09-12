@@ -67,7 +67,7 @@ func isBrowserViewSignal(vs *dbus.Signal) (bool, error) {
 }
 
 // New creates a Kobo object, ready for use
-func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, error) {
+func New(dbRootDir, sdRootDir string, bindAddress string, disableNDB bool, vers string) (*Kobo, error) {
 	var err error
 	k := &Kobo{}
 	k.Wg = &sync.WaitGroup{}
@@ -96,7 +96,7 @@ func New(dbRootDir, sdRootDir string, bindAddress string, vers string) (*Kobo, e
 		k.webInfo.StorageType = "External SD Storage"
 	}
 	k.BrowserOpen = true
-	k.useNDB = true
+	k.useNDB = !disableNDB
 	if k.useNDB {
 		if k.ndbConn, err = dbus.SystemBus(); err != nil {
 			return nil, fmt.Errorf("New: failed to connect to system d-bus: %w", err)

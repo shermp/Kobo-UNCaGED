@@ -77,12 +77,13 @@ func mainWithErrCode() returnCode {
 	onboardMntPtr := flag.String("onboardmount", "/mnt/onboard", "If changed, specify the new new mountpoint of '/mnt/onboard'")
 	sdMntPtr := flag.String("sdmount", "", "If changed, specify the new new mountpoint of '/mnt/sd'")
 	bindAddrPtr := flag.String("bindaddr", "127.0.0.1:8181", "Specify the network address and port <IP:POrt> to listen on")
+	disableNDBPtr := flag.Bool("disablendb", false, "Disables use of NickelDBus. Useful for desktop testing")
 
 	flag.Parse()
 	log.Println("Started Kobo-UNCaGED")
 	log.Println("Reading options")
 	log.Println("Creating KU object")
-	k, err := device.New(*onboardMntPtr, *sdMntPtr, *bindAddrPtr, kuVersion)
+	k, err := device.New(*onboardMntPtr, *sdMntPtr, *bindAddrPtr, *disableNDBPtr, kuVersion)
 	if err != nil {
 		log.Print(err)
 		return returncodeFromError(err, nil)
