@@ -105,7 +105,8 @@ func New(dbRootDir, sdRootDir string, bindAddress string, disableNDB bool, vers 
 	if k.useNDB {
 		k.viewSignal = make(chan *dbus.Signal, 10)
 		if err := k.ndbConn.AddMatchSignal(dbus.WithMatchObjectPath("/nickeldbus"),
-			dbus.WithMatchInterface(ndbInterface)); err != nil {
+			dbus.WithMatchInterface(ndbInterface),
+			dbus.WithMatchMember("ndbViewChanged")); err != nil {
 			return nil, fmt.Errorf("New: error adding ndbViewChanged match signal: %w", err)
 		}
 		k.ndbConn.Signal(k.viewSignal)
