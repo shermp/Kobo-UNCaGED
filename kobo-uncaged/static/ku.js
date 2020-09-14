@@ -241,10 +241,10 @@ function showCfgHelpText(ev) {
 }
 
 window.onload = function() {
+    setKoboSizes(kuInfo.screenDPI);
     setupEventHandlers();
     setupSSE();
     getKUJson(kuInfo.configPath, handleShowKUCfg);
-    setKoboSizes();
 };
 window.onresize = function() {
     setKoboSizes(kuInfo.screenDPI);
