@@ -118,11 +118,19 @@ func New(dbRootDir, sdRootDir string, bindAddress string, disableNDB bool, vers 
 	if k.useNDB {
 		k.viewSignal = make(chan *dbus.Signal, 10)
 		if err := k.ndbConn.AddMatchSignal(dbus.WithMatchObjectPath("/nickeldbus"),
-			dbus.WithMatchInterface(ndbInterface),
-			dbus.WithMatchMember("ndbViewChanged")); err != nil {
+			dbus.WithMatchInterface(ndbInterface)); err != nil {
 			return nil, fmt.Errorf("New: error adding ndbViewChanged match signal: %w", err)
 		}
 		k.ndbConn.Signal(k.viewSignal)
+		var currView string
+		// Note, the main reason for calling 'ndbCurrentView' here is to ensure the
+		// 'ndbViewChanged' signal is connected
+		if err = k.ndbObj.Call(ndbInterface+".ndbCurrentView", 0).Store(&currView); err != nil {
+			return nil, fmt.Errorf("New: failed to get current view: %w", err)
+		}
+		if strings.HasSuffix(currView, "PowerView") {
+			return nil, fmt.Errorf("New: currently in sleep mode. Aborting")
+		}
 		res := k.ndbObj.Call(ndbInterface+".bwmOpenBrowser", 0, true, "http://127.0.0.1:8181/")
 		if res.Err != nil {
 			return nil, fmt.Errorf("New: failed to open web browser")
