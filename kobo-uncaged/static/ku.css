@@ -2,15 +2,32 @@ body {
     font-family: sans-serif;
 }
 #kuconfig {
-    display: table;
     margin: auto;
 }
 .ku-cfg-row {
-    display: table-row;
+    margin: 5pt 0;
+    padding: 0;
 }
-.ku-cfg-row > label, .ku-cfg-row > input, .ku-cfg-row > select, .ku-cfg-row > button {
-    display: table-cell;
-    padding: 5pt;
+.ku-cfg-row > label {
+    display: inline-block;
+    width: 60%;
+}
+.ku-cfg-row > input, .ku-cfg-row > select {
+    display: inline-block;
+    width: 33%;
+}
+.ku-cfg-buttons {
+    text-align: center;
+}
+button {
+    display: inline-block;
+    padding: 0.35em 1.2em;
+    border: 0.1em solid #000000;
+    border-radius: 0.12em;
+    margin: 5pt;
+    text-align: center;
+    font-family: sans-serif;
+    background-color: #FFFFFF;
 }
 .ku-cfg-help {
     margin: 12pt 0 0 0;
