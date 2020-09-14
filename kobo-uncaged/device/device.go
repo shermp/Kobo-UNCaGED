@@ -46,19 +46,6 @@ const viewChangedName = ndbInterface + ".ndbViewChanged"
 const onboardPrefix cidPrefix = "file:///mnt/onboard/"
 const sdPrefix cidPrefix = "file:///mnt/sd/"
 
-// func newUncagedPassword(passwordList []string) *uncagedPassword {
-// 	return &uncagedPassword{passwordList: passwordList}
-// }
-
-// func (pw *uncagedPassword) NextPassword() string {
-// 	var password string
-// 	if pw.currPassIndex < len(pw.passwordList) {
-// 		password = pw.passwordList[pw.currPassIndex]
-// 		pw.currPassIndex++
-// 	}
-// 	return password
-// }
-
 func isBrowserViewSignal(vs *dbus.Signal) (bool, error) {
 	if vs.Name != viewChangedName || len(vs.Body) <= 0 {
 		return false, fmt.Errorf("isBrowserViewSignal: not valid 'ndbViewChanged' signal")
