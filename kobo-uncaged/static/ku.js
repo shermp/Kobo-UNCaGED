@@ -185,6 +185,7 @@ function sendConfig() {
     kuConfig.opts.thumbnail.generateLevel = gl.options[gl.selectedIndex].value;
     kuConfig.opts.thumbnail.resizeAlgorithm = rs.options[rs.selectedIndex].value;
     kuConfig.opts.thumbnail.jpegQuality = parseInt(document.getElementById('jpegQuality').value);
+    kuConfig.opts.subtitleColumn = document.getElementById('subtitleColumn').value;
     var xhr = new XMLHttpRequest();
     xhr.open('POST', kuInfo.configPath);
     xhr.onload = function () {
@@ -229,6 +230,7 @@ function handleShowKUCfg(resp) {
         document.getElementById('generateLevel').value = kuConfig.opts.thumbnail.generateLevel;
         document.getElementById('resizeAlgorithm').value = kuConfig.opts.thumbnail.resizeAlgorithm;
         document.getElementById('jpegQuality').value = kuConfig.opts.thumbnail.jpegQuality;
+        document.getElementById('subtitleColumn').value = kuConfig.opts.subtitleColumn;
         document.getElementById('kuconfig').style.display = 'block';
     }
 }

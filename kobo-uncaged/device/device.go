@@ -623,10 +623,10 @@ func (k *Kobo) WriteUpdatedMetadataSQL() error {
 	}
 	defer updateSQL.close()
 	dialect := goqu.Dialect("sqlite3")
-	var desc, series, seriesNum *string
+	var desc, series, seriesNum, subtitle *string
 	var seriesNumFloat *float64
 	for cid := range k.UpdatedMetadata {
-		desc, series, seriesNum, seriesNumFloat = nil, nil, nil, nil
+		desc, series, seriesNum, seriesNumFloat, subtitle = nil, nil, nil, nil, nil
 		if k.MetadataMap[cid].Comments != nil && *k.MetadataMap[cid].Comments != "" {
 			desc = k.MetadataMap[cid].Comments
 		}
@@ -639,8 +639,29 @@ func (k *Kobo) WriteUpdatedMetadataSQL() error {
 			seriesNum = &sn
 			seriesNumFloat = k.MetadataMap[cid].SeriesIndex
 		}
+		if k.KuConfig.SubtitleColumn != "" {
+			col := k.KuConfig.SubtitleColumn
+			md := k.MetadataMap[cid]
+			st := ""
+			if col == "languages" {
+				st = md.LangString()
+			} else if col == "tags" {
+				st = md.TagString()
+			} else if col == "publisher" {
+				st = md.PubString()
+			} else if col == "rating" {
+				st = md.RatingString()
+			} else if strings.HasPrefix(col, "#") {
+				if cc, exists := md.UserMetadata[col]; exists {
+					st = cc.ContextualString()
+				}
+			}
+			if st != "" {
+				subtitle = &st
+			}
+		}
 		ds := dialect.Update("content").Set(goqu.Record{
-			"Description": desc, "Series": series, "SeriesNumber": seriesNum, "SeriesNumberFloat": seriesNumFloat,
+			"Description": desc, "Series": series, "SeriesNumber": seriesNum, "SeriesNumberFloat": seriesNumFloat, "Subtitle": subtitle,
 		}).Where(goqu.Ex{"ContentID": cid})
 		sqlStr, _, err := ds.ToSQL()
 		if err != nil {
