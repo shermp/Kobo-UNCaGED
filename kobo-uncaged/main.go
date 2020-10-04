@@ -109,6 +109,10 @@ func mainWithErrCode() returnCode {
 		// Not fatal, just log it
 		log.Print(err)
 	}
+	if err = k.SaveUserOptions(); err != nil {
+		// Annoying, but not fatal
+		log.Print(err)
+	}
 	if len(k.UpdatedMetadata) > 0 {
 		if err := k.WriteUpdatedMetadataSQL(); err != nil {
 			k.FinishedMsg = "Updating metadata failed"

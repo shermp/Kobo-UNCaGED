@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 
 	"github.com/julienschmidt/httprouter"
@@ -32,6 +33,9 @@ func (k *Kobo) initRouter() {
 	k.mux.HandlerFunc("GET", "/calibreinstance", k.HandleCalInstances)
 	k.mux.HandlerFunc("POST", "/calibreinstance", k.HandleCalInstances)
 	k.webInfo.InstancePath = "/calibreinstance"
+	k.mux.HandlerFunc("GET", "/libinfo", k.HandleLibraryInfo)
+	k.mux.HandlerFunc("POST", "/libinfo", k.HandleLibraryInfo)
+	k.webInfo.LibInfoPath = "/libinfo"
 	k.mux.HandlerFunc("GET", "/ucexit", k.HandleUCExit)
 	k.webInfo.DisconnectPath = "/ucexit"
 	k.mux.ServeFiles("/static/*filepath", http.Dir("./static"))
@@ -86,7 +90,7 @@ func (k *Kobo) HandleMessages(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case msg := <-k.MsgChan:
-			if !msg.GetPassword && !msg.GetCalInstance && msg.Finished == "" {
+			if !msg.GetPassword && !msg.GetCalInstance && !msg.GetLibInfo && msg.Finished == "" {
 				// Note, we replace all newlines in the message with spaces. That is because server
 				// sent events are newline delimited
 				if msg.ShowMessage != "" {
@@ -100,6 +104,9 @@ func (k *Kobo) HandleMessages(w http.ResponseWriter, r *http.Request) {
 				f.Flush()
 			} else if msg.GetCalInstance {
 				fmt.Fprintf(w, "event: calibreInstances\ndata: %s\n\n", "")
+				f.Flush()
+			} else if msg.GetLibInfo {
+				fmt.Fprintf(w, "event: libInfo\ndata: %s\n\n", "")
 				f.Flush()
 			} else if msg.Finished != "" {
 				fmt.Fprintf(w, "event: kuFinished\ndata: %s\n\n", strings.ReplaceAll(msg.Finished, "\n", " "))
@@ -137,6 +144,50 @@ func (k *Kobo) HandleCalInstances(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "error getting calibre instance from client", http.StatusInternalServerError)
 		}
 		k.calInstChan <- instance
+		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+// HandleLibraryInfo gets and sets library specific config/info
+func (k *Kobo) HandleLibraryInfo(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		stdFields := make([]string, 0)
+		userFields := make([]string, 0)
+		allFields := []string{""}
+		selField := ""
+		if libOpt, exists := k.KuConfig.LibOptions[k.LibInfo.LibraryUUID]; exists {
+			selField = libOpt.SubtitleColumn
+		}
+		for name, field := range k.LibInfo.FieldMetadata {
+			switch name {
+			case "languages", "tags", "rating", "publisher":
+				stdFields = append(stdFields, name)
+			default:
+				if field.IsCustom {
+					userFields = append(userFields, name)
+				}
+			}
+		}
+		sort.Strings(stdFields)
+		sort.Strings(userFields)
+		allFields = append(allFields, stdFields...)
+		allFields = append(allFields, userFields...)
+		wlo := webLibOpts{CurrSel: 0, SubtitleFields: allFields}
+		for i, field := range allFields {
+			if field == selField {
+				wlo.CurrSel = i
+			}
+		}
+		k.rend.JSON(w, http.StatusOK, wlo)
+	} else {
+		var wlo webLibOpts
+		if err := json.NewDecoder(r.Body).Decode(&wlo); err != nil {
+			http.Error(w, "error getting subtitle field from client", http.StatusInternalServerError)
+		}
+		if k.KuConfig.LibOptions == nil {
+			k.KuConfig.LibOptions = make(map[string]KuLibOptions)
+		}
+		k.KuConfig.LibOptions[k.LibInfo.LibraryUUID] = KuLibOptions{SubtitleColumn: wlo.SubtitleFields[wlo.CurrSel]}
 		w.WriteHeader(http.StatusNoContent)
 	}
 }

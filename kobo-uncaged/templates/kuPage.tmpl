@@ -63,12 +63,6 @@
                 </label>
                 <input type="number" id="jpegQuality" name="jpegQuality" min="0">
             </div>
-            <div class="ku-cfg-row">
-                <label for="subtitleColumn" data-help-text="The standard or custom column 'lookup' to set as the book subtitle">
-                    Subtitle Column
-                </label>
-                <input type="text" id="subtitleColumn" name="subtitleColumn">
-            </div>
             <div class="ku-cfg-row ku-cfg-buttons">
                 <button type="button" id="cfgStartBtn" data-event-start="false">Start</button>
                 <button type="button" id="cfgExitBtn" data-event-exit="false">Exit</button>
@@ -77,6 +71,11 @@
         </div>
         <!-- Message display -->
         <div id="kumessage" style="display: none;">
+            <div id="ku-lib-opts">
+                <label for="kuSubtitleColumn">Subtitle Column</label>
+                <select id="kuSubtitleColumn", name="kuSubtitleColumn" disabled>
+                </select>
+            </div>
             <div id="ku-msgbox"></div>
             <progress id="ku-progress" max="100" style="visibility: hidden;"></progress><br>
             <button type="button" id="cfgDisconnectBtn" data-event-disconnect="false">Disconnect</button>
@@ -107,6 +106,7 @@
             ssePath: {{.SSEPath}},
             configPath: {{.ConfigPath}},
             instancePath: {{.InstancePath}},
+            libInfoPath: {{.LibInfoPath}}
         }
     </script>
     <script type="text/javascript" src="/static/ku.js"></script>

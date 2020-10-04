@@ -34,7 +34,7 @@ function hideAllComponents() {
     } 
 }
 
-var kuConfig, kuAuth, msgEvtSrc;
+var kuConfig, kuAuth, libInfo, msgEvtSrc;
 
 function setupSSE() {
     msgEvtSrc = new EventSource(kuInfo.ssePath);
@@ -45,6 +45,9 @@ function setupSSE() {
     });
     msgEvtSrc.addEventListener('calibreInstances', function (ev) {
         getKUJson(kuInfo.instancePath, showCalInstances);
+    });
+    msgEvtSrc.addEventListener('libInfo', function(ev) {
+        getKUJson(kuInfo.libInfoPath, showLibraryInfo);
     });
     msgEvtSrc.addEventListener('kuFinished', showFinishedMsg);
 }
@@ -139,7 +142,7 @@ function sendAuth() {
 }
 function showCalInstances(resp) {
     if (resp.status === 200) {
-        kuCalInstances = JSON.parse(resp.responseText);
+        var kuCalInstances = JSON.parse(resp.responseText);
         var l = document.getElementById('calInstanceList');
         l.innerHTML = '';
         for (var i = 0; i < kuCalInstances.length; i++) {
@@ -176,6 +179,42 @@ function selectCalInstance(ev) {
     }
 }
 
+function showLibraryInfo(resp) {
+    if (resp.status === 200) {
+        libInfo = JSON.parse(resp.responseText);
+        var fieldSel = document.getElementById('kuSubtitleColumn');
+        for (var i = 0; i < libInfo.subtitleFields.length; i++) {
+            var fieldOpt = document.createElement('option');
+            fieldOpt.value = libInfo.subtitleFields[i];
+            fieldOpt.innerHTML = libInfo.subtitleFields[i];
+            if (libInfo.currSel === i) {
+                fieldOpt.selected = true;
+            }
+            fieldSel.appendChild(fieldOpt);
+        }
+        fieldSel.addEventListener('change', sendLibraryInfo);
+        fieldSel.disabled = false;
+    }
+}
+
+function sendLibraryInfo(ev) {
+    var el = ev.target;
+    if (el.id === 'kuSubtitleColumn') {
+        libInfo.currSel = 0;
+        if (el.selectedIndex > 0) {
+            libInfo.currSel = el.selectedIndex;
+        }
+    }
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', kuInfo.libInfoPath);
+    xhr.onload = function () {
+        if (xhr.status !== 204) {
+            console.log('showLibraryInfo status code expected was 204, got ' + xhr.status);
+        }
+    }
+    xhr.send(JSON.stringify(libInfo));
+}
+
 function sendConfig() {
     var gl = document.getElementById('generateLevel');
     var rs = document.getElementById('resizeAlgorithm');
@@ -185,7 +224,6 @@ function sendConfig() {
     kuConfig.opts.thumbnail.generateLevel = gl.options[gl.selectedIndex].value;
     kuConfig.opts.thumbnail.resizeAlgorithm = rs.options[rs.selectedIndex].value;
     kuConfig.opts.thumbnail.jpegQuality = parseInt(document.getElementById('jpegQuality').value);
-    kuConfig.opts.subtitleColumn = document.getElementById('subtitleColumn').value;
     var xhr = new XMLHttpRequest();
     xhr.open('POST', kuInfo.configPath);
     xhr.onload = function () {
@@ -230,7 +268,6 @@ function handleShowKUCfg(resp) {
         document.getElementById('generateLevel').value = kuConfig.opts.thumbnail.generateLevel;
         document.getElementById('resizeAlgorithm').value = kuConfig.opts.thumbnail.resizeAlgorithm;
         document.getElementById('jpegQuality').value = kuConfig.opts.thumbnail.jpegQuality;
-        document.getElementById('subtitleColumn').value = kuConfig.opts.subtitleColumn;
         document.getElementById('kuconfig').style.display = 'block';
     }
 }

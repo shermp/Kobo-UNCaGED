@@ -38,11 +38,16 @@ type firmwareVersion string
 
 // KuOptions contains some options that are required
 type KuOptions struct {
-	PreferSDCard   bool            `json:"preferSDCard"`
-	PreferKepub    bool            `json:"preferKepub"`
-	EnableDebug    bool            `json:"enableDebug"`
-	Thumbnail      thumbnailOption `json:"thumbnail"`
-	SubtitleColumn string          `json:"subtitleColumn"`
+	PreferSDCard bool                    `json:"preferSDCard"`
+	PreferKepub  bool                    `json:"preferKepub"`
+	EnableDebug  bool                    `json:"enableDebug"`
+	Thumbnail    thumbnailOption         `json:"thumbnail"`
+	LibOptions   map[string]KuLibOptions `json:"libOptions"`
+}
+
+// KuLibOptions contains per-library options
+type KuLibOptions struct {
+	SubtitleColumn string `json:"subtitleColumn"`
 }
 
 type webUIinfo struct {
@@ -55,11 +60,17 @@ type webUIinfo struct {
 	SSEPath        string `json:"ssePath"`
 	ConfigPath     string `json:"configPath"`
 	InstancePath   string `json:"instancePath"`
+	LibInfoPath    string `json:"libInfoPath"`
 }
 
 type webConfig struct {
 	Opts KuOptions `json:"opts"`
 	err  error
+}
+
+type webLibOpts struct {
+	CurrSel        int      `json:"currSel"`
+	SubtitleFields []string `json:"subtitleFields"`
 }
 
 // WebMsg is used to send messages to the web client
@@ -68,6 +79,7 @@ type WebMsg struct {
 	Progress       int
 	GetPassword    bool
 	GetCalInstance bool
+	GetLibInfo     bool
 	Finished       string
 }
 
@@ -94,6 +106,7 @@ type Kobo struct {
 	UpdatedMetadata map[string]struct{}
 	BooksInDB       map[string]struct{}
 	SeriesIDMap     map[string]string
+	LibInfo         uc.CalibreLibraryInfo
 	PassCache       calPassCache
 	DriveInfo       uc.DeviceInfo
 	Wg              *sync.WaitGroup

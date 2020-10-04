@@ -162,7 +162,7 @@ func New(dbRootDir, sdRootDir string, bindAddress string, disableNDB bool, vers 
 		}
 		k.KuConfig = &opt.Opts
 		k.KuConfig.Thumbnail.SetRezFilter()
-		if err = k.saveUserOptions(); err != nil {
+		if err = k.SaveUserOptions(); err != nil {
 			return nil, fmt.Errorf("New: failed to save updated config options to file: %w", err)
 		}
 	case <-k.exitChan:
@@ -262,7 +262,7 @@ func (k *Kobo) getUserOptions() error {
 	return nil
 }
 
-func (k *Kobo) saveUserOptions() error {
+func (k *Kobo) SaveUserOptions() error {
 	return util.WriteJSON(path.Join(k.DBRootDir, kuConfigFile), k.KuConfig)
 }
 
@@ -639,8 +639,8 @@ func (k *Kobo) WriteUpdatedMetadataSQL() error {
 			seriesNum = &sn
 			seriesNumFloat = k.MetadataMap[cid].SeriesIndex
 		}
-		if k.KuConfig.SubtitleColumn != "" {
-			col := k.KuConfig.SubtitleColumn
+		if field, exists := k.KuConfig.LibOptions[k.LibInfo.LibraryUUID]; exists && field.SubtitleColumn != "" {
+			col := field.SubtitleColumn
 			md := k.MetadataMap[cid]
 			st := ""
 			if col == "languages" {

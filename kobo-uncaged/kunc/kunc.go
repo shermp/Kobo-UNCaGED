@@ -107,6 +107,12 @@ func (ku *koboUncaged) SetDeviceInfo(devInfo uc.DeviceInfo) error {
 	return nil
 }
 
+func (ku *koboUncaged) SetLibraryInfo(libInfo uc.CalibreLibraryInfo) error {
+	ku.k.LibInfo = libInfo
+	ku.k.WebSend(device.WebMsg{GetLibInfo: true})
+	return nil
+}
+
 // UpdateMetadata instructs the client to update their metadata according to the
 // new slice of metadata maps
 func (ku *koboUncaged) UpdateMetadata(mdList []uc.CalibreBookMeta) error {
