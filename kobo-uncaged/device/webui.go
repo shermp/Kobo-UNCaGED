@@ -20,24 +20,24 @@ func (k *Kobo) initWeb() {
 func (k *Kobo) initRouter() {
 	k.mux = httprouter.New()
 	k.mux.HandlerFunc("GET", "/", k.HandleIndex)
-	k.mux.HandlerFunc("GET", "/config", k.HandleConfig)
-	k.mux.HandlerFunc("POST", "/config", k.HandleConfig)
 	k.webInfo.ConfigPath = "/config"
-	k.mux.HandlerFunc("GET", "/exit", k.HandleExit)
+	k.mux.HandlerFunc("GET", k.webInfo.ConfigPath, k.HandleConfig)
+	k.mux.HandlerFunc("POST", k.webInfo.ConfigPath, k.HandleConfig)
 	k.webInfo.ExitPath = "/exit"
-	k.mux.HandlerFunc("GET", "/messages", k.HandleMessages)
+	k.mux.HandlerFunc("GET", k.webInfo.ExitPath, k.HandleExit)
 	k.webInfo.SSEPath = "/messages"
-	k.mux.HandlerFunc("GET", "/calibreauth", k.HandleCalAuth)
-	k.mux.HandlerFunc("POST", "/calibreauth", k.HandleCalAuth)
+	k.mux.HandlerFunc("GET", k.webInfo.SSEPath, k.HandleMessages)
 	k.webInfo.AuthPath = "/calibreauth"
-	k.mux.HandlerFunc("GET", "/calibreinstance", k.HandleCalInstances)
-	k.mux.HandlerFunc("POST", "/calibreinstance", k.HandleCalInstances)
+	k.mux.HandlerFunc("GET", k.webInfo.AuthPath, k.HandleCalAuth)
+	k.mux.HandlerFunc("POST", k.webInfo.AuthPath, k.HandleCalAuth)
 	k.webInfo.InstancePath = "/calibreinstance"
-	k.mux.HandlerFunc("GET", "/libinfo", k.HandleLibraryInfo)
-	k.mux.HandlerFunc("POST", "/libinfo", k.HandleLibraryInfo)
+	k.mux.HandlerFunc("GET", k.webInfo.InstancePath, k.HandleCalInstances)
+	k.mux.HandlerFunc("POST", k.webInfo.InstancePath, k.HandleCalInstances)
 	k.webInfo.LibInfoPath = "/libinfo"
-	k.mux.HandlerFunc("GET", "/ucexit", k.HandleUCExit)
+	k.mux.HandlerFunc("GET", k.webInfo.LibInfoPath, k.HandleLibraryInfo)
+	k.mux.HandlerFunc("POST", k.webInfo.LibInfoPath, k.HandleLibraryInfo)
 	k.webInfo.DisconnectPath = "/ucexit"
+	k.mux.HandlerFunc("GET", k.webInfo.DisconnectPath, k.HandleUCExit)
 	k.mux.ServeFiles("/static/*filepath", http.Dir("./static"))
 }
 
