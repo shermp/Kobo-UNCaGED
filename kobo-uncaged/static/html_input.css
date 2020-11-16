@@ -33,3 +33,17 @@ input[type="checkbox"]:checked:after {
     -webkit-transform: translate(-50%,-50%) scaleX(1.3);
     transform: translate(-50%,-50%) scaleX(1.3);
 }
+
+progress[value] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 0.2em;
+}
+
+progress[value]::-webkit-progress-bar {
+    background-color: #cccccc;
+}
+progress[value]::-webkit-progress-value {
+    background-color: black;
+}
