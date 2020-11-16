@@ -22,7 +22,7 @@ EOF
 )
     sqlite_res=$?
     if [ $sqlite_res -ne 0 ] ; then 
-        logmsg "E" "$sqlite_err" 3000
+        logmsg "E" "$sqlite_err" 5000
     fi
 }
 
@@ -55,7 +55,7 @@ if [ "$KU_RES" -eq 0 ] ; then
             logmsg "I" "Running library rescan after metadata update" 1000
             qndb -s pfmDoneProcessing -m pfmRescanBooksFull
         fi
-        logmsg "I" "Metadata updated" 1000
+        logmsg "I" "Metadata updated"
     fi
     [ -f $KU_REPL_MD ] && rm $KU_REPL_MD
     [ -f $KU_UPDATE_MD ] && rm $KU_UPDATE_MD
@@ -70,4 +70,4 @@ cd -
 ip link set lo down
 logmsg "I" "Disabled loopback interface"
 
-logmsg "I" "Kobo UNCaGED exiting" 1000
+logmsg "I" "Kobo UNCaGED finished!" 1000
