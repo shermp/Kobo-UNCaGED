@@ -24,6 +24,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -176,6 +177,8 @@ func (ku *koboUncaged) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, 
 	}
 	defer destBook.Close()
 	ku.k.UpdatedMetadata[cID] = struct{}{}
+	ku.k.WebSend(device.WebMsg{ShowMessage: fmt.Sprintf("Transferring: %s - %s", strings.Join(md.Authors, " "), md.Title),
+		Progress: device.IgnoreProgress})
 	// Note, the JSON format for covers should be in the form 'thumbnail: [w, h, "base64string"]'
 	if md.Thumbnail.Exists() {
 		w, h := md.Thumbnail.Dimensions()
@@ -276,7 +279,7 @@ func (ku *koboUncaged) UpdateStatus(status uc.Status, progress int) {
 		ku.k.WebSend(device.WebMsg{ShowMessage: "Sending book to Calibre", Progress: p})
 
 	case uc.ReceivingBook:
-		ku.k.WebSend(device.WebMsg{ShowMessage: "Receiving book(s) from Calibre", Progress: p})
+		ku.k.WebSend(device.WebMsg{Progress: p})
 
 	case uc.EmptyPasswordReceived:
 		ku.k.WebSend(device.WebMsg{ShowMessage: "No valid password found!", Progress: p})

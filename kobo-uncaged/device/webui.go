@@ -12,6 +12,9 @@ import (
 	"github.com/unrolled/render"
 )
 
+// IgnoreProgress tells HandleMessage not to send progress value to web UI
+const IgnoreProgress int = -127
+
 func (k *Kobo) initWeb() {
 	k.initRouter()
 	k.initRender()
@@ -97,8 +100,10 @@ func (k *Kobo) HandleMessages(w http.ResponseWriter, r *http.Request) {
 					fmt.Fprintf(w, "event: showMessage\ndata: %s\n\n", strings.ReplaceAll(msg.ShowMessage, "\n", " "))
 					f.Flush()
 				}
-				fmt.Fprintf(w, "event: progress\ndata: %d\n\n", msg.Progress)
-				f.Flush()
+				if msg.Progress != IgnoreProgress {
+					fmt.Fprintf(w, "event: progress\ndata: %d\n\n", msg.Progress)
+					f.Flush()
+				}
 			} else if msg.GetPassword {
 				fmt.Fprintf(w, "event: auth\ndata: %s\n\n", "")
 				f.Flush()
