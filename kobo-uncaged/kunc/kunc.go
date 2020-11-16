@@ -269,6 +269,9 @@ func (ku *koboUncaged) UpdateStatus(status uc.Status, progress int) {
 	case uc.Disconnected:
 		ku.k.WebSend(device.WebMsg{ShowMessage: "Disconnected", Progress: p})
 
+	case uc.SendingExtraMetadata:
+		ku.k.WebSend(device.WebMsg{ShowMessage: "Sending extra metadata", Progress: p})
+
 	case uc.SendingBook:
 		ku.k.WebSend(device.WebMsg{ShowMessage: "Sending book to Calibre", Progress: p})
 
@@ -277,6 +280,13 @@ func (ku *koboUncaged) UpdateStatus(status uc.Status, progress int) {
 
 	case uc.EmptyPasswordReceived:
 		ku.k.WebSend(device.WebMsg{ShowMessage: "No valid password found!", Progress: p})
+
+	case uc.Waiting:
+		ku.k.WebSend(device.WebMsg{ShowMessage: "Waiting for Calibre...", Progress: p})
+
+	default:
+		unknownStr := fmt.Sprintf("Unknown status from UNCaGED: %d", int(status))
+		ku.k.WebSend(device.WebMsg{ShowMessage: unknownStr, Progress: p})
 	}
 }
 
