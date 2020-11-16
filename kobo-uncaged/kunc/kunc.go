@@ -179,11 +179,19 @@ func (ku *koboUncaged) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, 
 	ku.k.UpdatedMetadata[cID] = struct{}{}
 	ku.k.WebSend(device.WebMsg{ShowMessage: fmt.Sprintf("Transferring: %s - %s", strings.Join(md.Authors, " "), md.Title),
 		Progress: device.IgnoreProgress})
+	// We don't need to save the calibre cover path in metadata.calibre
+	if md.Cover != nil {
+		md.Cover = nil
+	}
 	// Note, the JSON format for covers should be in the form 'thumbnail: [w, h, "base64string"]'
 	if md.Thumbnail.Exists() {
 		w, h := md.Thumbnail.Dimensions()
 		ku.k.Wg.Add(1)
 		go ku.k.SaveCoverImage(cID, image.Pt(w, h), md.Thumbnail.ImgBase64())
+		// Set the Thumbnail field to nil to avoid saving it to the metadata.calibre file
+		// Hopefully the garbage collector will delete the string once the
+		// above goroutine is finished with it
+		md.Thumbnail = nil
 	}
 	if _, err = io.CopyN(destBook, book, int64(len)); err != nil {
 		return fmt.Errorf("SaveBook: error writing ebook to file: %w", err)
