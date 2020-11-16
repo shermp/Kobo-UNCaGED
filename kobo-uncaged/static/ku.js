@@ -93,6 +93,17 @@ function setupEventHandlers() {
     }
 }
 
+function displayButtonState(btnID, pressed) {
+    var btn = document.getElementById(btnID);
+    if (pressed === true) {
+        btn.style.backgroundColor = "#000000";
+        btn.style.color = "#FFFFFF";
+    } else {
+        btn.style.backgroundColor = "FFFFFF";
+        btn.style.color = "#000000";
+    }
+}
+
 function showMessage(ev) {
     var msgDiv = document.getElementById('kumessage');
     if (msgDiv.style.display !== 'block') {
@@ -128,11 +139,13 @@ function showAuthDlg(resp) {
     }
 }
 function sendAuth() {
+    displayButtonState('authLoginBtn', true)
     kuAuth.password = document.getElementById('password').value;
     var xhr = new XMLHttpRequest();
     xhr.open('POST', kuInfo.authPath);
     xhr.onload = function () {
         if (xhr.status === 204) {
+            displayButtonState('authLoginBtn', false)
             hideAllComponents();
         } else {
             console.log('SendAuth status code expected was 204, got ' + xhr.status);
@@ -216,6 +229,7 @@ function sendLibraryInfo(ev) {
 }
 
 function sendConfig() {
+    displayButtonState('cfgExitBtn', true);
     var gl = document.getElementById('generateLevel');
     var rs = document.getElementById('resizeAlgorithm');
     kuConfig.opts.preferSDCard = document.getElementById('preferSDCard').checked;
@@ -226,8 +240,9 @@ function sendConfig() {
     kuConfig.opts.thumbnail.jpegQuality = parseInt(document.getElementById('jpegQuality').value);
     var xhr = new XMLHttpRequest();
     xhr.open('POST', kuInfo.configPath);
-    xhr.onload = function () {
+    xhr.onload = function (btn) {
         if (xhr.status === 204) {
+            displayButtonState('cfgExitBtn', false);
             hideAllComponents();
         } else {
             console.log('sendConfig: status code expected was 204, got ' + xhr.status);
@@ -236,6 +251,7 @@ function sendConfig() {
     xhr.send(JSON.stringify(kuConfig));
 }
 function exitKU() {
+    displayButtonState('cfgExitBtn', true)
     getKUJson(kuInfo.exitPath, function(resp) {
         if (resp.status === 204) {
             hideAllComponents();
@@ -252,6 +268,7 @@ function showFinishedMsg(ev) {
     exitDiv.style.display = 'block';
 }
 function disconnectKU() {
+    displayButtonState('cfgDisconnectBtn', true)
     getKUJson(kuInfo.disconnectPath, function(resp) {
         if (resp.status === 204) {
             document.getElementById('cfgDisconnectBtn').style.display = 'none';
