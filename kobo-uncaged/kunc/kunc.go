@@ -227,6 +227,7 @@ func (ku *koboUncaged) DeleteBook(book uc.BookID) error {
 	if ku.k.KuConfig.EnableDebug {
 		log.Printf("[DEBUG] CID: %s, bkPath: %s, dir: %s, dirPath: %s\n", cid, bkPath, dir, dirPath)
 	}
+	ku.k.WebSend(device.WebMsg{ShowMessage: fmt.Sprintf("Deleting: %s", bkPath), Progress: device.IgnoreProgress})
 	if err = os.Remove(bkPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("DeleteBook: error deleting file: %w", err)
 	}
@@ -279,6 +280,9 @@ func (ku *koboUncaged) UpdateStatus(status uc.Status, progress int) {
 		ku.k.WebSend(device.WebMsg{ShowMessage: "Sending book to Calibre", Progress: p})
 
 	case uc.ReceivingBook:
+		ku.k.WebSend(device.WebMsg{Progress: p})
+
+	case uc.DeletingBook:
 		ku.k.WebSend(device.WebMsg{Progress: p})
 
 	case uc.EmptyPasswordReceived:
