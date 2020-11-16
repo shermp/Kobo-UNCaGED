@@ -75,7 +75,6 @@ func (ku *koboUncaged) GetDeviceBookList() ([]uc.BookCountDetails, error) {
 		bcd.Extension = filepath.Ext(md.Lpath)
 		bc = append(bc, bcd)
 	}
-	//spew.Dump(bc)
 	return bc, nil
 }
 
