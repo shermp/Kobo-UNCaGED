@@ -160,9 +160,10 @@ function showCalInstances(resp) {
         l.innerHTML = '';
         for (var i = 0; i < kuCalInstances.length; i++) {
             var instListItem = document.createElement('li');
-            instListItem.dataset.instanceAddr = kuCalInstances[i].Addr;
-            instListItem.dataset.instanceDescription = kuCalInstances[i].Description;
-            instListItem.innerHTML = kuCalInstances[i].Addr + ' :: ' + kuCalInstances[i].Description;
+            instListItem.dataset.instanceHost = kuCalInstances[i].host;
+            instListItem.dataset.instancePort = kuCalInstances[i].port;
+            instListItem.dataset.instanceName = kuCalInstances[i].name;
+            instListItem.innerHTML = kuCalInstances[i].host + ' :: ' + kuCalInstances[i].name;
             l.appendChild(instListItem);
         }
         var instDiv = document.getElementById('kuinstances');
@@ -176,8 +177,9 @@ function selectCalInstance(ev) {
     if (ev.target && ev.target.nodeName === 'LI') {
         var t = ev.target;
         var calInstance = {
-            Addr: t.dataset.instanceAddr,
-            Description: t.dataset.instanceDescription,
+            host: t.dataset.instanceHost,
+            port: parseInt(t.dataset.instancePort, 10),
+            name: t.dataset.instanceName,
         }
         var xhr = new XMLHttpRequest();
         xhr.open('POST', kuInfo.instancePath);

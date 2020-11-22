@@ -240,8 +240,7 @@ func (k *Kobo) GetCalibreInstance(calInstances []uc.CalInstance) uc.CalInstance 
 	}
 	k.calInstances = calInstances
 	k.WebSend(WebMsg{GetCalInstance: true})
-	instance := <-k.calInstChan
-	return instance
+	return <-k.calInstChan
 }
 
 func (k *Kobo) getUserOptions() error {
