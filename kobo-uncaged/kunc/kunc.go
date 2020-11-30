@@ -55,6 +55,11 @@ func (ku *koboUncaged) GetClientOptions() (uc.ClientOptions, error) {
 	opts.SupportedExt = append(opts.SupportedExt, ext...)
 	opts.DeviceName = "Kobo"
 	opts.CoverDims.Width, opts.CoverDims.Height = thumbSz.X, thumbSz.Y
+	if dc := ku.k.GetDirectConnection(); dc != nil {
+		opts.DirectConnect.Name = dc.Name
+		opts.DirectConnect.Host = dc.Host
+		opts.DirectConnect.TCPPort = dc.TCPPort
+	}
 	return opts, nil
 }
 

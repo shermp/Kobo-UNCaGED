@@ -64,6 +64,18 @@
                 </label>
                 <input type="number" id="jpegQuality" name="jpegQuality" min="0">
             </div>
+            <div class="ku-cfg-row-conn">
+                <label for="directConn" data-help-text="Set direct connection rather than auto-discover.">
+                    Connect To
+                </label>
+                <div class="ku-cfg-cell-conn">
+                    <select id="directConn" name="directConn" data-event-conn-sel="false">
+                        <option>Auto Discover</option>
+                    </select>
+                    <button type="button" id="cfgAddConn" data-event-conn-add="false">+</button>
+                    <button type="button" id="cfgDelConn" data-event-conn-delete="false">&#8722;</button>
+                </div>
+            </div>
             <div class="ku-cfg-row ku-cfg-buttons">
                 <button type="button" id="cfgStartBtn" data-event-start="false">Start</button>
                 <button type="button" id="cfgExitBtn" data-event-exit="false">Exit</button>
@@ -87,6 +99,29 @@
             <label for="password">Password</label><br>
             <input type="password" id="password" name="password" data-event-auth-login-ent="false"><br>
             <button type="button" id="authLoginBtn" data-event-auth-login="false">Login</button>
+        </div>
+        <!-- Connection dialog -->
+        <div id="kudirectconn" style="display: none;">
+            <h3>Add Connection</h3>
+            <div class="ku-conn-row">
+                <label for="connName">Name</label>
+                <input type="text" id="connName" name="connName">
+            </div>
+            <div class="ku-conn-row">
+                <label for="connHost">Host</label>
+                <input type="text" id="connHost" name="connHost">
+            </div>
+            <div class="ku-conn-row">
+                <label for="connPort">Port</label>
+                <input type="number" id="connPort" name="connPort">
+            </div>
+            <div id="ku-conn-missing" style="display: none;">
+                All fields required!
+            </div>
+            <div class="ku-conn-row">
+                <button type="button" id="connOkBtn" data-event-conn-ok="false">Ok</button>
+                <button type="button" id="connCancelBtn" data-event-conn-cancel="false">Cancel</button>
+            </div>
         </div>
         <!-- Instance selection dialog -->
         <div id="kuinstances" style="display: none;">

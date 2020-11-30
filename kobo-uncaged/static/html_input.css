@@ -18,6 +18,10 @@ button {
     font-family: sans-serif;
     background-color: #FFFFFF;
 }
+button:disabled {
+    border-color: #cccccc;
+    color: #cccccc;
+}
 input[type=checkbox] {
     position: relative;
     width: 1em;

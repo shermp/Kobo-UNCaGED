@@ -4,20 +4,28 @@ body {
 #kuconfig {
     margin: auto;
 }
-.ku-cfg-row {
+.ku-cfg-row, .ku-cfg-row-conn {
     margin: 5pt 0;
     padding: 0;
 }
-.ku-cfg-row > label, #ku-lib-opts > label {
+.ku-cfg-row > label, #ku-lib-opts > label, .ku-cfg-row-conn > label {
     display: inline-block;
     width: 60%;
 }
-.ku-cfg-row > input, .ku-cfg-row > select, #ku-lib-opts > select {
+.ku-cfg-row > input, .ku-cfg-row > select, #ku-lib-opts > select, .ku-cfg-cell-conn {
     display: inline-block;
     width: 33%;
 }
 .ku-cfg-buttons {
     text-align: center;
+}
+.ku-cfg-cell-conn > button {
+    text-align: center;
+    font-weight: bold;
+    font-size: 1.1em;
+    margin: 0;
+    padding: 0;
+    width: 1.5em;
 }
 .ku-cfg-help {
     margin: 12pt 0 0 0;

@@ -38,11 +38,13 @@ type firmwareVersion string
 
 // KuOptions contains some options that are required
 type KuOptions struct {
-	PreferSDCard bool                    `json:"preferSDCard"`
-	PreferKepub  bool                    `json:"preferKepub"`
-	EnableDebug  bool                    `json:"enableDebug"`
-	Thumbnail    thumbnailOption         `json:"thumbnail"`
-	LibOptions   map[string]KuLibOptions `json:"libOptions"`
+	PreferSDCard    bool                    `json:"preferSDCard"`
+	PreferKepub     bool                    `json:"preferKepub"`
+	EnableDebug     bool                    `json:"enableDebug"`
+	Thumbnail       thumbnailOption         `json:"thumbnail"`
+	LibOptions      map[string]KuLibOptions `json:"libOptions"`
+	DirectConnIndex int                     `json:"directConnIndex"`
+	DirectConn      []uc.CalInstance        `json:"directConn"`
 }
 
 // KuLibOptions contains per-library options

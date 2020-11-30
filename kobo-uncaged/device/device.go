@@ -28,6 +28,7 @@ import (
 	"github.com/kapmahc/epub"
 	"github.com/pgaskin/koboutils/v2/kobo"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/util"
+	"github.com/shermp/UNCaGED/calibre"
 	"github.com/shermp/UNCaGED/uc"
 )
 
@@ -63,6 +64,10 @@ func New(dbRootDir, sdRootDir string, bindAddress string, disableNDB bool, vers 
 	k.ContentIDprefix = onboardPrefix
 	if err = k.getUserOptions(); err != nil {
 		return nil, fmt.Errorf("New: failed to read config file: %w", err)
+	}
+	if len(k.KuConfig.DirectConn) == 0 {
+		k.KuConfig.DirectConnIndex = -1
+		k.KuConfig.DirectConn = make([]calibre.ConnectionInfo, 0)
 	}
 	if sdRootDir != "" && k.KuConfig.PreferSDCard {
 		k.UseSDCard = true
@@ -315,8 +320,16 @@ func (k *Kobo) GetDeviceOptions() (ext []string, model string, thumbSz image.Poi
 	default:
 		thumbSz = k.Device.CoverSize(kobo.CoverTypeLibGrid)
 	}
-
 	return ext, model, thumbSz
+}
+
+// GetDirectConnection gets a direct connection if set
+func (k *Kobo) GetDirectConnection() *uc.CalInstance {
+	index := k.KuConfig.DirectConnIndex
+	if index >= 0 && index < len(k.KuConfig.DirectConn) {
+		return &k.KuConfig.DirectConn[index]
+	}
+	return nil
 }
 
 // readEpubMeta opens an epub (or kepub), and attempts to read the

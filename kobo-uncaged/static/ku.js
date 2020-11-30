@@ -67,6 +67,31 @@ function setupEventHandlers() {
         disconnectBtn.addEventListener('click', disconnectKU);
         disconnectBtn.dataset.eventDisconnect = "true";
     }
+    var connAddBtn = document.getElementById('cfgAddConn');
+    if (connAddBtn.dataset.eventConnAdd === "false") {
+        connAddBtn.addEventListener('click', showAddConnection);
+        connAddBtn.dataset.eventConnAdd = "true";
+    }
+    var connDelBtn = document.getElementById('cfgDelConn');
+    if (connDelBtn.dataset.eventConnDelete === "false") {
+        connDelBtn.addEventListener('click', deleteConnection);
+        connDelBtn.dataset.eventConnDelete = "true";
+    }
+    var connOkBtn = document.getElementById('connOkBtn');
+    if (connOkBtn.dataset.eventConnOk === 'false') {
+        connOkBtn.addEventListener('click', addConnection);
+        connOkBtn.dataset.eventConnOk = 'true';
+    }
+    var connCancelBtn = document.getElementById('connCancelBtn');
+    if (connCancelBtn.dataset.eventConnCancel === 'false') {
+        connCancelBtn.addEventListener('click', cancelAddConnection);
+        connCancelBtn.dataset.eventConnCancel = 'true';
+    }
+    var directConnSel = document.getElementById('directConn');
+    if (directConnSel.dataset.eventConnSel === 'false') {
+        directConnSel.addEventListener('change', setConnDelState);
+        directConnSel.dataset.eventConnSel = 'true';
+    }
     var authLoginBtn = document.getElementById('authLoginBtn');
     if (authLoginBtn.dataset.eventAuthLogin === "false") {
         authLoginBtn.addEventListener('click', sendAuth);
@@ -99,7 +124,7 @@ function displayButtonState(btnID, pressed) {
         btn.style.backgroundColor = "#000000";
         btn.style.color = "#FFFFFF";
     } else {
-        btn.style.backgroundColor = "FFFFFF";
+        btn.style.backgroundColor = "#FFFFFF";
         btn.style.color = "#000000";
     }
 }
@@ -136,6 +161,52 @@ function showAuthDlg(resp) {
             authDiv.style.display = 'block';
         }
         document.getElementById('password').value = '';
+    }
+}
+function showAddConnection(ev) {
+    hideAllComponents();
+    document.getElementById('kudirectconn').style.display = 'block';
+}
+function addConnection(ev) {
+    var connName = document.getElementById('connName');
+    var connHost = document.getElementById('connHost');
+    var connPort = document.getElementById('connPort');
+    var connMissing = document.getElementById('ku-conn-missing');
+    if (connName.value.length === 0 || connHost.value.length === 0 || connPort.value.length === 0) {
+        connMissing.style.display = 'block';
+        return;
+    }
+    connMissing.style.display = 'none';
+    var conn = {name: connName.value, host: connHost.value, port: parseInt(connPort.value)};
+    kuConfig.opts.directConn.push(conn);
+
+    var dc = document.getElementById('directConn');
+    var connOpt = document.createElement('option');
+    connOpt.text = conn.name;
+    dc.add(connOpt);
+    dc.selectedIndex = dc.length - 1;
+    document.getElementById('cfgDelConn').disabled = false;
+    hideAllComponents();
+    document.getElementById('kuconfig').style.display = 'block';
+}
+function cancelAddConnection(ev) {
+    hideAllComponents();
+    document.getElementById('kuconfig').style.display = 'block';
+}
+function deleteConnection(ev) {
+    var dc = document.getElementById('directConn');
+    if (dc.selectedIndex > 0) {
+        kuConfig.opts.directConn.splice(dc.selectedIndex - 1, 1);
+        var newIndex = dc.selectedIndex - 1;
+        dc.remove(dc.selectedIndex);
+        dc.selectedIndex = newIndex;
+    }
+}
+function setConnDelState(ev) {
+    if (document.getElementById('directConn').selectedIndex > 0) {
+        document.getElementById('cfgDelConn').disabled = false;
+    } else {
+        document.getElementById('cfgDelConn').disabled = true;
     }
 }
 function sendAuth() {
@@ -240,6 +311,7 @@ function sendConfig() {
     kuConfig.opts.thumbnail.generateLevel = gl.options[gl.selectedIndex].value;
     kuConfig.opts.thumbnail.resizeAlgorithm = rs.options[rs.selectedIndex].value;
     kuConfig.opts.thumbnail.jpegQuality = parseInt(document.getElementById('jpegQuality').value);
+    kuConfig.opts.directConnIndex = document.getElementById('directConn').selectedIndex - 1;
     var xhr = new XMLHttpRequest();
     xhr.open('POST', kuInfo.configPath);
     xhr.onload = function (btn) {
@@ -287,6 +359,21 @@ function handleShowKUCfg(resp) {
         document.getElementById('generateLevel').value = kuConfig.opts.thumbnail.generateLevel;
         document.getElementById('resizeAlgorithm').value = kuConfig.opts.thumbnail.resizeAlgorithm;
         document.getElementById('jpegQuality').value = kuConfig.opts.thumbnail.jpegQuality;
+        var dc = document.getElementById('directConn');
+        if (kuConfig.opts.directConnIndex < 0) {
+            dc.selectedIndex = 0;
+        }
+        for(var i = 0; i < kuConfig.opts.directConn.length; i++) {
+            var connOpt = document.createElement('option');
+            connOpt.text = kuConfig.opts.directConn[i].name;
+            dc.add(connOpt);
+            if (i === kuConfig.opts.directConnIndex) {
+                dc.selectedIndex = i + 1;
+            }
+        }
+        if (dc.selectedIndex == 0) {
+            document.getElementById('cfgDelConn').disabled = true;
+        }
         document.getElementById('kuconfig').style.display = 'block';
     }
 }
