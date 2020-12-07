@@ -3,28 +3,44 @@
 # Allow script to be run from another dir
 cd "$(dirname "$0")"
 
-# Set terminal color escape sequences
-END="\033[0m"
-RED="\033[31;1m"
-YELLOW="\033[33;1m"
-GREEN="\033[32;1m"
+# Logging facilities
+logmsg() {
+    # Set terminal color escape sequences
+    END="\033[0m"
+    RED="\033[31;1m"
+    YELLOW="\033[33;1m"
+    GREEN="\033[32;1m"
 
-BUILD_TYPE="full"
-# Set a variable if we only want to build an upgrade archive
-if [ "$1" = "upgrade" ] || [ "$1" = "UPGRADE" ]; then
-    BUILD_UPGRADE=1
-    BUILD_TYPE="upgrade"
-fi
+    # Set the requested loglevel, default to notice, like logger
+    PRINT_COLOR="${GREEN}"
+    case "${1}" in
+        "E" )
+            PRINT_COLOR="${RED}"
+        ;;
+        "N" )
+            PRINT_COLOR="${YELLOW}"
+        ;;
+        "I" )
+            PRINT_COLOR="${GREEN}"
+        ;;
+    esac
+
+    # Actual message ;)
+    LOG_MSG="${2}"
+
+    # Print to console
+    printf "%b%s%b\n" "${PRINT_COLOR}" "${LOG_MSG}" "${END}"
+}
 
 # Check if the user has set their ARM toolchain name
 if [ -z "$CROSS_TC" ] && [ -z "$CROSS_COMPILE" ]; then
-    printf "%bCROSS_TC or CROSS_COMPILE variable is not set! Please set it before running this script!\nEg:\nCROSS_TC=\"arm-kobo-linux-gnueabihf\" or\nCROSS_COMPILE=\"arm-kobo-linux-gnueabihf-\"%b\n" "${RED}" "${END}"
+    logmsg "E" "CROSS_TC or CROSS_COMPILE variable is not set! Please set it before running this script!\nEg:\nCROSS_TC=\"arm-kobo-linux-gnueabihf\" or\nCROSS_COMPILE=\"arm-kobo-linux-gnueabihf-\""
     exit 1
 fi
 
 # Then check if the toolchain is in the $PATH
 if ! command -v "${CROSS_TC}-gcc" && ! command -v "${CROSS_COMPILE}gcc"; then
-    printf "%bARM toolchain not found! Please add to PATH\n%b\n" "${RED}" "${END}"
+    logmsg "E" "ARM toolchain not found! Please add to PATH\n"
     exit 1
 fi
 
@@ -47,81 +63,72 @@ rm -rf ./Build/onboard
 mkdir -p ./Build/onboard/.adds/kobo-uncaged/bin
 mkdir -p ./Build/onboard/.adds/kobo-uncaged/scripts
 mkdir -p ./Build/onboard/.adds/kobo-uncaged/config
-# Only make the following directories if we are not building an upgrade package
-if [ -z $BUILD_UPGRADE ]; then
-    mkdir -p ./Build/onboard/.adds/kobo-uncaged/fonts
-    mkdir -p ./Build/onboard/.adds/kfmon/config
-fi
+mkdir -p ./Build/onboard/.adds/kobo-uncaged/templates
+mkdir -p ./Build/onboard/.adds/kobo-uncaged/NickelDBus
+
+mkdir -p ./Build/onboard/.adds/nm
+
 cd ./Build/prerequisites || exit 1
 
-# Retrieve and build FBInk, if required
-if [ ! -f ./output/fbink ] && [ ! -f ./output/button_scan ]; then
-    printf "%bFBInk binaries not found. Building from source%b\n" "${YELLOW}" "${END}"
-    if [ ! -d ./FBInk ]; then
-        # Note, master has a fix for button_scan
-        git clone --recursive https://github.com/NiLuJe/FBInk.git
-    fi
-    cd ./FBInk || exit 1
-    make clean
-    # Recent versions of FBInk allow building a minimal version with button_scan
-    if ! make MINIMAL=1 BUTTON_SCAN=1; then
-        printf "%bMake failed to build 'fbink'. Aborting%b\n" "${RED}" "${END}"
-        exit 1
-    fi
-    cp ./Release/fbink ../output/fbink
-    cp ./Release/button_scan ../output/button_scan
-    cd -
-    printf "%bFBInk binaries built%b\n" "${GREEN}" "${END}"
+# Retrieve NickelDBus, if required
+if [ ! -f ./output/ndb-kr.tgz ] ; then
+    wget -O ./output/ndb-kr.tgz https://github.com/shermp/NickelDBus/releases/download/0.1.0/KoboRoot.tgz
 fi
 
-# Next, obtain a TTF font. LiberationSans in our case
-if [ ! -f ./output/LiberationSans-Regular.ttf ]; then
-    printf "%bFont not found. Downloading LiberationSans%b\n" "${YELLOW}" "${END}"
-    wget https://github.com/liberationfonts/liberation-fonts/files/2926169/liberation-fonts-ttf-2.00.5.tar.gz
-    tar -zxf ./liberation-fonts-ttf-2.00.5.tar.gz liberation-fonts-ttf-2.00.5/LiberationSans-Regular.ttf
-    cp ./liberation-fonts-ttf-2.00.5/LiberationSans-Regular.ttf ./output/LiberationSans-Regular.ttf
-    printf "%bLiberationSans-Regular.ttf downloaded%b\n" "${GREEN}" "${END}"
+# Retrieve and build SQLite, if required
+SQLITE_VER=sqlite-amalgamation-3330000
+if [ ! -f ./$SQLITE_VER/sqlite3 ] ; then
+    logmsg "N" "SQLite binary not found. Building from source"
+    [ -f ./$SQLITE_VER.zip ] || wget https://www.sqlite.org/2020/$SQLITE_VER.zip
+    unzip ./$SQLITE_VER.zip
+    $CC -DSQLITE_THREADSAFE=0 \
+        -DSQLITE_OMIT_LOAD_EXTENSION \
+        -O2 \
+        $SQLITE_VER/shell.c $SQLITE_VER/sqlite3.c -o $SQLITE_VER/sqlite3
 fi
+
 # Back to the top level Build directory
 cd ..
 # Now that we have everything, time to build Kobo-UNCaGED
-printf "%bBuilding Kobo-UNCaGED%b\n" "${YELLOW}" "${END}"
+logmsg "N" "Building Kobo-UNCaGED"
 cd ./onboard/.adds/kobo-uncaged/bin || exit 1
 ku_vers="$(git describe --tags)"
 go_ldflags="-s -w -X main.kuVersion=${ku_vers}"
 if ! go build -ldflags "$go_ldflags" ../../../../../kobo-uncaged; then
-    printf "%bGo failed to build kobo-uncaged. Aborting%b\n" "${RED}" "${END}"
+    logmsg "E" "Go failed to build kobo-uncaged. Aborting"
     exit 1
 fi
 cd -
-printf "%bKobo-UNCaGED built%b\n" "${GREEN}" "${END}"
+logmsg "I" "Kobo-UNCaGED built"
 
 # Copy the kobo-uncaged scripts to the build directory
-cp ../scripts/start-ku.sh ./onboard/.adds/kobo-uncaged/start-ku.sh
-cp ../scripts/run-ku.sh ./onboard/.adds/kobo-uncaged/scripts/run-ku.sh
-cp ../scripts/nickel-usbms.sh ./onboard/.adds/kobo-uncaged/scripts/nickel-usbms.sh
+cp ../scripts/nm-start-ku.sh ./onboard/.adds/kobo-uncaged/nm-start-ku.sh
+cp ../scripts/ku-prereq-check.sh ./onboard/.adds/kobo-uncaged/scripts/ku-prereq-check.sh
+cp ../scripts/ku-lib.sh ./onboard/.adds/kobo-uncaged/scripts/ku-lib.sh
 
-# Default config file
-cp ../kobo-uncaged/ku.toml ./onboard/.adds/kobo-uncaged/config/ku.toml.default
+# NickelMenu config file
+cp ../config/nm-ku ./onboard/.adds/nm/kobo_uncaged
 
-# FBInk binaries
-cp ./prerequisites/output/fbink ./onboard/.adds/kobo-uncaged/bin/fbink
-cp ./prerequisites/output/button_scan ./onboard/.adds/kobo-uncaged/bin/button_scan
+# SQLite binary
+cp ./prerequisites/$SQLITE_VER/sqlite3 ./onboard/.adds/kobo-uncaged/bin/sqlite3
 
-if [ -z $BUILD_UPGRADE ]; then
-    # Font
-    cp ./prerequisites/output/LiberationSans-Regular.ttf ./onboard/.adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf
-    # And the kfmon files
-    cp ../kfmon/kobo-uncaged.ini ./onboard/.adds/kfmon/config/kobo-uncaged.ini
-    cp ../kfmon/Kobo-UNCaGED.png ./onboard/Kobo-UNCaGED.png
-fi
+# NickelDBus KoboRoot
+cp ./prerequisites/output/ndb-kr.tgz ./onboard/.adds/kobo-uncaged/NickelDBus/ndb-kr.tgz
+
+# HTML templates
+cp -r ../kobo-uncaged/templates/. ./onboard/.adds/kobo-uncaged/templates/
+
+# Web UI static files (CSS, Javascript etc)
+cp -r ../kobo-uncaged/static/. ./onboard/.adds/kobo-uncaged/static/
 
 # Finally, zip it all up
-printf "%bCreating release archive%b\n" "${YELLOW}" "${END}"
+logmsg "N" "Creating release archive"
 cd ./onboard || exit 1
-if ! zip -r "../KoboUncaged-${ku_vers}-${BUILD_TYPE}.zip" .; then
-    printf "%bFailed to create zip archive. Aborting%b\n" "${RED}" "${END}"
+#if ! zip -r "../KoboUncaged-${ku_vers}-${BUILD_TYPE}.zip" .; then
+if ! zip -r "../KoboUncaged-${ku_vers}.zip" .; then
+    logmsg "E" "Failed to create zip archive. Aborting"
     exit 1
 fi
 cd -
-printf "%b./Build/KoboUncaged-${ku_vers}-${BUILD_TYPE}.zip built%b\n" "${GREEN}" "${END}"
+
+logmsg "I" "./Build/KoboUncaged-${ku_vers}.zip built"

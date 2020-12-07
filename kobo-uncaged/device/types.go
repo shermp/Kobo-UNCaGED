@@ -18,52 +18,118 @@
 package device
 
 import (
-	"database/sql"
+	"bufio"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 
 	"github.com/bamiaux/rez"
+	"github.com/godbus/dbus/v5"
+	"github.com/julienschmidt/httprouter"
 	"github.com/pgaskin/koboutils/v2/kobo"
 	"github.com/shermp/UNCaGED/uc"
+	"github.com/unrolled/render"
 )
 
 type cidPrefix string
 
-type firmwareVersion struct {
-	major int
-	minor int
-	build int
-}
+type firmwareVersion string
 
 // KuOptions contains some options that are required
 type KuOptions struct {
-	PreferSDCard         bool
-	PreferKepub          bool
-	PasswordList         []string
-	EnableDebug          bool
-	AddMetadataByTrigger bool
-	Thumbnail            thumbnailOption
+	PreferSDCard    bool                    `json:"preferSDCard"`
+	PreferKepub     bool                    `json:"preferKepub"`
+	EnableDebug     bool                    `json:"enableDebug"`
+	Thumbnail       thumbnailOption         `json:"thumbnail"`
+	LibOptions      map[string]KuLibOptions `json:"libOptions"`
+	DirectConnIndex int                     `json:"directConnIndex"`
+	DirectConn      []uc.CalInstance        `json:"directConn"`
+}
+
+// KuLibOptions contains per-library options
+type KuLibOptions struct {
+	SubtitleColumn string `json:"subtitleColumn"`
+}
+
+type webUIinfo struct {
+	KUVersion      string `json:"kuVersion"`
+	StorageType    string `json:"storageType"`
+	ScreenDPI      int    `json:"screenDPI"`
+	ExitPath       string `json:"exitPath"`
+	DisconnectPath string `json:"disconnectPath"`
+	AuthPath       string `json:"authPath"`
+	SSEPath        string `json:"ssePath"`
+	ConfigPath     string `json:"configPath"`
+	InstancePath   string `json:"instancePath"`
+	LibInfoPath    string `json:"libInfoPath"`
+}
+
+type webConfig struct {
+	Opts KuOptions `json:"opts"`
+	err  error
+}
+
+type webLibOpts struct {
+	CurrSel        int      `json:"currSel"`
+	SubtitleFields []string `json:"subtitleFields"`
+}
+
+// WebMsg is used to send messages to the web client
+type WebMsg struct {
+	ShowMessage    string
+	Progress       int
+	GetPassword    bool
+	GetCalInstance bool
+	GetLibInfo     bool
+	Finished       string
+}
+
+type calPassCache map[string]*calPassword
+
+type calPassword struct {
+	Attempts int    `json:"attempts"`
+	LibName  string `json:"libName"`
+	Password string `json:"password"`
 }
 
 // Kobo contains the variables and methods required to use
 // the UNCaGED library
 type Kobo struct {
+	KuVers          string
 	Device          kobo.Device
 	fw              firmwareVersion
 	KuConfig        *KuOptions
 	DBRootDir       string
 	BKRootDir       string
 	ContentIDprefix cidPrefix
-	useSDCard       bool
+	UseSDCard       bool
 	MetadataMap     map[string]uc.CalibreBookMeta
 	UpdatedMetadata map[string]struct{}
 	BooksInDB       map[string]struct{}
 	SeriesIDMap     map[string]string
-	Passwords       *uncagedPassword
+	LibInfo         uc.CalibreLibraryInfo
+	PassCache       calPassCache
 	DriveInfo       uc.DeviceInfo
-	nickelDB        *sql.DB
 	Wg              *sync.WaitGroup
+	mux             *httprouter.Router
+	rend            *render.Render
+	webInfo         *webUIinfo
+	replSQLWriter   *sqlWriter
+	ndbConn         *dbus.Conn
+	ndbObj          dbus.BusObject
+	calInstances    []uc.CalInstance
+	useNDB          bool
+	FinishedMsg     string
+	BrowserOpen     bool
+	doneChan        chan bool
+	startChan       chan webConfig
+	MsgChan         chan WebMsg
+	AuthChan        chan *calPassword
+	exitChan        chan bool
+	UCExitChan      chan<- bool
+	calInstChan     chan uc.CalInstance
+	viewSignal      chan *dbus.Signal
 }
 
 // MetaIterator Kobo UNCaGED to lazy load book metadata
@@ -114,9 +180,9 @@ type uncagedPassword struct {
 }
 
 type thumbnailOption struct {
-	GenerateLevel   string
-	ResizeAlgorithm string
-	JpegQuality     int
+	GenerateLevel   string `json:"generateLevel"`
+	ResizeAlgorithm string `json:"resizeAlgorithm"`
+	JpegQuality     int    `json:"jpegQuality"`
 	rezFilter       rez.Filter
 }
 
@@ -167,4 +233,41 @@ func (to *thumbnailOption) SetRezFilter() {
 	default:
 		to.rezFilter = rez.NewBicubicFilter()
 	}
+}
+
+type sqlWriter struct {
+	sqlFile       *os.File
+	sqlBuffWriter *bufio.Writer
+}
+
+func newSQLWriter(path string) (*sqlWriter, error) {
+	var err error
+	s := &sqlWriter{}
+	if s.sqlFile, err = os.Create(path); err != nil {
+		return nil, err
+	}
+	s.sqlBuffWriter = bufio.NewWriter(s.sqlFile)
+	return s, nil
+}
+
+func (s *sqlWriter) writeBegin() {
+	s.sqlBuffWriter.WriteString("BEGIN;\n")
+}
+
+func (s *sqlWriter) writeCommit() {
+	s.sqlBuffWriter.WriteString("COMMIT;\n")
+}
+
+func (s *sqlWriter) writeQuery(query string) {
+	s.sqlBuffWriter.WriteString(query)
+	// Make sure our query always ends with a terminating ';'
+	if !strings.HasSuffix(query, ";") {
+		s.sqlBuffWriter.WriteRune(';')
+	}
+	s.sqlBuffWriter.WriteRune('\n')
+}
+
+func (s *sqlWriter) close() {
+	defer s.sqlFile.Close()
+	s.sqlBuffWriter.Flush()
 }

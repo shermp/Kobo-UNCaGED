@@ -24,11 +24,11 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/device"
-	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/util"
 	"github.com/shermp/UNCaGED/uc"
 )
@@ -43,7 +43,7 @@ func New(kobo *device.Kobo) *koboUncaged {
 }
 
 func (ku *koboUncaged) SelectCalibreInstance(calInstances []uc.CalInstance) uc.CalInstance {
-	return calInstances[0]
+	return ku.k.GetCalibreInstance(calInstances)
 }
 
 // GetClientOptions returns all the client specific options required for UNCaGED
@@ -55,6 +55,11 @@ func (ku *koboUncaged) GetClientOptions() (uc.ClientOptions, error) {
 	opts.SupportedExt = append(opts.SupportedExt, ext...)
 	opts.DeviceName = "Kobo"
 	opts.CoverDims.Width, opts.CoverDims.Height = thumbSz.X, thumbSz.Y
+	if dc := ku.k.GetDirectConnection(); dc != nil {
+		opts.DirectConnect.Name = dc.Name
+		opts.DirectConnect.Host = dc.Host
+		opts.DirectConnect.TCPPort = dc.TCPPort
+	}
 	return opts, nil
 }
 
@@ -76,7 +81,6 @@ func (ku *koboUncaged) GetDeviceBookList() ([]uc.BookCountDetails, error) {
 		bcd.Extension = filepath.Ext(md.Lpath)
 		bc = append(bc, bcd)
 	}
-	//spew.Dump(bc)
 	return bc, nil
 }
 
@@ -108,6 +112,12 @@ func (ku *koboUncaged) SetDeviceInfo(devInfo uc.DeviceInfo) error {
 	return nil
 }
 
+func (ku *koboUncaged) SetLibraryInfo(libInfo uc.CalibreLibraryInfo) error {
+	ku.k.LibInfo = libInfo
+	ku.k.WebSend(device.WebMsg{GetLibInfo: true})
+	return nil
+}
+
 // UpdateMetadata instructs the client to update their metadata according to the
 // new slice of metadata maps
 func (ku *koboUncaged) UpdateMetadata(mdList []uc.CalibreBookMeta) error {
@@ -123,7 +133,8 @@ func (ku *koboUncaged) UpdateMetadata(mdList []uc.CalibreBookMeta) error {
 
 // GetPassword gets a password from the user.
 func (ku *koboUncaged) GetPassword(calibreInfo uc.CalibreInitInfo) (string, error) {
-	return ku.k.Passwords.NextPassword(), nil
+	return ku.k.GetPassword(calibreInfo.CurrentLibraryUUID, calibreInfo.CurrentLibraryName), nil
+	//return ku.k.Passwords.NextPassword(), nil
 }
 
 // GetFreeSpace reports the amount of free storage space to Calibre
@@ -165,17 +176,27 @@ func (ku *koboUncaged) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, 
 	if err != nil {
 		return fmt.Errorf("SaveBook: error making book directories: %w", err)
 	}
-	destBook, err := os.OpenFile(bkPath, os.O_WRONLY|os.O_CREATE, 0644)
+	destBook, err := os.Create(bkPath)
 	if err != nil {
 		return fmt.Errorf("SaveBook: error opening ebook file: %w", err)
 	}
 	defer destBook.Close()
 	ku.k.UpdatedMetadata[cID] = struct{}{}
+	ku.k.WebSend(device.WebMsg{ShowMessage: fmt.Sprintf("Transferring: %s - %s", strings.Join(md.Authors, " "), md.Title),
+		Progress: device.IgnoreProgress})
+	// We don't need to save the calibre cover path in metadata.calibre
+	if md.Cover != nil {
+		md.Cover = nil
+	}
 	// Note, the JSON format for covers should be in the form 'thumbnail: [w, h, "base64string"]'
 	if md.Thumbnail.Exists() {
 		w, h := md.Thumbnail.Dimensions()
 		ku.k.Wg.Add(1)
 		go ku.k.SaveCoverImage(cID, image.Pt(w, h), md.Thumbnail.ImgBase64())
+		// Set the Thumbnail field to nil to avoid saving it to the metadata.calibre file
+		// Hopefully the garbage collector will delete the string once the
+		// above goroutine is finished with it
+		md.Thumbnail = nil
 	}
 	if _, err = io.CopyN(destBook, book, int64(len)); err != nil {
 		return fmt.Errorf("SaveBook: error writing ebook to file: %w", err)
@@ -219,6 +240,7 @@ func (ku *koboUncaged) DeleteBook(book uc.BookID) error {
 	if ku.k.KuConfig.EnableDebug {
 		log.Printf("[DEBUG] CID: %s, bkPath: %s, dir: %s, dirPath: %s\n", cid, bkPath, dir, dirPath)
 	}
+	ku.k.WebSend(device.WebMsg{ShowMessage: fmt.Sprintf("Deleting: %s", bkPath), Progress: device.IgnoreProgress})
 	if err = os.Remove(bkPath); err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("DeleteBook: error deleting file: %w", err)
 	}
@@ -245,34 +267,46 @@ func (ku *koboUncaged) DeleteBook(book uc.BookID) error {
 
 // UpdateStatus gives status updates from the UNCaGED library
 func (ku *koboUncaged) UpdateStatus(status uc.Status, progress int) {
-	footerStr := " "
+	p := -1
 	if progress >= 0 && progress <= 100 {
-		footerStr = fmt.Sprintf("%d%%", progress)
+		p = progress
 	}
 	switch status {
 	case uc.Idle:
 		fallthrough
 	case uc.Connected:
-		kuprint.Println(kuprint.Body, "Connected")
-		kuprint.Println(kuprint.Footer, footerStr)
+		ku.k.WebSend(device.WebMsg{ShowMessage: "Connected", Progress: p})
+
 	case uc.Connecting:
-		kuprint.Println(kuprint.Body, "Connecting to Calibre")
-		kuprint.Println(kuprint.Footer, footerStr)
+		ku.k.WebSend(device.WebMsg{ShowMessage: "Connecting to Calibre", Progress: p})
+
 	case uc.SearchingCalibre:
-		kuprint.Println(kuprint.Body, "Searching for Calibre")
-		kuprint.Println(kuprint.Footer, footerStr)
+		ku.k.WebSend(device.WebMsg{ShowMessage: "Searching for Calibre", Progress: p})
+
 	case uc.Disconnected:
-		kuprint.Println(kuprint.Body, "Disconnected")
-		kuprint.Println(kuprint.Footer, footerStr)
+		ku.k.WebSend(device.WebMsg{ShowMessage: "Disconnected", Progress: p})
+
+	case uc.SendingExtraMetadata:
+		ku.k.WebSend(device.WebMsg{ShowMessage: "Sending extra metadata", Progress: p})
+
 	case uc.SendingBook:
-		kuprint.Println(kuprint.Body, "Sending book to Calibre")
-		kuprint.Println(kuprint.Footer, footerStr)
+		ku.k.WebSend(device.WebMsg{ShowMessage: "Sending book to Calibre", Progress: p})
+
 	case uc.ReceivingBook:
-		kuprint.Println(kuprint.Body, "Receiving book(s) from Calibre")
-		kuprint.Println(kuprint.Footer, footerStr)
+		ku.k.WebSend(device.WebMsg{Progress: p})
+
+	case uc.DeletingBook:
+		ku.k.WebSend(device.WebMsg{Progress: p})
+
 	case uc.EmptyPasswordReceived:
-		kuprint.Println(kuprint.Body, "No valid password found!")
-		kuprint.Println(kuprint.Footer, footerStr)
+		ku.k.WebSend(device.WebMsg{ShowMessage: "No valid password found!", Progress: p})
+
+	case uc.Waiting:
+		ku.k.WebSend(device.WebMsg{ShowMessage: "Waiting for Calibre...", Progress: p})
+
+	default:
+		unknownStr := fmt.Sprintf("Unknown status from UNCaGED: %d", int(status))
+		ku.k.WebSend(device.WebMsg{ShowMessage: unknownStr, Progress: p})
 	}
 }
 
@@ -281,9 +315,6 @@ func (ku *koboUncaged) LogPrintf(logLevel uc.LogLevel, format string, a ...inter
 	log.Printf(format, a...)
 }
 
-// SetExitChannel provides the client with a channel to prematurely stop UNCaGED.
-// when true is sent on the channel, UNCaGED will stop after finishing the current job.
-// UNCaGED will exit Start() with a nil error if no other errors were detected
 func (ku *koboUncaged) SetExitChannel(exitChan chan<- bool) {
-
+	ku.k.UCExitChan = exitChan
 }

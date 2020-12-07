@@ -1,0 +1,74 @@
+body {
+    font-family: sans-serif;
+}
+#kuconfig {
+    margin: auto;
+}
+.ku-cfg-row, .ku-cfg-row-conn {
+    margin: 5pt 0;
+    padding: 0;
+}
+.ku-cfg-row > label, #ku-lib-opts > label, .ku-cfg-row-conn > label {
+    display: inline-block;
+    width: 60%;
+}
+.ku-cfg-row > input, .ku-cfg-row > select, #ku-lib-opts > select, .ku-cfg-cell-conn {
+    display: inline-block;
+    width: 33%;
+}
+.ku-cfg-buttons {
+    text-align: center;
+}
+.ku-cfg-cell-conn > button {
+    text-align: center;
+    font-weight: bold;
+    font-size: 1.1em;
+    margin: 0;
+    padding: 0;
+    width: 1.5em;
+}
+.ku-cfg-help {
+    margin: 12pt 0 0 0;
+    text-align: center;
+}
+#kuhead {
+    text-align: center;
+}
+#kuhead > h1 {
+    font-weight: bold;
+}
+#kumessage {
+    width: 80%;
+    margin: auto;
+    text-align: center;
+}
+#ku-msgbox {
+    height: 6em;
+    margin: 0 0 0.5em 0;
+}
+#ku-progress {
+    width: 75%;
+    margin: auto;
+}
+#calInstanceList {
+    width: 80%;
+    margin: auto;
+    list-style: none;
+}
+#calInstanceList > li {
+    padding: 0.2rem;
+    border-top: 2px solid black;
+    border-bottom: 2px solid black;
+}
+#kuexit {
+    text-align: center;
+}
+
+#ku-lib-opts {
+    margin: 0.5em 0;
+    padding: 0.5em 0;
+    border-bottom: 0.1em solid black;
+}
+#ku-lib-opts > label {
+    text-align: left;
+}

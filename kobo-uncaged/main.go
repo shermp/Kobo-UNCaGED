@@ -20,18 +20,13 @@ package main
 import (
 	"errors"
 	"flag"
-	"fmt"
-	"io/ioutil"
 	"log"
 	"log/syslog"
 	"os"
-	"path/filepath"
 
-	"github.com/BurntSushi/toml"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/device"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kunc"
-	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kuprint"
 	"github.com/shermp/UNCaGED/uc"
 )
 
@@ -41,50 +36,36 @@ type returnCode int
 var kuVersion string
 
 const (
-	genericError    returnCode = 250
-	successNoAction returnCode = 0
-	successRerun    returnCode = 1
-	successUSBMS    returnCode = 10
-	passwordError   returnCode = 100
-	calibreNotFound returnCode = 101
+	genericError     returnCode = 250
+	succsess         returnCode = 0
+	successEarlyExit returnCode = 10
+	passwordError    returnCode = 100
+	calibreNotFound  returnCode = 101
 )
 
-func getUserOptions(dbRootDir string) (*device.KuOptions, error) {
-	// Note, we return opts, regardless of whether we successfully read the options file.
-	// Our code can handle the default struct gracefully
-	opts := &device.KuOptions{}
-	configBytes, err := ioutil.ReadFile(filepath.Join(dbRootDir, ".adds/kobo-uncaged/config/ku.toml"))
+func returncodeFromError(err error, k *device.Kobo) returnCode {
+	rc := succsess
 	if err != nil {
-		return opts, fmt.Errorf("error loading config file: %w", err)
-	}
-	if err := toml.Unmarshal(configBytes, opts); err != nil {
-		return opts, fmt.Errorf("error reading config file: %w", err)
-	}
-	opts.Thumbnail.Validate()
-	opts.Thumbnail.SetRezFilter()
-	return opts, nil
-}
-
-func returncodeFromError(err error) returnCode {
-	rc := successNoAction
-	if err != nil {
-		var calErr uc.CalError
 		log.Print(err)
+		if k == nil {
+			return genericError
+		}
+		k.FinishedMsg = err.Error()
+		rc = genericError
+		var calErr uc.CalError
 		if errors.As(err, &calErr) {
 			switch calErr {
 			case uc.CalibreNotFound:
-				kuprint.Println(kuprint.Body, "Calibre not found!\nHave you enabled the Calibre Wireless service?")
+				k.FinishedMsg = "Calibre not found!<br>Have you enabled the Calibre Wireless service?"
 				rc = calibreNotFound
 			case uc.NoPassword:
-				kuprint.Println(kuprint.Body, "No valid password found!")
+				k.FinishedMsg = "No valid password found!"
 				rc = passwordError
 			default:
-				kuprint.Println(kuprint.Body, calErr.Error())
+				k.FinishedMsg = calErr.Error()
 				rc = genericError
 			}
 		}
-		kuprint.Println(kuprint.Body, err.Error())
-		rc = genericError
 	}
 	return rc
 }
@@ -95,71 +76,57 @@ func mainWithErrCode() returnCode {
 	}
 	onboardMntPtr := flag.String("onboardmount", "/mnt/onboard", "If changed, specify the new new mountpoint of '/mnt/onboard'")
 	sdMntPtr := flag.String("sdmount", "", "If changed, specify the new new mountpoint of '/mnt/sd'")
-	mdPtr := flag.Bool("metadata", false, "Updates the Kobo DB with new metadata")
+	bindAddrPtr := flag.String("bindaddr", "127.0.0.1:8181", "Specify the network address and port <IP:POrt> to listen on")
+	disableNDBPtr := flag.Bool("disablendb", false, "Disables use of NickelDBus. Useful for desktop testing")
+
 	flag.Parse()
-	fntPath := filepath.Join(*onboardMntPtr, ".adds/kobo-uncaged/fonts/LiberationSans-Regular.ttf")
-	if err = kuprint.InitPrinter(fntPath); err != nil {
-		log.Print(err)
-		return genericError
-	}
-	defer kuprint.Close()
 	log.Println("Started Kobo-UNCaGED")
 	log.Println("Reading options")
-	opts, optErr := getUserOptions(*onboardMntPtr)
 	log.Println("Creating KU object")
-	k, err := device.New(*onboardMntPtr, *sdMntPtr, *mdPtr, opts, kuVersion)
+	k, err := device.New(*onboardMntPtr, *sdMntPtr, *bindAddrPtr, *disableNDBPtr, kuVersion)
 	if err != nil {
 		log.Print(err)
-		return returncodeFromError(err)
+		return returncodeFromError(err, nil)
+	} else if k == nil {
+		return successEarlyExit // the user exited during config
 	}
 	defer k.Close()
-	if optErr != nil {
-		kuprint.Println(kuprint.Body, optErr.Error())
+
+	log.Println("Preparing Kobo UNCaGED!")
+	ku := kunc.New(k)
+	cc, err := uc.New(ku, k.KuConfig.EnableDebug)
+	if err != nil {
+		log.Print(err)
+		return returncodeFromError(err, k)
 	}
-	if *mdPtr {
-		log.Println("Updating Metadata")
-		kuprint.Println(kuprint.Body, "Updating Metadata!")
-		_, err = k.UpdateNickelDB()
-		if err != nil {
+	log.Println("Starting Calibre Connection")
+	err = cc.Start()
+	if err != nil {
+		log.Print(err)
+		return returncodeFromError(err, k)
+	}
+	if err = k.WritePassCache(); err != nil {
+		// Not fatal, just log it
+		log.Print(err)
+	}
+	if err = k.SaveUserOptions(); err != nil {
+		// Annoying, but not fatal
+		log.Print(err)
+	}
+	if len(k.UpdatedMetadata) > 0 {
+		if err := k.WriteUpdatedMetadataSQL(); err != nil {
+			k.FinishedMsg = "Updating metadata failed"
 			log.Print(err)
-			return returncodeFromError(err)
+			return returncodeFromError(err, k)
 		}
-		kuprint.Println(kuprint.Body, "Metadata Updated!\n\nReturning to Home screen")
+		k.FinishedMsg = "Calibre disconnected<br>Metadata will be updated"
+	}
+	if k.BrowserOpen {
+		k.FinishedMsg = "Calibre disconnected<br><br>You may exit the browser."
 	} else {
-		log.Println("Preparing Kobo UNCaGED!")
-		ku := kunc.New(k)
-		cc, err := uc.New(ku, k.KuConfig.EnableDebug)
-		if err != nil {
-			log.Print(err)
-			return returncodeFromError(err)
-		}
-		log.Println("Starting Calibre Connection")
-		err = cc.Start()
-		if err != nil {
-			log.Print(err)
-			return returncodeFromError(err)
-		}
-
-		if len(k.UpdatedMetadata) > 0 {
-			rerun, err := k.UpdateNickelDB()
-			if err != nil {
-				kuprint.Println(kuprint.Body, "Updating metadata failed")
-				log.Print(err)
-				return returncodeFromError(err)
-			}
-			if rerun {
-				if k.KuConfig.AddMetadataByTrigger {
-					kuprint.Println(kuprint.Body, "Books added!\n\nYour Kobo will perform another USB connect after content import")
-					return successUSBMS
-				}
-				kuprint.Println(kuprint.Body, "Books added!\n\nKobo-UNCaGED will restart automatically to update metadata")
-				return successRerun
-			}
-		}
-		kuprint.Println(kuprint.Body, "Nothing more to do!\n\nReturning to Home screen")
+		k.FinishedMsg = "Calibre disconnected"
 	}
-
-	return successNoAction
+	return succsess
 }
 func main() {
 	os.Exit(int(mainWithErrCode()))
