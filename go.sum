@@ -36,8 +36,8 @@ github.com/pgaskin/koboutils/v2 v2.1.1 h1:Or5y+z8rXlip0Al8tiSj+Fb9NkuLhkcw1UPpzP
 github.com/pgaskin/koboutils/v2 v2.1.1/go.mod h1:wTzkDIlsxmUyfwfspGcm0Ap+HOxSUYV0S8kMYrf+0gM=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/shermp/UNCaGED v0.6.2-0.20201129010244-0c87019301a4 h1:dqcvlY+aqyekZy3xmOljC7G2sOjFmqVNaXzFZU+Ro6k=
-github.com/shermp/UNCaGED v0.6.2-0.20201129010244-0c87019301a4/go.mod h1:T31e1xhY6gznBiL0R24kxaRiYlU7PNIrUJd5JsIr0n8=
+github.com/shermp/UNCaGED v0.7.0 h1:4yyYnPnVzQB9HY+olM9BaDQQYPbIFsSgeyCE3DTb/qM=
+github.com/shermp/UNCaGED v0.7.0/go.mod h1:T31e1xhY6gznBiL0R24kxaRiYlU7PNIrUJd5JsIr0n8=
 github.com/slongfield/pyfmt v0.0.0-20180124071345-020a7cb18bca h1:fO9hIZRL+kteo13eh51GqkUdZf/NpMmZsi8ob6b1eOg=
 github.com/slongfield/pyfmt v0.0.0-20180124071345-020a7cb18bca/go.mod h1:41QiOYlRDMkcA4GnlnV0jfYUyqxKHYnUeaQRAvpezw8=
 github.com/spf13/pflag v1.0.5/go.mod h1:McXfInJRrz4CZXVZOBLb0bTZqETkiAhM9Iw0y3An2Bg=
