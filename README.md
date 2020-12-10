@@ -18,6 +18,8 @@ Kobo-UNCaGED runs on any Kobo with firmware 4.13.12638 or newer. It is designed 
 * Generate library thumbnails for new books sent
 * Connect to password protected calibre instances
 * Choose which Calibre instance to connect to if multiple are found on the network
+* Set Kobo subtitle entry from a standard or custom column (with formatting)
+* Directly connect to a host/port, to bypass autodiscovery
 
 Note: Working with store-bought books is currently not supported. Also, KU will use and overwrite any existing metadata.calibre file. This could cause some data "loss" in that the metadata cache will lose any info on non-sideloaded books.
 
@@ -26,12 +28,19 @@ Kobo-UNCaGED is designed to be launched from within the Kobo software (nickel) u
 
 KU also requires [NickelDBus](https://github.com/shermp/NickelDBus). For your convenience, KU installs it for you on first start, if you do not already have it installed.
 
+### Upgrading from < 0.5 to 0.5.0+
+0.5.0 introduces a large number of changes compared to earlier versions of Kobo UNCaGED. Please take note of the following when upgrading:
+
+* NickelMenu is now the preferred (and only supported) method of launching KU. Launching KU with kfmon/fmon will cease to work after upgrading. It is advised that you delete `Kobo-UNCaGED.png` and `.adds/kfmon/config/kobo-uncaged.ini`. Feel free to uninstall kfmon if it is no longer required.
+* Because NickelMenu is used, you will need to install it before you can start KU.
+* `.adds/kobo-uncaged/config/ku.toml` is no longer used. All configuration is now handled (and saved) via the Web UI.
+
 ### Installation
 0. Ensure you are running firmware 4.13.12638 or newer. Kobo UNCaGED will refuse to launch if it detects an earlier firmware version. 
 1. Install [NickelMenu](https://github.com/pgaskin/NickelMenu/releases) if you don't already have it. Version 0.3.x or newer is highly recommended, although version 0.2.x should work as well.
 2. Download the latest release zip archive from https://github.com/shermp/Kobo-UNCaGED/releases
 3. Unzip the contents of the archive directly onto the root directory of your kobo partion (when connected with USB). All files should be copied to their appropriate location.
-5. Disconnect/eject your Kobo, and restart it.
+5. Disconnect/eject your Kobo, and launch the `Kobo UNCaGED` entry from NickelMenu.
 6. If it's not already installed, NickelDBus will be installed on first start. If this is required, your Kobo will reboot again.
 
 ### Upgrading
@@ -80,7 +89,7 @@ Once the prerequisites are met, follow the next steps:
 2. `cd Kobo-UNCaGED`
 3. Run `make`. This will download and build all further requirements, and create the necessary directory structure.
 4. Extract `./build/Kobo-UNCaGED.zip` to the root of your Kobo user directory (`/mnt/onboard`).
-5. Unplug, then reboot your Kobo.
+5. Unplug your Kobo.
 
 You can run `make clean` to remove all build artifacts except downloaded files. `make cleanall` will also remove downloads.
 
