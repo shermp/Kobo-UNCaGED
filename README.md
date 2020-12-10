@@ -68,9 +68,9 @@ It is highly recommended to build Kobo-UNCaGED on a Linux based system. It will 
 Kobo-UNCaGED requires the following prerequisites to build correctly:
 
 * [Go](https://golang.org/doc/install) Go 1.14+ is required
-* [ARM Cross Compiler](https://github.com/koreader/koxtoolchain) is required, as some of the libraries required use CGO. We will also be compiling FBink. The linked toolchain by the KOReader developers is recommended. Note that this toolchain takes a LONG time to setup (40-50 minutes on my VM)
-* Standard tools such as git, tar, zip, wget, make
-* The shell/environment variable `CROSS_TC` is set to the name of your cross compiler eg: `arm-kobo-linux-gnueabihf`, and that `${CROSS_TC}-gcc` etc are in your PATH.
+* [ARM Cross Compiler](https://github.com/koreader/koxtoolchain) is required, as some of the libraries required use CGO. We will also be compiling SQLite. The linked toolchain by the KOReader developers is recommended. Note that this toolchain takes a LONG time to setup (40-50 minutes on my VM)
+* Standard tools such as git, tar, zip, unzip, wget, make
+* The shell/environment variable `CROSS_TC` or `CROSS_COMPILE` is set to the name of your cross compiler eg: `arm-kobo-linux-gnueabihf`, and that `${CROSS_TC}-gcc`/`${CROSS_COMPILE}gcc` etc are in your PATH. Alternatively, the variable `CC` can be set to `arm-kobo-linux-gnueabihf`.
 
 ### Building
 
@@ -78,9 +78,11 @@ Once the prerequisites are met, follow the next steps:
 
 1. `git clone github.com/shermp/Kobo-UNCaGED`
 2. `cd Kobo-UNCaGED`
-3. `./build-ku.sh`. This will download and build all further requirements, and create the necessary directory structure. 
-4. Extract `./Build/KoboUncaged-${version}.zip` to the root of your Kobo user directory (`/mnt/onboard`).
+3. Run `make`. This will download and build all further requirements, and create the necessary directory structure.
+4. Extract `./build/Kobo-UNCaGED.zip` to the root of your Kobo user directory (`/mnt/onboard`).
 5. Unplug, then reboot your Kobo.
+
+You can run `make clean` to remove all build artifacts except downloaded files. `make cleanall` will also remove downloads.
 
 ### Developing
 
