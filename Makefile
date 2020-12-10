@@ -21,10 +21,12 @@ else ifneq (arm-kobo-linux-gnueabihf-gcc, $(CC))
     $(error Cross compiler not detected)
 endif
 
+# Set required Go environment variables for building on Kobo devices
 override GOOS := linux
 override GOARCH := arm
 override CGO_ENABLED := 1
 
+# Set required target files and directories
 override KU_ARCHIVE := build/Kobo-UNCaGED.zip
 override ADDS_ROOT := build/onboardroot/.adds
 override KU_ROOT := $(ADDS_ROOT)/kobo-uncaged
@@ -42,10 +44,11 @@ override NM_CFG := $(ADDS_ROOT)/nm/kobo_uncaged
 override BULD_FILES := $(KU_BIN) $(SQL_BIN) $(NDB_ARCHIVE) $(KU_SCRIPTS) $(KU_STATIC) $(KU_TMPL) $(KU_START) $(NM_CFG)
 
 override KU_SRC := $(wildcard kobo-uncaged/*.go kobo-uncaged/device/*.go kobo-uncaged/kunc/*.go kobo-uncaged/util/*.go)
+# Gets the current version of the repository. This version gets embedded in the KU binary at compile time.
 override KU_VERS := $(shell git describe --tags)
 
 override DL_DIR := build/downloads
-
+# This is the name of the sqlite archive and subdirectory.
 override SQLITE_VER := sqlite-amalgamation-3340000
 override SQLITE_SRC := $(DL_DIR)/$(SQLITE_VER)/shell.c $(DL_DIR)/$(SQLITE_VER)/sqlite3.c
 
