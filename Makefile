@@ -41,7 +41,7 @@ override KU_TMPL := $(KU_ROOT)/templates/kuPage.tmpl
 override KU_START := $(KU_ROOT)/nm-start-ku.sh
 override NM_CFG := $(ADDS_ROOT)/nm/kobo_uncaged
 
-override BULD_FILES := $(KU_BIN) $(SQL_BIN) $(NDB_ARCHIVE) $(KU_SCRIPTS) $(KU_STATIC) $(KU_TMPL) $(KU_START) $(NM_CFG)
+override BUILD_FILES := $(KU_BIN) $(SQL_BIN) $(NDB_ARCHIVE) $(KU_SCRIPTS) $(KU_STATIC) $(KU_TMPL) $(KU_START) $(NM_CFG)
 
 override KU_SRC := $(wildcard kobo-uncaged/*.go kobo-uncaged/device/*.go kobo-uncaged/kunc/*.go kobo-uncaged/util/*.go)
 # Gets the current version of the repository. This version gets embedded in the KU binary at compile time.
@@ -52,7 +52,7 @@ override DL_DIR := build/downloads
 override SQLITE_VER := sqlite-amalgamation-3340000
 override SQLITE_SRC := $(DL_DIR)/$(SQLITE_VER)/shell.c $(DL_DIR)/$(SQLITE_VER)/sqlite3.c
 
-override BUILD_DIRS := $(sort $(dir $(BULD_FILES))) $(KU_ROOT)/config
+override BUILD_DIRS := $(sort $(dir $(BUILD_FILES))) $(KU_ROOT)/config
 
 .PHONY: all directories clean cleanall
 
@@ -60,7 +60,7 @@ all: $(KU_ARCHIVE)
 
 clean:
 	rm -f $(KU_ARCHIVE)
-	rm -f $(BULD_FILES)
+	rm -f $(BUILD_FILES)
 	rm -df $$(printf %s\\n $(BUILD_DIRS) | sort -r | tr '\n' ' ')
 	rm -df $(ADDS_ROOT) build/onboardroot
 
@@ -71,7 +71,7 @@ cleanall: clean
 	rm -df $(DL_DIR)
 	rm -df build
 
-$(KU_ARCHIVE): $(BULD_FILES) | directories
+$(KU_ARCHIVE): $(BUILD_FILES) | directories
 	cd build/onboardroot && zip -r ../$(notdir $@) .
 
 $(NDB_ARCHIVE): $(DL_DIR)/ndb-$(NDB_VER).tgz | directories
