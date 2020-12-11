@@ -78,4 +78,4 @@ logmsg "I" "Disabled loopback interface"
 
 # End with a confirmation dialog. Saves the user having to keep an eagle eye on the screen
 # to know when KU has finished.
-qndb -m dlgConfirmAccept "Kobo UNCaGED" "Finished. Happy reading!" "Continue"
+qndb -m dlgConfirmAccept "Kobo UNCaGED" "Finished!" "Continue"

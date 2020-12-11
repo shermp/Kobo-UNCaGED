@@ -122,7 +122,7 @@ func mainWithErrCode() returnCode {
 		k.FinishedMsg = "Calibre disconnected<br>Metadata will be updated"
 	}
 	if k.BrowserOpen {
-		k.FinishedMsg = "Calibre disconnected<br><br>You may exit the browser."
+		k.FinishedMsg = "Calibre disconnected<br><br>Please wait"
 	} else {
 		k.FinishedMsg = "Calibre disconnected"
 	}
