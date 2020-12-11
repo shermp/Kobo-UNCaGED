@@ -25,6 +25,13 @@ EOF
     fi
 }
 
+# In case we aren't launched with NickelMenu, check that NickelDBus is
+# installed and available before continuing
+if ! ndb_installed ; then
+    logmsg "C" "NickelDBus not installed. Aborting."
+    exit 1
+fi
+
 # Ensure before beginning that any sql files from prior runs are removed
 [ -f $KU_REPL_MD ] && rm $KU_REPL_MD
 [ -f $KU_UPDATE_MD ] && rm $KU_UPDATE_MD
@@ -69,4 +76,6 @@ cd -
 ip link set lo down
 logmsg "I" "Disabled loopback interface"
 
-logmsg "I" "Kobo UNCaGED finished!" 1000
+# End with a confirmation dialog. Saves the user having to keep an eagle eye on the screen
+# to know when KU has finished.
+qndb -m dlgConfirmAccept "Kobo UNCaGED" "Finished. Happy reading!" "Continue"
