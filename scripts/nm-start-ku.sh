@@ -1,10 +1,9 @@
 #!/bin/sh
 
 KU_DIR=/mnt/onboard/.adds/kobo-uncaged
-KU_BIN=${KU_DIR}/bin/kobo-uncaged
+KU_BIN=${KU_DIR}/bin/ku
 SQLITE_BIN=${KU_DIR}/bin/sqlite3
 NICKEL_DB=/mnt/onboard/.kobo/KoboReader.sqlite
-FBINK_BIN=${KU_DIR}/bin/fbink
 KU_LOG=${KU_DIR}/ku_error.log
 
 KU_REPL_MD=${KU_DIR}/replace-book.sql

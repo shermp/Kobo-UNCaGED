@@ -31,7 +31,7 @@ override KU_ARCHIVE := build/Kobo-UNCaGED.zip
 override ADDS_ROOT := build/onboardroot/.adds
 override KU_ROOT := $(ADDS_ROOT)/kobo-uncaged
 
-override KU_BIN := $(KU_ROOT)/bin/kobo-uncaged
+override KU_BIN := $(KU_ROOT)/bin/ku
 override SQL_BIN := $(KU_ROOT)/bin/sqlite3
 override NDB_VER := 0.1.0
 override NDB_ARCHIVE := $(KU_ROOT)/NickelDBus/ndb-kr.tgz
