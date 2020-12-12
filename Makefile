@@ -27,42 +27,36 @@ override GOARCH := arm
 override CGO_ENABLED := 1
 
 # Set required target files and directories
-override KU_ARCHIVE := build/Kobo-UNCaGED.zip
-override ADDS_ROOT := build/onboardroot/.adds
-override KU_ROOT := $(ADDS_ROOT)/kobo-uncaged
+override BUILD_DIR := build
+override DL_DIR := $(BUILD_DIR)/downloads
+override KU_ARCHIVE := $(BUILD_DIR)/Kobo-UNCaGED.zip
+override ARC_ADDS_ROOT := .adds
+override ARC_KU_ROOT := $(ARC_ADDS_ROOT)/kobo-uncaged
 
-override KU_BIN := $(KU_ROOT)/bin/ku
-override SQL_BIN := $(KU_ROOT)/bin/sqlite3
+override KU_BIN := $(BUILD_DIR)/ku
+override SQL_BIN := $(BUILD_DIR)/sqlite3
 override NDB_VER := 0.1.0
-override NDB_ARCHIVE := $(KU_ROOT)/NickelDBus/ndb-kr.tgz
-override KU_SCRIPTS := $(KU_ROOT)/scripts/ku-lib.sh $(KU_ROOT)/scripts/ku-prereq-check.sh
-override KU_STATIC := $(KU_ROOT)/static/html_input.css $(KU_ROOT)/static/ku.css $(KU_ROOT)/static/ku.js
-override KU_TMPL := $(KU_ROOT)/templates/kuPage.tmpl
-override KU_START := $(KU_ROOT)/nm-start-ku.sh
-override NM_CFG := $(ADDS_ROOT)/nm/kobo_uncaged
-
-override BUILD_FILES := $(KU_BIN) $(SQL_BIN) $(NDB_ARCHIVE) $(KU_SCRIPTS) $(KU_STATIC) $(KU_TMPL) $(KU_START) $(NM_CFG)
+override NDB_ARCHIVE := $(DL_DIR)/ndb-$(NDB_VER).tgz
+override KU_SCRIPTS := scripts/ku-lib.sh scripts/ku-prereq-check.sh
+override KU_STATIC := kobo-uncaged/static/html_input.css kobo-uncaged/static/ku.css kobo-uncaged/static/ku.js
+override KU_TMPL := kobo-uncaged/templates/kuPage.tmpl
+override KU_START := scripts/nm-start-ku.sh
+override NM_CFG := config/nm-ku
 
 override KU_SRC := $(wildcard kobo-uncaged/*.go kobo-uncaged/device/*.go kobo-uncaged/kunc/*.go kobo-uncaged/util/*.go)
 # Gets the current version of the repository. This version gets embedded in the KU binary at compile time.
 override KU_VERS := $(shell git describe --tags)
 
-override DL_DIR := build/downloads
 # This is the name of the sqlite archive and subdirectory.
 override SQLITE_VER := sqlite-amalgamation-3340000
 override SQLITE_SRC := $(DL_DIR)/$(SQLITE_VER)/shell.c $(DL_DIR)/$(SQLITE_VER)/sqlite3.c
 
-override BUILD_DIRS := $(sort $(dir $(BUILD_FILES))) $(KU_ROOT)/config
-
-.PHONY: all directories clean cleanall
+.PHONY: all clean cleanall
 
 all: $(KU_ARCHIVE)
 
 clean:
-	rm -f $(KU_ARCHIVE)
-	rm -f $(BUILD_FILES)
-	rm -df $$(printf %s\\n $(BUILD_DIRS) | sort -r | tr '\n' ' ')
-	rm -df $(ADDS_ROOT) build/onboardroot
+	rm -f $(KU_ARCHIVE) $(KU_BIN) $(SQL_BIN)
 
 cleanall: clean
 	rm -f $(DL_DIR)/$(SQLITE_VER)/*
@@ -71,31 +65,21 @@ cleanall: clean
 	rm -df $(DL_DIR)
 	rm -df build
 
-$(KU_ARCHIVE): $(BUILD_FILES) | directories
-	cd build/onboardroot && zip -r ../$(notdir $@) .
+$(KU_ARCHIVE): $(KU_BIN) $(SQL_BIN) $(NDB_ARCHIVE) $(KU_SCRIPTS) $(KU_STATIC) $(KU_TMPL) $(KU_START) $(NM_CFG) | $(BUILD_DIR)
+	zip $@ $^ && \
+	printf "@ $(KU_BIN)\n@=$(ARC_KU_ROOT)/bin/ku\n" | zipnote -w $@ && \
+	printf "@ $(SQL_BIN)\n@=$(ARC_KU_ROOT)/bin/sqlite3\n" | zipnote -w $@ && \
+	printf "@ $(NDB_ARCHIVE)\n@=$(ARC_KU_ROOT)/NickelDBus/ndb-kr.tgz\n" | zipnote -w $@ && \
+	$(foreach script,$(KU_SCRIPTS),printf "@ $(script)\n@=$(ARC_KU_ROOT)/scripts/$(notdir $(script))\n" | zipnote -w $@ && )\
+	$(foreach static,$(KU_STATIC),printf "@ $(static)\n@=$(ARC_KU_ROOT)/static/$(notdir $(static))\n" | zipnote -w $@ && )\
+	$(foreach tmpl,$(KU_TMPL),printf "@ $(tmpl)\n@=$(ARC_KU_ROOT)/templates/$(notdir $(tmpl))\n" | zipnote -w $@ && )\
+	printf "@ $(KU_START)\n@=$(ARC_KU_ROOT)/$(notdir $(KU_START))\n" | zipnote -w $@ && \
+	printf "@ $(NM_CFG)\n@=$(ADDS_ROOT)/nm/kobo_uncaged\n" | zipnote -w $@
 
-$(NDB_ARCHIVE): $(DL_DIR)/ndb-$(NDB_VER).tgz | directories
-	cp $< $@
-
-$(DL_DIR)/ndb-$(NDB_VER).tgz: | directories
+$(NDB_ARCHIVE): | $(DL_DIR)
 	wget -O $@ https://github.com/shermp/NickelDBus/releases/download/$(NDB_VER)/KoboRoot.tgz
 
-$(KU_SCRIPTS): | directories
-	cp scripts/$(notdir $@) $@
-
-$(KU_STATIC): | directories
-	cp kobo-uncaged/static/$(notdir $@) $@
-
-$(KU_TMPL): | directories
-	cp kobo-uncaged/templates/$(notdir $@) $@
-
-$(KU_START): | directories
-	cp scripts/$(notdir $@) $@
-
-$(NM_CFG): | directories
-	cp config/nm-ku $@
-
-$(KU_BIN): $(KU_SRC) | directories
+$(KU_BIN): $(KU_SRC) | $(BUILD_DIR)
 	go build -ldflags "-s -w -X main.kuVersion=$(KU_VERS)" -o $@ ./kobo-uncaged
 
 $(SQL_BIN): $(SQLITE_SRC)
@@ -104,8 +88,8 @@ $(SQL_BIN): $(SQLITE_SRC)
 $(SQLITE_SRC): $(DL_DIR)/$(SQLITE_VER).zip
 	[ -f $@ ] || (cd $(dir $<) && unzip $(notdir $<))
 
-$(DL_DIR)/$(SQLITE_VER).zip: | directories
+$(DL_DIR)/$(SQLITE_VER).zip: | $(DL_DIR)
 	wget -O $@ https://www.sqlite.org/2020/$(SQLITE_VER).zip
 
-directories:
-	mkdir -p $(BUILD_DIRS) $(DL_DIR)
+$(BUILD_DIR) $(DL_DIR):
+	mkdir -p $@
