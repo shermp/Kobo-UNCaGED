@@ -310,7 +310,11 @@ function sendConfig() {
     kuConfig.opts.enableDebug = document.getElementById('enableDebug').checked;
     kuConfig.opts.thumbnail.generateLevel = gl.options[gl.selectedIndex].value;
     kuConfig.opts.thumbnail.resizeAlgorithm = rs.options[rs.selectedIndex].value;
-    kuConfig.opts.thumbnail.jpegQuality = parseInt(document.getElementById('jpegQuality').value);
+    var jpgQuality = parseInt(document.getElementById('jpegQuality').value);
+    if (jpgQuality < 50) {
+        jpgQuality = 50;
+    }
+    kuConfig.opts.thumbnail.jpegQuality = jpgQuality;
     kuConfig.opts.directConnIndex = document.getElementById('directConn').selectedIndex - 1;
     var xhr = new XMLHttpRequest();
     xhr.open('POST', kuInfo.configPath);
