@@ -59,10 +59,14 @@ If you want to uninstall NickelDBus as well, delete the `.adds/nickeldbus` file.
 2. Launch `Kobo UNCaGED` from the main menu (using NickelMenu).
 3. KU will open the web browser. If required, you will be prompted to enable/connect to WiFi. You have a minute to connect to Wifi and let the browser open before KU times out and exits.
 4. The browser opens a configuration screen to set options. Options are saved if you make any changes. Press the `Start` button to connect to Calibre.
+    * The config page allows you to set a host to directly connect to as an alternative of autodiscovery. Press the **+** button to add a host, and the **-** button to remove the currently selected host.
 5. If there are multiple Calibre instances on the network, KU will provide a list for you to select one. If the Calibre instance is password protected, you will be prompted to enter the password. The password will be saved for future connections.
-6. At this point, you can use Calibre to send/receive/update/remove books.
-7. When you are finished, **eject** the wireless device from calibre, as you would a USB device. Alternatively, you can press the `disconnect` button in KU.
+6. At this point, you can use Calibre to send/receive/update/remove books. 
+    * When connected, you can also set what Calibre column (if any) to use to populate the 'subtitle' field.
+    * Kobo UNCaGED can (mostly) parse the display format for a column if it is set in Calibre
+7. When you are finished, **eject** the wireless device from calibre, as you would a USB device. Alternatively, you can press the `disconnect` button in KU
 8. KU will trigger the content import process, and update metadata if required.
+9. A **Finished** dialog box will show when all content has been imported and metadata updated. Press **Continue** to start reading. Please don't attempt to interact with your Kobo untill this dialog shows.
 
 Have Fun!
 
