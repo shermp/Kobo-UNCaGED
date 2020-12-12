@@ -41,7 +41,8 @@ override NDB_ARCHIVE := $(DL_DIR)/ndb-$(NDB_VER).tgz
 # List of pairs of files to appear in the final zip archive.
 # The first element in each pair is the source file, the second
 # is what the file should be renamed to
-override ARCHIVE_FILES := $(KU_BIN):$(ARC_KU_ROOT)/bin/ku \
+override ARCHIVE_FILES := \
+	$(KU_BIN):$(ARC_KU_ROOT)/bin/ku \
 	$(SQL_BIN):$(ARC_KU_ROOT)/bin/sqlite3 \
 	$(NDB_ARCHIVE):$(ARC_KU_ROOT)/NickelDBus/ndb-kr.tgz \
 	scripts/ku-lib.sh:$(ARC_KU_ROOT)/scripts/ku-lib.sh \
