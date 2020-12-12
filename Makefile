@@ -51,6 +51,13 @@ override KU_VERS := $(shell git describe --tags)
 override SQLITE_VER := sqlite-amalgamation-3340000
 override SQLITE_SRC := $(DL_DIR)/$(SQLITE_VER)/shell.c $(DL_DIR)/$(SQLITE_VER)/sqlite3.c
 
+# Rename a single file in a zip file using zipnote. First arg is the zip file to update, the second arg
+# is the file to rename, the third arg is the renamed filename/path
+override zip_rename_single = printf "@ $(2)\n@=$(3)\n" | zipnote -w $(1)
+# Rename multiple files in a zip file using zipnote. First arg is the zip file to update, the second arg
+# is the list of files to rename, the third arg is an optional directory prefix for the renamed files
+override zip_rename_multiple = printf "$(subst \n @,\n@,$(foreach file,$(2),@ $(file)\n@=$(dir $(3)/)$(notdir $(file))\n@ (comment above this line)\n))" | zipnote -w $(1)
+
 .PHONY: all clean cleanall
 
 all: $(KU_ARCHIVE)
@@ -67,14 +74,14 @@ cleanall: clean
 
 $(KU_ARCHIVE): $(KU_BIN) $(SQL_BIN) $(NDB_ARCHIVE) $(KU_SCRIPTS) $(KU_STATIC) $(KU_TMPL) $(KU_START) $(NM_CFG) | $(BUILD_DIR)
 	zip $@ $^ && \
-	printf "@ $(KU_BIN)\n@=$(ARC_KU_ROOT)/bin/ku\n" | zipnote -w $@ && \
-	printf "@ $(SQL_BIN)\n@=$(ARC_KU_ROOT)/bin/sqlite3\n" | zipnote -w $@ && \
-	printf "@ $(NDB_ARCHIVE)\n@=$(ARC_KU_ROOT)/NickelDBus/ndb-kr.tgz\n" | zipnote -w $@ && \
-	$(foreach script,$(KU_SCRIPTS),printf "@ $(script)\n@=$(ARC_KU_ROOT)/scripts/$(notdir $(script))\n" | zipnote -w $@ && )\
-	$(foreach static,$(KU_STATIC),printf "@ $(static)\n@=$(ARC_KU_ROOT)/static/$(notdir $(static))\n" | zipnote -w $@ && )\
-	$(foreach tmpl,$(KU_TMPL),printf "@ $(tmpl)\n@=$(ARC_KU_ROOT)/templates/$(notdir $(tmpl))\n" | zipnote -w $@ && )\
-	printf "@ $(KU_START)\n@=$(ARC_KU_ROOT)/$(notdir $(KU_START))\n" | zipnote -w $@ && \
-	printf "@ $(NM_CFG)\n@=$(ADDS_ROOT)/nm/kobo_uncaged\n" | zipnote -w $@
+	$(call zip_rename_single,$@,$(KU_BIN),$(ARC_KU_ROOT)/bin/ku) && \
+	$(call zip_rename_single,$@,$(SQL_BIN),$(ARC_KU_ROOT)/bin/sqlite3) && \
+	$(call zip_rename_single,$@,$(NDB_ARCHIVE),$(ARC_KU_ROOT)/NickelDBus/ndb-kr.tgz) && \
+	$(call zip_rename_multiple,$@,$(KU_SCRIPTS),$(ARC_KU_ROOT)/scripts) && \
+	$(call zip_rename_multiple,$@,$(KU_STATIC),$(ARC_KU_ROOT)/static) && \
+	$(call zip_rename_multiple,$@,$(KU_TMPL),$(ARC_KU_ROOT)/templates) && \
+	$(call zip_rename_single,$@,$(KU_START),$(ARC_KU_ROOT)/$(notdir $(KU_START))) && \
+	$(call zip_rename_single,$@,$(NM_CFG),$(ADDS_ROOT)/nm/kobo_uncaged)
 
 $(NDB_ARCHIVE): | $(DL_DIR)
 	wget -O $@ https://github.com/shermp/NickelDBus/releases/download/$(NDB_VER)/KoboRoot.tgz
