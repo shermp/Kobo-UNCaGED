@@ -41,6 +41,9 @@ fi
 ip link set lo up
 logmsg "I" "Enabled loopback interface"
 
+# The zip file may not contain the 'config' directory, so ensure it is created
+[ -d "${KU_DIR}/config" ] || mkdir "${KU_DIR}/config"
+
 cd ${KU_DIR}
 
 logmsg "I" "Starting Kobo UNCaGED" 1000

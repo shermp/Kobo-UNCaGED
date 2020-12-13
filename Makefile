@@ -52,7 +52,7 @@ override ARCHIVE_FILES := \
 	kobo-uncaged/static/ku.css:$(ARC_KU_ROOT)/static/ku.css \
 	kobo-uncaged/static/ku.js:$(ARC_KU_ROOT)/static/ku.js \
 	kobo-uncaged/templates/kuPage.tmpl:$(ARC_KU_ROOT)/templates/kuPage.tmpl \
-	config/nm-ku:$(ADDS_ROOT)/nm/kobo_uncaged
+	config/nm-ku:$(ARC_ADDS_ROOT)/nm/kobo_uncaged
 
 # Get a list of source files only from the above list
 override ARCHIVE_SRCS := $(foreach pair,$(ARCHIVE_FILES),$(word 1,$(subst :, ,$(pair))))
