@@ -54,10 +54,6 @@ func isBrowserViewSignal(vs *dbus.Signal) (bool, error) {
 	return vs.Body[0].(string) == "N3BrowserView", nil
 }
 
-func getSupportedExtraFormats() []string {
-	return []string{"mobi", "pdf", "cbz", "cbr", "txt", "html", "rtf"}
-}
-
 // New creates a Kobo object, ready for use
 func New(dbRootDir, sdRootDir string, bindAddress string, disableNDB bool, vers string) (*Kobo, error) {
 	var err error
@@ -317,12 +313,13 @@ func (k *Kobo) GetDeviceOptions() (ext []string, model string, thumbSz image.Poi
 	// Order matters, which is why slices are used, and not maps
 	// Calibre uses the order to determine which format to send, if a book has multiple
 	// compatible formats
+	extraFormats := []string{"mobi", "pdf", "cbz", "cbr", "txt", "html", "rtf"}
 	var tmpExt []string
 	// First, a list of all formats we support
 	if k.KuConfig.PreferKepub {
-		tmpExt = append([]string{"kepub", "epub"}, getSupportedExtraFormats()...)
+		tmpExt = append([]string{"kepub", "epub"}, extraFormats...)
 	} else {
-		tmpExt = append([]string{"epub", "kepub"}, getSupportedExtraFormats()...)
+		tmpExt = append([]string{"epub", "kepub"}, extraFormats...)
 	}
 	// Then, create a new list without the formats the user excludes via the config, preserving order
 	for _, e := range tmpExt {
