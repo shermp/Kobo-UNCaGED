@@ -20,6 +20,7 @@ package main
 import (
 	"errors"
 	"flag"
+	"io"
 	"log"
 	"log/syslog"
 	"os"
@@ -70,10 +71,20 @@ func returncodeFromError(err error, k *device.Kobo) returnCode {
 	return rc
 }
 func mainWithErrCode() returnCode {
-	w, err := syslog.New(syslog.LOG_DEBUG, "KoboUNCaGED")
+	kuLogFile := os.Getenv("KU_LOGFILE")
+	var w io.Writer
+	var err error
+	log.SetPrefix("[Kobo-UNCaGED] ")
+	if kuLogFile != "" {
+		w, err = os.OpenFile(kuLogFile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	} else {
+		w, err = syslog.New(syslog.LOG_DEBUG, "Kobo-UNCaGED")
+		log.SetPrefix("")
+	}
 	if err == nil {
 		log.SetOutput(w)
 	}
+
 	onboardMntPtr := flag.String("onboardmount", "/mnt/onboard", "If changed, specify the new new mountpoint of '/mnt/onboard'")
 	sdMntPtr := flag.String("sdmount", "", "If changed, specify the new new mountpoint of '/mnt/sd'")
 	bindAddrPtr := flag.String("bindaddr", "127.0.0.1:8181", "Specify the network address and port <IP:POrt> to listen on")
@@ -81,7 +92,6 @@ func mainWithErrCode() returnCode {
 
 	flag.Parse()
 	log.Println("Started Kobo-UNCaGED")
-	log.Println("Reading options")
 	log.Println("Creating KU object")
 	k, err := device.New(*onboardMntPtr, *sdMntPtr, *bindAddrPtr, *disableNDBPtr, kuVersion)
 	if err != nil {
