@@ -54,6 +54,10 @@ func isBrowserViewSignal(vs *dbus.Signal) (bool, error) {
 	return vs.Body[0].(string) == "N3BrowserView", nil
 }
 
+func getSupportedExtraFormats() []string {
+	return []string{"mobi", "pdf", "cbz", "cbr", "txt", "html", "rtf"}
+}
+
 // New creates a Kobo object, ready for use
 func New(dbRootDir, sdRootDir string, bindAddress string, disableNDB bool, vers string) (*Kobo, error) {
 	var err error
@@ -68,6 +72,9 @@ func New(dbRootDir, sdRootDir string, bindAddress string, disableNDB bool, vers 
 	if len(k.KuConfig.DirectConn) == 0 {
 		k.KuConfig.DirectConnIndex = -1
 		k.KuConfig.DirectConn = make([]calibre.ConnectionInfo, 0)
+	}
+	if len(k.KuConfig.ExcludeFormats) == 0 {
+		k.KuConfig.ExcludeFormats = make([]string, 0)
 	}
 	if sdRootDir != "" && k.KuConfig.PreferSDCard {
 		k.UseSDCard = true
@@ -306,10 +313,16 @@ func (k *Kobo) getKoboInfo() error {
 
 // GetDeviceOptions gets some device options that UNCaGED requires
 func (k *Kobo) GetDeviceOptions() (ext []string, model string, thumbSz image.Point) {
+	var tmpExt []string
 	if k.KuConfig.PreferKepub {
-		ext = []string{"kepub", "epub", "mobi", "pdf", "cbz", "cbr", "txt", "html", "rtf"}
+		tmpExt = append([]string{"kepub", "epub"}, getSupportedExtraFormats()...)
 	} else {
-		ext = []string{"epub", "kepub", "mobi", "pdf", "cbz", "cbr", "txt", "html", "rtf"}
+		tmpExt = append([]string{"epub", "kepub"}, getSupportedExtraFormats()...)
+	}
+	for _, e := range tmpExt {
+		if !util.StringSliceContains(k.KuConfig.ExcludeFormats, e) {
+			ext = append(ext, e)
+		}
 	}
 	model = k.Device.Family()
 	switch k.KuConfig.Thumbnail.GenerateLevel {

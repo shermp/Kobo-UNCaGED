@@ -45,6 +45,7 @@ type KuOptions struct {
 	LibOptions      map[string]KuLibOptions `json:"libOptions"`
 	DirectConnIndex int                     `json:"directConnIndex"`
 	DirectConn      []uc.CalInstance        `json:"directConn"`
+	ExcludeFormats  []string                `json:"excludeFormats"`
 }
 
 // KuLibOptions contains per-library options

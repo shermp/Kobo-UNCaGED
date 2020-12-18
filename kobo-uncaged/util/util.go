@@ -46,6 +46,16 @@ func ContentIDtoLpath(cid, cidPrefix string) string {
 	return strings.TrimPrefix(cid, cidPrefix)
 }
 
+// StringSliceContains test if val is contained in strSlice
+func StringSliceContains(strSlice []string, val string) bool {
+	for _, s := range strSlice {
+		if s == val {
+			return true
+		}
+	}
+	return false
+}
+
 // SafeSQLString constructs a safe string to feed to SQLite3 CLI
 // Queries made in Go should use prepared statements/parameters
 // instead. This is also not safe for LIKE queries

@@ -308,6 +308,8 @@ function sendConfig() {
     kuConfig.opts.preferSDCard = document.getElementById('preferSDCard').checked;
     kuConfig.opts.preferKepub = document.getElementById('preferKepub').checked;
     kuConfig.opts.enableDebug = document.getElementById('enableDebug').checked;
+    var exclFormats = document.getElementById('excludeFormats').value.split(",").map(function(item){return item.trim()});
+    kuConfig.opts.excludeFormats = exclFormats.filter(function(e){return e;});
     kuConfig.opts.thumbnail.generateLevel = gl.options[gl.selectedIndex].value;
     kuConfig.opts.thumbnail.resizeAlgorithm = rs.options[rs.selectedIndex].value;
     var jpgQuality = parseInt(document.getElementById('jpegQuality').value);
@@ -360,6 +362,7 @@ function handleShowKUCfg(resp) {
         document.getElementById('preferSDCard').checked = kuConfig.opts.preferSDCard;
         document.getElementById('preferKepub').checked = kuConfig.opts.preferKepub;
         document.getElementById('enableDebug').checked = kuConfig.opts.enableDebug;
+        document.getElementById('excludeFormats').value = kuConfig.opts.excludeFormats.toString();
         document.getElementById('generateLevel').value = kuConfig.opts.thumbnail.generateLevel;
         document.getElementById('resizeAlgorithm').value = kuConfig.opts.thumbnail.resizeAlgorithm;
         document.getElementById('jpegQuality').value = kuConfig.opts.thumbnail.jpegQuality;
