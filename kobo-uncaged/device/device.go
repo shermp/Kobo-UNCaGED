@@ -313,18 +313,26 @@ func (k *Kobo) getKoboInfo() error {
 
 // GetDeviceOptions gets some device options that UNCaGED requires
 func (k *Kobo) GetDeviceOptions() (ext []string, model string, thumbSz image.Point) {
+	// We need to tell UNCaGED (and therefore Calibre) what ebook formats are supported
+	// Order matters, which is why slices are used, and not maps
+	// Calibre uses the order to determine which format to send, if a book has multiple
+	// compatible formats
 	var tmpExt []string
+	// First, a list of all formats we support
 	if k.KuConfig.PreferKepub {
 		tmpExt = append([]string{"kepub", "epub"}, getSupportedExtraFormats()...)
 	} else {
 		tmpExt = append([]string{"epub", "kepub"}, getSupportedExtraFormats()...)
 	}
+	// Then, create a new list without the formats the user excludes via the config, preserving order
 	for _, e := range tmpExt {
 		if !util.StringSliceContains(k.KuConfig.ExcludeFormats, e) {
 			ext = append(ext, e)
 		}
 	}
 	model = k.Device.Family()
+	// May as well let Calibre do the first cover resize for us, by sending the
+	// maximum cover size our device supports
 	switch k.KuConfig.Thumbnail.GenerateLevel {
 	case generateAll:
 		thumbSz = k.Device.CoverSize(kobo.CoverTypeFull)
