@@ -26,6 +26,16 @@ override GOOS := linux
 override GOARCH := arm
 override CGO_ENABLED := 1
 
+# We need those exported in the env for Go to pick them up
+export CC
+export CXX
+export STRIP
+export AR
+export RANLIB
+export GOOS
+export GOARCH
+export CGO_ENABLED
+
 # Set required target files and directories
 override BUILD_DIR := build
 override DL_DIR := $(BUILD_DIR)/downloads
