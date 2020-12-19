@@ -10,11 +10,11 @@ body {
 }
 .ku-cfg-row > label, #ku-lib-opts > label, .ku-cfg-row-conn > label {
     display: inline-block;
-    width: 60%;
+    width: 50%;
 }
 .ku-cfg-row > input, .ku-cfg-row > select, #ku-lib-opts > select, .ku-cfg-cell-conn {
     display: inline-block;
-    width: 33%;
+    width: 48%;
 }
 
 .formatChk {
