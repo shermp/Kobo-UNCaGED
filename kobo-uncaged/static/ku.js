@@ -308,14 +308,11 @@ function sendConfig() {
     kuConfig.opts.preferSDCard = document.getElementById('preferSDCard').checked;
     kuConfig.opts.preferKepub = document.getElementById('preferKepub').checked;
     kuConfig.opts.enableDebug = document.getElementById('enableDebug').checked;
-    // var exclFormats = document.getElementById('excludeFormats').value.split(",").map(function(item){return item.trim()});
-    // kuConfig.opts.excludeFormats = exclFormats.filter(function(e){return e;});
     var exclFormats = [];
     var fmtLabels = document.querySelectorAll('#excludeFormatsContainer label');
     for(var i = 0; i < fmtLabels.length; i++) {
         var lbl = fmtLabels[i];
-        var chk = document.getElementById(lbl.htmlFor);
-        if (!chk.checked) {
+        if (!document.getElementById(lbl.htmlFor).checked) {
             exclFormats.push(lbl.innerText);
         }
     }
@@ -376,11 +373,7 @@ function handleShowKUCfg(resp) {
         var formatLabels = document.querySelectorAll('#excludeFormatsContainer label');
         for(var i = 0; i < formatLabels.length; i++) {
             var lbl = formatLabels[i];
-            var chk = document.getElementById(lbl.htmlFor);
-            chk.checked = true;
-            if (kuConfig.opts.excludeFormats.indexOf(lbl.innerText) >= 0) {
-                chk.checked = false;
-            }
+            document.getElementById(lbl.htmlFor).checked = (kuConfig.opts.excludeFormats.indexOf(lbl.innerText) === -1);
         }
         document.getElementById('generateLevel').value = kuConfig.opts.thumbnail.generateLevel;
         document.getElementById('resizeAlgorithm').value = kuConfig.opts.thumbnail.resizeAlgorithm;
