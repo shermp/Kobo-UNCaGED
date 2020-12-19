@@ -42,8 +42,13 @@ logmsg() {
     LOG_MSG="${2}"
     TOAST_DURATION=${3:-0}
 
-    # Send to syslog
-    logger -t "UNCaGED" -p daemon.${LOG_LEVEL} "${LOG_MSG}"
+    if [ -z "$KU_LOGFILE" ]; then
+        # Send to syslog
+        logger -t "Kobo-UNCaGED" -p daemon.${LOG_LEVEL} "${LOG_MSG}"
+    else
+        # Append to KU_LOGFILE
+        printf "%s [Kobo-UNCaGED] %s\n" "$(date +'%b %d %T')" "$LOG_MSG" >> "$KU_LOGFILE"
+    fi
 
     # Print to console
     printf "%b%s%b\n" "${PRINT_COLOR}" "${LOG_MSG}" "${END}"

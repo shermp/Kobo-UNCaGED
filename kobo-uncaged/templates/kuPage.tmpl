@@ -76,6 +76,19 @@
                     <button type="button" id="cfgDelConn" data-event-conn-delete="false">&#8722;</button>
                 </div>
             </div>
+             <div class="ku-cfg-fmt-row">
+                <div id="excludeFormatsLabel" data-help-text="Set of supported formats to send to Calibre">
+                    Supported Formats
+                </div>
+                <div id="excludeFormatsContainer">
+                    {{range .SupportedFormats}}
+                        <div class="formatChk">
+                            <input type="checkbox" id="format_{{.}}" name="format_{{.}}">
+                            <label for="format_{{.}}">{{.}}</label>
+                        </div>
+                    {{end}}
+                </div>
+            </div>
             <div class="ku-cfg-row ku-cfg-buttons">
                 <button type="button" id="cfgStartBtn" data-event-start="false">Start</button>
                 <button type="button" id="cfgExitBtn" data-event-exit="false">Exit</button>

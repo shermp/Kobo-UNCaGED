@@ -45,6 +45,7 @@ type KuOptions struct {
 	LibOptions      map[string]KuLibOptions `json:"libOptions"`
 	DirectConnIndex int                     `json:"directConnIndex"`
 	DirectConn      []uc.CalInstance        `json:"directConn"`
+	ExcludeFormats  []string                `json:"excludeFormats"`
 }
 
 // KuLibOptions contains per-library options
@@ -53,16 +54,17 @@ type KuLibOptions struct {
 }
 
 type webUIinfo struct {
-	KUVersion      string `json:"kuVersion"`
-	StorageType    string `json:"storageType"`
-	ScreenDPI      int    `json:"screenDPI"`
-	ExitPath       string `json:"exitPath"`
-	DisconnectPath string `json:"disconnectPath"`
-	AuthPath       string `json:"authPath"`
-	SSEPath        string `json:"ssePath"`
-	ConfigPath     string `json:"configPath"`
-	InstancePath   string `json:"instancePath"`
-	LibInfoPath    string `json:"libInfoPath"`
+	KUVersion        string   `json:"kuVersion"`
+	StorageType      string   `json:"storageType"`
+	ScreenDPI        int      `json:"screenDPI"`
+	SupportedFormats []string `json:"supportedFormats"`
+	ExitPath         string   `json:"exitPath"`
+	DisconnectPath   string   `json:"disconnectPath"`
+	AuthPath         string   `json:"authPath"`
+	SSEPath          string   `json:"ssePath"`
+	ConfigPath       string   `json:"configPath"`
+	InstancePath     string   `json:"instancePath"`
+	LibInfoPath      string   `json:"libInfoPath"`
 }
 
 type webConfig struct {

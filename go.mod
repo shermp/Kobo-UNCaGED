@@ -10,7 +10,7 @@ require (
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible
 	github.com/pgaskin/koboutils/v2 v2.1.1
-	github.com/shermp/UNCaGED v0.7.1
+	github.com/shermp/UNCaGED v0.7.2
 	github.com/unrolled/render v1.0.3
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect

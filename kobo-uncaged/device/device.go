@@ -47,6 +47,8 @@ const viewChangedName = ndbInterface + ".ndbViewChanged"
 const onboardPrefix cidPrefix = "file:///mnt/onboard/"
 const sdPrefix cidPrefix = "file:///mnt/sd/"
 
+var supportedFormats = []string{"epub", "kepub", "mobi", "pdf", "cbz", "cbr", "txt", "html", "rtf"}
+
 func isBrowserViewSignal(vs *dbus.Signal) (bool, error) {
 	if vs.Name != viewChangedName || len(vs.Body) <= 0 {
 		return false, fmt.Errorf("isBrowserViewSignal: not valid 'ndbViewChanged' signal")
@@ -69,6 +71,9 @@ func New(dbRootDir, sdRootDir string, bindAddress string, disableNDB bool, vers 
 		k.KuConfig.DirectConnIndex = -1
 		k.KuConfig.DirectConn = make([]calibre.ConnectionInfo, 0)
 	}
+	if len(k.KuConfig.ExcludeFormats) == 0 {
+		k.KuConfig.ExcludeFormats = make([]string, 0)
+	}
 	if sdRootDir != "" && k.KuConfig.PreferSDCard {
 		k.UseSDCard = true
 		k.BKRootDir = sdRootDir
@@ -83,7 +88,7 @@ func New(dbRootDir, sdRootDir string, bindAddress string, disableNDB bool, vers 
 		return nil, fmt.Errorf("New: failed to get kobo info: %w", err)
 	}
 	k.KuVers = vers
-	k.webInfo = &webUIinfo{ScreenDPI: k.Device.DisplayPPI(), KUVersion: k.KuVers, StorageType: "Internal Storage"}
+	k.webInfo = &webUIinfo{ScreenDPI: k.Device.DisplayPPI(), SupportedFormats: supportedFormats, KUVersion: k.KuVers, StorageType: "Internal Storage"}
 	if k.UseSDCard {
 		k.webInfo.StorageType = "External SD Storage"
 	}
@@ -306,12 +311,25 @@ func (k *Kobo) getKoboInfo() error {
 
 // GetDeviceOptions gets some device options that UNCaGED requires
 func (k *Kobo) GetDeviceOptions() (ext []string, model string, thumbSz image.Point) {
+	// We need to tell UNCaGED (and therefore Calibre) what ebook formats are supported
+	// Order matters, which is why slices are used, and not maps
+	// Calibre uses the order to determine which format to send, if a book has multiple
+	// compatible formats
+	tmpExt := make([]string, len(supportedFormats))
+	copy(tmpExt, supportedFormats)
+	// Swap the order of 'epub' and 'kepub' if kepub is the preferred format
 	if k.KuConfig.PreferKepub {
-		ext = []string{"kepub", "epub", "mobi", "pdf", "cbz", "cbr", "txt", "html", "rtf"}
-	} else {
-		ext = []string{"epub", "kepub", "mobi", "pdf", "cbz", "cbr", "txt", "html", "rtf"}
+		tmpExt[0], tmpExt[1] = tmpExt[1], tmpExt[0]
+	}
+	// Then, create a new list without the formats the user excludes via the config, preserving order
+	for _, e := range tmpExt {
+		if !util.StringSliceContains(k.KuConfig.ExcludeFormats, e) {
+			ext = append(ext, e)
+		}
 	}
 	model = k.Device.Family()
+	// May as well let Calibre do the first cover resize for us, by sending the
+	// maximum cover size our device supports
 	switch k.KuConfig.Thumbnail.GenerateLevel {
 	case generateAll:
 		thumbSz = k.Device.CoverSize(kobo.CoverTypeFull)

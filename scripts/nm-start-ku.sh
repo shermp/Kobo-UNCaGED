@@ -4,10 +4,12 @@ KU_DIR=/mnt/onboard/.adds/kobo-uncaged
 KU_BIN=${KU_DIR}/bin/ku
 SQLITE_BIN=${KU_DIR}/bin/sqlite3
 NICKEL_DB=/mnt/onboard/.kobo/KoboReader.sqlite
-KU_LOG=${KU_DIR}/ku_error.log
 
 KU_REPL_MD=${KU_DIR}/replace-book.sql
 KU_UPDATE_MD=${KU_DIR}/updated-md.sql
+
+# Delete previous log file if it exists
+[ -f "$KU_LOGFILE" ] && rm "$KU_LOGFILE"
 
 # Inport logmsg function
 . ${KU_DIR}/scripts/ku-lib.sh
