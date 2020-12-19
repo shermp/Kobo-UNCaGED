@@ -16,6 +16,10 @@ body {
     display: inline-block;
     width: 33%;
 }
+
+.formatChk {
+    display: inline-block;
+}
 .ku-cfg-buttons {
     text-align: center;
 }

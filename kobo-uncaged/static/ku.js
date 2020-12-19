@@ -9,7 +9,7 @@ function getKoboZoom() {
 function setKoboSizes(dpi) {
     var height = Math.round(window.innerHeight * 0.95);
     var width = Math.round(window.innerWidth * 0.95);
-    var baseFontSize = 16 * (dpi / 96);
+    var baseFontSize = 14 * (dpi / 96);
     baseFontSize = (baseFontSize * 0.8) / getKoboZoom();
     document.documentElement.style.fontSize = baseFontSize.toFixed(4) + 'px';
     var containerDiv = document.getElementById("kuapp");
@@ -112,7 +112,7 @@ function setupEventHandlers() {
         instList.addEventListener('click', selectCalInstance);
         instList.dataset.eventInstances = "true";
     }
-    var cfgLabels = document.querySelectorAll(".ku-cfg-row > label");
+    var cfgLabels = document.querySelectorAll(".ku-cfg-row > label, #excludeFormatsLabel");
     for (var i = 0; i < cfgLabels.length; i++) {
         cfgLabels[i].addEventListener('click', showCfgHelpText);
     }
@@ -308,8 +308,18 @@ function sendConfig() {
     kuConfig.opts.preferSDCard = document.getElementById('preferSDCard').checked;
     kuConfig.opts.preferKepub = document.getElementById('preferKepub').checked;
     kuConfig.opts.enableDebug = document.getElementById('enableDebug').checked;
-    var exclFormats = document.getElementById('excludeFormats').value.split(",").map(function(item){return item.trim()});
-    kuConfig.opts.excludeFormats = exclFormats.filter(function(e){return e;});
+    // var exclFormats = document.getElementById('excludeFormats').value.split(",").map(function(item){return item.trim()});
+    // kuConfig.opts.excludeFormats = exclFormats.filter(function(e){return e;});
+    var exclFormats = [];
+    var fmtLabels = document.querySelectorAll('#excludeFormatsContainer label');
+    for(var i = 0; i < fmtLabels.length; i++) {
+        var lbl = fmtLabels[i];
+        var chk = document.getElementById(lbl.htmlFor);
+        if (!chk.checked) {
+            exclFormats.push(lbl.innerText);
+        }
+    }
+    kuConfig.opts.excludeFormats = exclFormats;
     kuConfig.opts.thumbnail.generateLevel = gl.options[gl.selectedIndex].value;
     kuConfig.opts.thumbnail.resizeAlgorithm = rs.options[rs.selectedIndex].value;
     var jpgQuality = parseInt(document.getElementById('jpegQuality').value);
@@ -362,7 +372,16 @@ function handleShowKUCfg(resp) {
         document.getElementById('preferSDCard').checked = kuConfig.opts.preferSDCard;
         document.getElementById('preferKepub').checked = kuConfig.opts.preferKepub;
         document.getElementById('enableDebug').checked = kuConfig.opts.enableDebug;
-        document.getElementById('excludeFormats').value = kuConfig.opts.excludeFormats.toString();
+        //document.getElementById('excludeFormats').value = kuConfig.opts.excludeFormats.toString();
+        var formatLabels = document.querySelectorAll('#excludeFormatsContainer label');
+        for(var i = 0; i < formatLabels.length; i++) {
+            var lbl = formatLabels[i];
+            var chk = document.getElementById(lbl.htmlFor);
+            chk.checked = true;
+            if (kuConfig.opts.excludeFormats.indexOf(lbl.innerText) >= 0) {
+                chk.checked = false;
+            }
+        }
         document.getElementById('generateLevel').value = kuConfig.opts.thumbnail.generateLevel;
         document.getElementById('resizeAlgorithm').value = kuConfig.opts.thumbnail.resizeAlgorithm;
         document.getElementById('jpegQuality').value = kuConfig.opts.thumbnail.jpegQuality;

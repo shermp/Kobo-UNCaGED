@@ -47,6 +47,8 @@ const viewChangedName = ndbInterface + ".ndbViewChanged"
 const onboardPrefix cidPrefix = "file:///mnt/onboard/"
 const sdPrefix cidPrefix = "file:///mnt/sd/"
 
+var supportedFormats = []string{"epub", "kepub", "mobi", "pdf", "cbz", "cbr", "txt", "html", "rtf"}
+
 func isBrowserViewSignal(vs *dbus.Signal) (bool, error) {
 	if vs.Name != viewChangedName || len(vs.Body) <= 0 {
 		return false, fmt.Errorf("isBrowserViewSignal: not valid 'ndbViewChanged' signal")
@@ -86,7 +88,7 @@ func New(dbRootDir, sdRootDir string, bindAddress string, disableNDB bool, vers 
 		return nil, fmt.Errorf("New: failed to get kobo info: %w", err)
 	}
 	k.KuVers = vers
-	k.webInfo = &webUIinfo{ScreenDPI: k.Device.DisplayPPI(), KUVersion: k.KuVers, StorageType: "Internal Storage"}
+	k.webInfo = &webUIinfo{ScreenDPI: k.Device.DisplayPPI(), SupportedFormats: supportedFormats, KUVersion: k.KuVers, StorageType: "Internal Storage"}
 	if k.UseSDCard {
 		k.webInfo.StorageType = "External SD Storage"
 	}
@@ -313,13 +315,11 @@ func (k *Kobo) GetDeviceOptions() (ext []string, model string, thumbSz image.Poi
 	// Order matters, which is why slices are used, and not maps
 	// Calibre uses the order to determine which format to send, if a book has multiple
 	// compatible formats
-	extraFormats := []string{"mobi", "pdf", "cbz", "cbr", "txt", "html", "rtf"}
-	var tmpExt []string
-	// First, a list of all formats we support
+	tmpExt := make([]string, len(supportedFormats))
+	copy(tmpExt, supportedFormats)
+	// Swap the order of 'epub' and 'kepub' if kepub is the preferred format
 	if k.KuConfig.PreferKepub {
-		tmpExt = append([]string{"kepub", "epub"}, extraFormats...)
-	} else {
-		tmpExt = append([]string{"epub", "kepub"}, extraFormats...)
+		tmpExt[0], tmpExt[1] = tmpExt[1], tmpExt[0]
 	}
 	// Then, create a new list without the formats the user excludes via the config, preserving order
 	for _, e := range tmpExt {
