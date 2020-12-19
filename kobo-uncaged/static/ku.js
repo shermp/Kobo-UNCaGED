@@ -10,7 +10,7 @@ function setKoboSizes(dpi) {
     var height = Math.round(window.innerHeight * 0.95);
     var width = Math.round(window.innerWidth * 0.95);
     var baseFontSize = 14 * (dpi / 96);
-    baseFontSize = (baseFontSize * 0.8) / getKoboZoom();
+    baseFontSize = baseFontSize / getKoboZoom();
     document.documentElement.style.fontSize = baseFontSize.toFixed(4) + 'px';
     var containerDiv = document.getElementById("kuapp");
     containerDiv.style.height = height + 'px';
