@@ -25,6 +25,9 @@ import (
 	"log/syslog"
 	"os"
 
+	"net/http"
+	_ "net/http/pprof"
+
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/device"
 	"github.com/shermp/Kobo-UNCaGED/kobo-uncaged/kunc"
@@ -139,5 +142,8 @@ func mainWithErrCode() returnCode {
 	return succsess
 }
 func main() {
+	go func() {
+		http.ListenAndServe("0.0.0.0:6060", nil)
+	}()
 	os.Exit(int(mainWithErrCode()))
 }
