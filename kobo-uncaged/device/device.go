@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/bamiaux/rez"
@@ -60,7 +59,6 @@ func isBrowserViewSignal(vs *dbus.Signal) (bool, error) {
 func New(dbRootDir, sdRootDir string, bindAddress string, disableNDB bool, vers string) (*Kobo, error) {
 	var err error
 	k := &Kobo{}
-	k.Wg = &sync.WaitGroup{}
 	k.DBRootDir = dbRootDir
 	k.BKRootDir = dbRootDir
 	k.ContentIDprefix = onboardPrefix
@@ -330,9 +328,9 @@ func (k *Kobo) GetDeviceOptions() (ext []string, model string, thumbSz image.Poi
 	// May as well let Calibre do the first cover resize for us, by sending the
 	// maximum cover size our device supports
 	switch k.KuConfig.Thumbnail.GenerateLevel {
-	case generateAll:
+	case GenerateAll:
 		thumbSz = k.Device.CoverSize(kobo.CoverTypeFull)
-	case generatePartial:
+	case GeneratePartial:
 		thumbSz = k.Device.CoverSize(kobo.CoverTypeLibFull)
 	default:
 		thumbSz = k.Device.CoverSize(kobo.CoverTypeLibGrid)
@@ -547,12 +545,11 @@ func (k *Kobo) SaveDeviceInfo() error {
 }
 
 // SaveCoverImage generates cover image and thumbnails, and save to appropriate locations
-func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string) {
-	defer k.Wg.Done()
-
+func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string, done chan<- struct{}) {
 	img, _, err := image.Decode(base64.NewDecoder(base64.StdEncoding, strings.NewReader(imgB64)))
 	if err != nil {
 		log.Println(err)
+		done <- struct{}{}
 		return
 	}
 	sz := img.Bounds().Size()
@@ -563,9 +560,9 @@ func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string)
 
 	var coverEndings []kobo.CoverType
 	switch k.KuConfig.Thumbnail.GenerateLevel {
-	case generateAll:
+	case GenerateAll:
 		coverEndings = []kobo.CoverType{kobo.CoverTypeFull, kobo.CoverTypeLibFull, kobo.CoverTypeLibGrid}
-	case generatePartial:
+	case GeneratePartial:
 		coverEndings = []kobo.CoverType{kobo.CoverTypeLibFull, kobo.CoverTypeLibGrid}
 	}
 	for _, cover := range coverEndings {
@@ -605,6 +602,7 @@ func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string)
 		}
 		lf.Close()
 	}
+	done <- struct{}{}
 }
 
 // WriteUpdatedMetadataSQL writes SQL to write updated metadata to
@@ -691,7 +689,6 @@ WHERE content.Series = c.Series;`)
 
 // Close the kobo object when we're finished with it
 func (k *Kobo) Close() {
-	k.Wg.Wait()
 	if k.replSQLWriter != nil {
 		k.replSQLWriter.close()
 	}

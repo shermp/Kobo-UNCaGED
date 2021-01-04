@@ -194,16 +194,17 @@ func (ku *koboUncaged) SaveBook(md *uc.CalibreBookMeta, book io.Reader, len int,
 	if md.Cover != nil {
 		md.Cover = nil
 	}
+	var done chan struct{}
 	// Note, the JSON format for covers should be in the form 'thumbnail: [w, h, "base64string"]'
-	if md.Thumbnail.Exists() {
+	if md.Thumbnail.Exists() && ku.k.KuConfig.Thumbnail.GenerateLevel != device.GenerateNone {
 		w, h := md.Thumbnail.Dimensions()
-		ku.k.Wg.Add(1)
-		go ku.k.SaveCoverImage(cID, image.Pt(w, h), md.Thumbnail.ImgBase64())
-		// Set the Thumbnail field to nil to avoid saving it to the metadata.calibre file
-		// Hopefully the garbage collector will delete the string once the
-		// above goroutine is finished with it
-		md.Thumbnail = nil
+		done = make(chan struct{})
+		go ku.k.SaveCoverImage(cID, image.Pt(w, h), md.Thumbnail.ImgBase64(), done)
 	}
+	// Set the Thumbnail field to nil to avoid saving it to the metadata.calibre file
+	// Hopefully the garbage collector will delete the string once the
+	// above goroutine is finished with it
+	md.Thumbnail = nil
 	if _, err = io.CopyN(destBook, book, int64(len)); err != nil {
 		return fmt.Errorf("SaveBook: error writing ebook to file: %w", err)
 	}
@@ -214,11 +215,16 @@ func (ku *koboUncaged) SaveBook(md *uc.CalibreBookMeta, book io.Reader, len int,
 	} else {
 		meta.NewBook = true
 	}
-	meta.Meta = &md
+	meta.Meta = md
 	ku.k.MetadataMap[cID] = meta
+	// Wait for the thumbnail generation to finish
+	if done != nil {
+		<-done
+	}
 	if lastBook {
 		ku.k.WriteMDfile()
 	}
+	//runtime.GC()
 	return err
 }
 

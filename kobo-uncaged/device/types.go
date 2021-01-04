@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 
 	"github.com/bamiaux/rez"
 	"github.com/godbus/dbus/v5"
@@ -111,7 +110,6 @@ type Kobo struct {
 	LibInfo         uc.CalibreLibraryInfo
 	PassCache       calPassCache
 	DriveInfo       uc.DeviceInfo
-	Wg              *sync.WaitGroup
 	mux             *httprouter.Router
 	rend            *render.Render
 	webInfo         *webUIinfo
@@ -193,10 +191,11 @@ type thumbnailOption struct {
 	rezFilter       rez.Filter
 }
 
+// What thumbnails, if any, to save
 const (
-	generateAll     string = "all"
-	generatePartial string = "partial"
-	generateNone    string = "none"
+	GenerateAll     string = "all"
+	GeneratePartial string = "partial"
+	GenerateNone    string = "none"
 )
 
 const (
@@ -209,10 +208,10 @@ const (
 
 func (to *thumbnailOption) Validate() {
 	switch strings.ToLower(to.GenerateLevel) {
-	case generateAll, generatePartial, generateNone:
+	case GenerateAll, GeneratePartial, GenerateNone:
 		to.GenerateLevel = strings.ToLower(to.GenerateLevel)
 	default:
-		to.GenerateLevel = generateAll
+		to.GenerateLevel = GenerateAll
 	}
 
 	switch strings.ToLower(to.ResizeAlgorithm) {
