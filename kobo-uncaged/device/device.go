@@ -432,6 +432,8 @@ func (k *Kobo) readMDfile() error {
 	cidLike := fmt.Sprintf("%s%%", k.ContentIDprefix)
 	var bkCount int
 	k.DebugLogPrintf("Getting book count from DB")
+	// Note, this is slow. Omitting it makes the next SQL query slow, so you don't really
+	// seem to save much time omitting it, and it allows preallocating the metadata cache.
 	if err = nickelDB.QueryRow(`SELECT COUNT(1)`+queryFrom, cidLike).Scan(&bkCount); err != nil {
 		return fmt.Errorf("readMDfile: unable to get book count from DB: %w", err)
 	}
