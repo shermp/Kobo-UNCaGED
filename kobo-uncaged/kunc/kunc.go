@@ -215,7 +215,7 @@ func (ku *koboUncaged) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, 
 	} else {
 		meta.NewBook = true
 	}
-	meta.Meta = md
+	meta.Meta = &md
 	ku.k.MetadataMap[cID] = meta
 	// Wait for the thumbnail generation to finish
 	if done != nil {
