@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/bamiaux/rez"
@@ -60,7 +59,6 @@ func isBrowserViewSignal(vs *dbus.Signal) (bool, error) {
 func New(dbRootDir, sdRootDir string, bindAddress string, disableNDB bool, vers string) (*Kobo, error) {
 	var err error
 	k := &Kobo{}
-	k.Wg = &sync.WaitGroup{}
 	k.DBRootDir = dbRootDir
 	k.BKRootDir = dbRootDir
 	k.ContentIDprefix = onboardPrefix
@@ -80,7 +78,6 @@ func New(dbRootDir, sdRootDir string, bindAddress string, disableNDB bool, vers 
 		k.ContentIDprefix = sdPrefix
 	}
 	//k.Passwords = newUncagedPassword(k.KuConfig.PasswordList)
-	k.UpdatedMetadata = make(map[string]struct{}, 0)
 	k.SeriesIDMap = make(map[string]string, 0)
 	k.PassCache = make(calPassCache)
 	log.Println("Getting Kobo Info")
@@ -185,6 +182,7 @@ func New(dbRootDir, sdRootDir string, bindAddress string, disableNDB bool, vers 
 	if err = k.loadDeviceInfo(); err != nil {
 		return nil, fmt.Errorf("New: failed to load device info: %w", err)
 	}
+	k.WebSend(WebMsg{ShowMessage: "Reading Metadata", Progress: -1})
 	log.Println("Reading Metadata")
 	if err = k.readMDfile(); err != nil {
 		return nil, fmt.Errorf("New: failed to read metadata file: %w", err)
@@ -200,6 +198,13 @@ func New(dbRootDir, sdRootDir string, bindAddress string, disableNDB bool, vers 
 		return nil, fmt.Errorf("New: browser exited prematurely")
 	default:
 		return k, nil
+	}
+}
+
+// DebugLogPrintf prints logs when debugging enabled
+func (k *Kobo) DebugLogPrintf(format string, args ...interface{}) {
+	if k.KuConfig.EnableDebug {
+		log.Printf("[debug] %s\n", fmt.Sprintf(format, args...))
 	}
 }
 
@@ -279,7 +284,7 @@ func (k *Kobo) SaveUserOptions() error {
 func (k *Kobo) UpdateIfExists(cID string, len int) error {
 	var err error
 	if _, exists := k.MetadataMap[cID]; exists {
-		if k.MetadataMap[cID].Size == len {
+		if k.MetadataMap[cID].Meta.Size == len {
 			return nil
 		}
 		if k.replSQLWriter == nil {
@@ -331,9 +336,9 @@ func (k *Kobo) GetDeviceOptions() (ext []string, model string, thumbSz image.Poi
 	// May as well let Calibre do the first cover resize for us, by sending the
 	// maximum cover size our device supports
 	switch k.KuConfig.Thumbnail.GenerateLevel {
-	case generateAll:
+	case GenerateAll:
 		thumbSz = k.Device.CoverSize(kobo.CoverTypeFull)
-	case generatePartial:
+	case GeneratePartial:
 		thumbSz = k.Device.CoverSize(kobo.CoverTypeLibFull)
 	default:
 		thumbSz = k.Device.CoverSize(kobo.CoverTypeLibGrid)
@@ -351,17 +356,15 @@ func (k *Kobo) GetDirectConnection() *uc.CalInstance {
 }
 
 // readEpubMeta opens an epub (or kepub), and attempts to read the
-// metadata it contains. This is used if the metadata has not yet
-// been cached
+// metadata it contains. Only metadata not available from the DB
+// is obtained.
 func (k *Kobo) readEpubMeta(contentID string, md *uc.CalibreBookMeta) error {
-	lpath := util.ContentIDtoLpath(contentID, string(k.ContentIDprefix))
 	epubPath := util.ContentIDtoBkPath(k.BKRootDir, contentID, string(k.ContentIDprefix))
 	bk, err := epub.Open(epubPath)
 	if err != nil {
 		return fmt.Errorf("readEpubMeta: error opening epub for metadata reading: %w", err)
 	}
 	defer bk.Close()
-	md.Lpath = lpath
 	// Try to get the book identifiers. Note, we prefer the Calibre
 	// generated UUID, if available.
 	for _, ident := range bk.Opf.Metadata.Identifier {
@@ -373,27 +376,14 @@ func (k *Kobo) readEpubMeta(contentID string, md *uc.CalibreBookMeta) error {
 				md.UUID = ident.Data
 			}
 		default:
+			if md.Identifiers == nil {
+				md.Identifiers = make(map[string]string)
+			}
 			md.Identifiers[ident.Scheme] = ident.Data
 		}
 	}
-	if len(bk.Opf.Metadata.Title) > 0 {
-		md.Title = bk.Opf.Metadata.Title[0]
-	}
-	if len(bk.Opf.Metadata.Description) > 0 {
-		desc := html.UnescapeString(bk.Opf.Metadata.Description[0])
-		md.Comments = &desc
-	}
 	if len(bk.Opf.Metadata.Language) > 0 {
 		md.Languages = append(md.Languages, bk.Opf.Metadata.Language...)
-	}
-	for _, author := range bk.Opf.Metadata.Creator {
-		if author.Role == "aut" {
-			md.Authors = append(md.Authors, author.Data)
-		}
-	}
-	if len(bk.Opf.Metadata.Publisher) > 0 {
-		pub := bk.Opf.Metadata.Publisher[0]
-		md.Publisher = &pub
 	}
 	if len(bk.Opf.Metadata.Date) > 0 {
 		md.Pubdate = uc.ParseTime(bk.Opf.Metadata.Date[0].Data)
@@ -402,12 +392,6 @@ func (k *Kobo) readEpubMeta(contentID string, md *uc.CalibreBookMeta) error {
 		switch m.Name {
 		case "calibre:timestamp":
 			md.Timestamp = uc.ParseTime(m.Content)
-		case "calibre:series":
-			series := m.Content
-			md.Series = &series
-		case "calibre:series_index":
-			seriesIndex, _ := strconv.ParseFloat(m.Content, 64)
-			md.SeriesIndex = &seriesIndex
 		case "calibre:title_sort":
 			md.TitleSort = m.Content
 		case "calibre:author_link_map":
@@ -419,39 +403,14 @@ func (k *Kobo) readEpubMeta(contentID string, md *uc.CalibreBookMeta) error {
 	return nil
 }
 
-// readMDfile loads cached metadata from the "metadata.calibre" JSON file
-// and unmarshals (eventially) to a map of KoboMetadata structs, converting
-// "lpath" to Kobo's "ContentID", and using that as the map keys
 func (k *Kobo) readMDfile() error {
-	log.Println("Reading metadata.calibre")
-
-	var koboMD []uc.CalibreBookMeta
-	emptyOrNotExist, err := util.ReadJSON(filepath.Join(k.BKRootDir, calibreMDfile), &koboMD)
-	if emptyOrNotExist {
-		// ignore
-	} else if err != nil {
-		return fmt.Errorf("readMDfile: error reading metadata.calibre JSON: %w", err)
-	}
-
-	// Make the metadatamap here instead of the constructer so we can pre-allocate
-	// the memory with the right size.
-	k.MetadataMap = make(map[string]uc.CalibreBookMeta, len(koboMD))
-	// make a temporary map for easy searching later
-	tmpMap := make(map[string]int, len(koboMD))
-	for n, md := range koboMD {
-		contentID := util.LpathToContentID(util.LpathKepubConvert(md.Lpath), string(k.ContentIDprefix))
-		tmpMap[contentID] = n
-	}
-	log.Println("Gathering metadata")
+	var err error
 	var nickelDB *sql.DB
 	dsn := "file:" + filepath.Join(k.DBRootDir, koboDBpath) + "?_timeout=2000&_journal=WAL&mode=ro&_mutex=full&_sync=NORMAL"
 	if nickelDB, err = sql.Open("sqlite3", dsn); err != nil {
 		return fmt.Errorf("openNickelDB: sql open failed: %w", err)
 	}
 	defer nickelDB.Close()
-	//spew.Dump(k.MetadataMap)
-	// Now that we have our map, we need to check for any books in the DB not in our
-	// metadata cache, or books that are in our cache but not in the DB
 	var (
 		dbCID        string
 		dbTitle      *string
@@ -463,90 +422,117 @@ func (k *Kobo) readMDfile() error {
 		dbMimeType   string
 		dbFileSize   int
 	)
-	query := `
-		SELECT ContentID, Title, Attribution, Description, Publisher, Series, SeriesNumber, MimeType, ___FileSize 
-		FROM content
+	queryFrom := ` FROM content
 		WHERE ContentType=6
 		AND MimeType NOT LIKE 'image%%'
 		AND (IsDownloaded='true' OR IsDownloaded=1)
 		AND ___FileSize>0
 		AND Accessibility=-1
 		AND ContentID LIKE ?;`
-
-	bkRows, err := nickelDB.Query(query, fmt.Sprintf("%s%%", k.ContentIDprefix))
+	cidLike := fmt.Sprintf("%s%%", k.ContentIDprefix)
+	var bkCount int
+	k.DebugLogPrintf("Getting book count from DB")
+	// Note, this is slow. Omitting it makes the next SQL query slow, so you don't really
+	// seem to save much time omitting it, and it allows preallocating the metadata cache.
+	if err = nickelDB.QueryRow(`SELECT COUNT(1)`+queryFrom, cidLike).Scan(&bkCount); err != nil {
+		return fmt.Errorf("readMDfile: unable to get book count from DB: %w", err)
+	}
+	// There will be at most bkCount metadata records, but let's allocate an extra 10% to give
+	// a buffer when adding books later.
+	k.MetadataMap = make(map[string]BookMeta, int(float64(bkCount)*1.1))
+	// Get a list of valid contentID's from DB
+	k.DebugLogPrintf("Getting list of ContentID's from DB")
+	cidRows, err := nickelDB.Query(`SELECT ContentID`+queryFrom, cidLike)
 	if err != nil {
 		return fmt.Errorf("readMDfile: error getting book rows: %w", err)
 	}
-	defer bkRows.Close()
-	for bkRows.Next() {
-		err = bkRows.Scan(&dbCID, &dbTitle, &dbAttr, &dbDesc, &dbPublisher, &dbSeries, &dbbSeriesNum, &dbMimeType, &dbFileSize)
-		if err != nil {
-			return fmt.Errorf("readMDfile: row decoding error: %w", err)
+	defer cidRows.Close()
+	for cidRows.Next() {
+		if err = cidRows.Scan(&dbCID); err != nil {
+			return fmt.Errorf("readMDfile: ContentID row decoding error: %w", err)
 		}
-		if _, exists := tmpMap[dbCID]; !exists {
-			log.Printf("Book not in cache: %s\n", dbCID)
-			bkMD := uc.CalibreBookMeta{}
-			bkMD.Lpath = util.ContentIDtoLpath(dbCID, string(onboardPrefix))
+		k.MetadataMap[dbCID] = BookMeta{}
+	}
+	if err = cidRows.Err(); err != nil {
+		return fmt.Errorf("readMDfile: cidRows error: %w", err)
+	}
+	// Now stream decode the metadata.calibre JSON file
+	k.DebugLogPrintf("Reading metadata.calibre")
+	f, err := util.GetFileRead(filepath.Join(k.BKRootDir, calibreMDfile))
+	if err != nil {
+		return fmt.Errorf("readMDfile: error reading calibre.metadata: %w", err)
+	}
+	defer f.Close()
+	if f != nil {
+		dec := json.NewDecoder(f)
+		t, err := dec.Token()
+		if err != nil {
+			return fmt.Errorf("readMDfile: error getting first json token")
+		} else if d, ok := t.(json.Delim); !ok || d.String() != "[" {
+			return fmt.Errorf("readMDfile: unexpected first JSON token. '[' expected")
+		}
+		for dec.More() {
+			var md uc.CalibreBookMeta
+			if err = dec.Decode(&md); err != nil {
+				return fmt.Errorf("readMDfile: error decoding JSON value: %w", err)
+			}
+			cid := util.LpathToContentID(md.Lpath, string(k.ContentIDprefix))
+			if m, ok := k.MetadataMap[cid]; ok {
+				m.Meta = &md
+				k.MetadataMap[cid] = m
+			}
+		}
+		// Not bothering to finish reading tokens, we don't care about what's left
+	}
+	dbMetaNotReqCount := 0
+	k.DebugLogPrintf("Reading metadata from DB and ebook file where required")
+	// Get metadata from DB for books that have no entries in the cache
+	for cid, m := range k.MetadataMap {
+		if m.Meta != nil {
+			dbMetaNotReqCount++
+			continue
+		}
+		var bkMD uc.CalibreBookMeta
+		k.readEpubMeta(cid, &bkMD)
+		if err = nickelDB.QueryRow(`SELECT ContentID, Title, Attribution, Description, Publisher, Series, SeriesNumber, MimeType, ___FileSize`+queryFrom,
+			cid).Scan(&dbCID, &dbTitle, &dbAttr, &dbDesc, &dbPublisher, &dbSeries, &dbbSeriesNum, &dbMimeType, &dbFileSize); err != nil {
+			return fmt.Errorf("readMDfile: error getting metadata for %s: %w", cid, err)
+		}
+		bkMD.Lpath = util.ContentIDtoLpath(cid, string(k.ContentIDprefix))
+		bkMD.Comments, bkMD.Publisher, bkMD.Series = dbDesc, dbPublisher, dbSeries
+		if dbTitle != nil {
+			bkMD.Title = *dbTitle
+		}
+		if dbbSeriesNum != nil {
+			index, err := strconv.ParseFloat(*dbbSeriesNum, 64)
+			if err == nil {
+				bkMD.SeriesIndex = &index
+			}
+		}
+		if dbAttr != nil {
+			bkMD.Authors = strings.Split(*dbAttr, ",")
+			for i := range bkMD.Authors {
+				bkMD.Authors[i] = strings.TrimSpace(bkMD.Authors[i])
+			}
+		}
+		if bkMD.UUID == "" {
 			uuidV4, _ := uuid.NewRandom()
 			bkMD.UUID = uuidV4.String()
-			bkMD.Comments, bkMD.Publisher, bkMD.Series = dbDesc, dbPublisher, dbSeries
-			if dbTitle != nil {
-				bkMD.Title = *dbTitle
-			}
-			if dbbSeriesNum != nil {
-				index, err := strconv.ParseFloat(*dbbSeriesNum, 64)
-				if err == nil {
-					bkMD.SeriesIndex = &index
-				}
-			}
-			if dbAttr != nil {
-				bkMD.Authors = strings.Split(*dbAttr, ",")
-				for i := range bkMD.Authors {
-					bkMD.Authors[i] = strings.TrimSpace(bkMD.Authors[i])
-				}
-			}
-			// if dbMimeType == "application/epub+zip" || dbMimeType == "application/x-kobo-epub+zip" {
-			// 	err = k.readEpubMeta(dbCID, &bkMD)
-			// 	if err != nil {
-			// 		log.Print(err)
-			// 	}
-			// }
-			bkMD.Size = dbFileSize
-			fi, err := os.Stat(filepath.Join(k.BKRootDir, bkMD.Lpath))
-			if err == nil {
-				lastMod := uc.ConvertTime(fi.ModTime())
-				bkMD.LastModified = &lastMod
-			}
-			//spew.Dump(bkMD)
-			k.MetadataMap[dbCID] = bkMD
-		} else {
-			// Make sure we are using the filesize as exists in the DB
-			koboMD[tmpMap[dbCID]].Size = dbFileSize
-			k.MetadataMap[dbCID] = koboMD[tmpMap[dbCID]]
 		}
+		m.Meta = &bkMD
+		k.MetadataMap[cid] = m
 	}
-	if err = bkRows.Err(); err != nil {
-		return fmt.Errorf("readMDfile: bkRows error: %w", err)
-	}
-	// Finally, store a snapshot of books in database before we make any additions/deletions
-	k.BooksInDB = make(map[string]struct{}, len(k.MetadataMap))
-	for cid := range k.MetadataMap {
-		k.BooksInDB[cid] = struct{}{}
-	}
-	// Hopefully, our metadata is now up to date. Update the cache on disk
-	if err = k.WriteMDfile(); err != nil {
-		return fmt.Errorf("readMDfile: error writing metadata to disk: %w", err)
-	}
-	return nil
+	k.DebugLogPrintf("Skipped parsing epub/kepub for %d of %d books", dbMetaNotReqCount, len(k.MetadataMap))
+	return err
 }
 
 // WriteMDfile writes metadata to file
 func (k *Kobo) WriteMDfile() error {
 	var n int
 	var err error
-	metadata := make([]uc.CalibreBookMeta, len(k.MetadataMap))
+	metadata := make([]*uc.CalibreBookMeta, len(k.MetadataMap))
 	for _, md := range k.MetadataMap {
-		metadata[n] = md
+		metadata[n] = md.Meta
 		n++
 	}
 	if err = util.WriteJSON(filepath.Join(k.BKRootDir, calibreMDfile), metadata); err != nil {
@@ -580,9 +566,10 @@ func (k *Kobo) SaveDeviceInfo() error {
 }
 
 // SaveCoverImage generates cover image and thumbnails, and save to appropriate locations
-func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string) {
-	defer k.Wg.Done()
-
+func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string, done chan<- struct{}) {
+	defer func() {
+		done <- struct{}{}
+	}()
 	img, _, err := image.Decode(base64.NewDecoder(base64.StdEncoding, strings.NewReader(imgB64)))
 	if err != nil {
 		log.Println(err)
@@ -591,30 +578,29 @@ func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string)
 	sz := img.Bounds().Size()
 
 	imgID := kobo.ContentIDToImageID(contentID)
-	//fmt.Printf("Image ID is: %s\n", imgID)
 	jpegOpts := jpeg.Options{Quality: k.KuConfig.Thumbnail.JpegQuality}
 
 	var coverEndings []kobo.CoverType
 	switch k.KuConfig.Thumbnail.GenerateLevel {
-	case generateAll:
+	case GenerateAll:
 		coverEndings = []kobo.CoverType{kobo.CoverTypeFull, kobo.CoverTypeLibFull, kobo.CoverTypeLibGrid}
-	case generatePartial:
+	case GeneratePartial:
 		coverEndings = []kobo.CoverType{kobo.CoverTypeLibFull, kobo.CoverTypeLibGrid}
 	}
 	for _, cover := range coverEndings {
 		nsz := k.Device.CoverSized(cover, sz)
 		nfn := filepath.Join(k.BKRootDir, cover.GeneratePath(k.UseSDCard, imgID))
 		//fmt.Printf("Cover file path is: %s\n", nfn)
-		log.Printf("Resizing %s cover to %s (target %s) for %s\n", sz, nsz, k.Device.CoverSize(cover), cover)
+		k.DebugLogPrintf("Resizing %s cover to %s (target %s) for %s", sz, nsz, k.Device.CoverSize(cover), cover)
 
 		var nimg image.Image
 		if !sz.Eq(nsz) {
 			nimg = image.NewYCbCr(image.Rect(0, 0, nsz.X, nsz.Y), img.(*image.YCbCr).SubsampleRatio)
 			rez.Convert(nimg, img, k.KuConfig.Thumbnail.rezFilter)
-			log.Printf(" -- Resized to %s\n", nimg.Bounds().Size())
+			k.DebugLogPrintf(" -- Resized to %s", nimg.Bounds().Size())
 		} else {
 			nimg = img
-			log.Println(" -- Skipped resize: already correct size")
+			k.DebugLogPrintf(" -- Skipped resize: already correct size")
 		}
 		// Optimization. No need to resize libGrid from the full cover size...
 		if cover == kobo.CoverTypeLibFull {
@@ -642,36 +628,42 @@ func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string)
 
 // WriteUpdatedMetadataSQL writes SQL to write updated metadata to
 // the Kobo database. The SQLite CLI client will be used to perform the import.
-func (k *Kobo) WriteUpdatedMetadataSQL() error {
+func (k *Kobo) WriteUpdatedMetadataSQL() (bool, error) {
 	var err error
-	if len(k.UpdatedMetadata) == 0 {
-		return nil
+	updateMetadata := false
+	for _, m := range k.MetadataMap {
+		if m.NewBook || m.UpdatedBook {
+			updateMetadata = true
+		}
+	}
+	if !updateMetadata {
+		return false, nil
 	}
 	updateSQL, err := newSQLWriter(filepath.Join(k.BKRootDir, kuUpdatedSQL))
 	if err != nil {
-		return fmt.Errorf("WriteUpdatedMetadataSQL: failed to create SQL writer: %w", err)
+		return false, fmt.Errorf("WriteUpdatedMetadataSQL: failed to create SQL writer: %w", err)
 	}
 	defer updateSQL.close()
 	dialect := goqu.Dialect("sqlite3")
 	var desc, series, seriesNum, subtitle *string
 	var seriesNumFloat *float64
-	for cid := range k.UpdatedMetadata {
+	for cid, m := range k.MetadataMap {
 		desc, series, seriesNum, seriesNumFloat, subtitle = nil, nil, nil, nil, nil
-		if k.MetadataMap[cid].Comments != nil && *k.MetadataMap[cid].Comments != "" {
-			desc = k.MetadataMap[cid].Comments
+		if m.Meta.Comments != nil && *m.Meta.Comments != "" {
+			desc = m.Meta.Comments
 		}
-		if k.MetadataMap[cid].Series != nil && *k.MetadataMap[cid].Series != "" {
+		if m.Meta.Series != nil && *m.Meta.Series != "" {
 			// TODO: Fuzzy series matching to deal with 'The' prefixes and 'Series' postfixes?
-			series = k.MetadataMap[cid].Series
+			series = m.Meta.Series
 		}
-		if k.MetadataMap[cid].SeriesIndex != nil && *k.MetadataMap[cid].SeriesIndex != 0.0 {
-			sn := strconv.FormatFloat(*k.MetadataMap[cid].SeriesIndex, 'f', -1, 64)
+		if m.Meta.SeriesIndex != nil && *m.Meta.SeriesIndex != 0.0 {
+			sn := strconv.FormatFloat(*m.Meta.SeriesIndex, 'f', -1, 64)
 			seriesNum = &sn
-			seriesNumFloat = k.MetadataMap[cid].SeriesIndex
+			seriesNumFloat = m.Meta.SeriesIndex
 		}
 		if field, exists := k.KuConfig.LibOptions[k.LibInfo.LibraryUUID]; exists && field.SubtitleColumn != "" {
 			col := field.SubtitleColumn
-			md := k.MetadataMap[cid]
+			md := m.Meta
 			st := ""
 			if col == "languages" {
 				st = md.LangString()
@@ -695,7 +687,7 @@ func (k *Kobo) WriteUpdatedMetadataSQL() error {
 		}).Where(goqu.Ex{"ContentID": cid})
 		sqlStr, _, err := ds.ToSQL()
 		if err != nil {
-			return fmt.Errorf("WriteUpdatedMetadataSQL: failed ")
+			return false, fmt.Errorf("WriteUpdatedMetadataSQL: failed ")
 		}
 		updateSQL.writeQuery(sqlStr)
 	}
@@ -713,12 +705,11 @@ FROM (
 WHERE content.Series = c.Series;`)
 		updateSQL.writeQuery(`UPDATE content SET SeriesID=Series WHERE ContentType = 6 AND (Series IS NOT NULL OR Series <> '') AND (SeriesID IS NULL OR SeriesID <> '');`)
 	}
-	return nil
+	return true, nil
 }
 
 // Close the kobo object when we're finished with it
 func (k *Kobo) Close() {
-	k.Wg.Wait()
 	if k.replSQLWriter != nil {
 		k.replSQLWriter.close()
 	}

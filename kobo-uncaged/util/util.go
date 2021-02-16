@@ -85,22 +85,36 @@ func WriteJSON(fn string, v interface{}) error {
 
 // ReadJSON is a helper function to read JSON from a file
 func ReadJSON(fn string, out interface{}) (emptyOrNotExist bool, err error) {
-	f, err := os.Open(fn)
-	if os.IsNotExist(err) {
-		return true, nil
-	} else if err != nil {
+	f, err := GetFileRead(fn)
+	if err != nil {
 		return false, fmt.Errorf("ReadJSON Open: %w", err)
+	} else if f == nil {
+		return true, nil
 	}
 	defer f.Close()
-
-	fi, err := f.Stat()
-	if err != nil {
-		return false, fmt.Errorf("ReadJSON Stat: %w", err)
-	} else if fi.Size() == 0 {
-		return true, nil
-	}
 	if err = json.NewDecoder(f).Decode(out); err != nil {
 		err = fmt.Errorf("ReadJSON Decode: %w", err)
 	}
 	return false, err
+}
+
+// GetFileRead opens fn in read only mode. If the returned file
+// and err are both nil, the file is empty or does not exist.
+// If err is not nil, a different error occurred.
+func GetFileRead(fn string) (f *os.File, err error) {
+	f, err = os.Open(fn)
+	if os.IsNotExist(err) {
+		return nil, nil
+	} else if err != nil {
+		return nil, fmt.Errorf("GetFile Open: %w", err)
+	}
+	fi, err := f.Stat()
+	if err != nil {
+		f.Close()
+		return nil, fmt.Errorf("GetFile Stat: %w", err)
+	} else if fi.Size() == 0 {
+		f.Close()
+		return nil, nil
+	}
+	return f, nil
 }

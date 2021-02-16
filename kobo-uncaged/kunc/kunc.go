@@ -68,17 +68,22 @@ func (ku *koboUncaged) GetClientOptions() (uc.ClientOptions, error) {
 func (ku *koboUncaged) GetDeviceBookList() ([]uc.BookCountDetails, error) {
 	bc := []uc.BookCountDetails{}
 	for k, md := range ku.k.MetadataMap {
+		if md.Meta == nil {
+			// For some reason we don't have metadata on this book. This SHOULD not
+			// happen, but lets account for the possiblity
+			continue
+		}
 		fmt.Println(k)
 		lastMod := time.Now()
-		if md.LastModified.GetTime() != nil {
-			lastMod = *md.LastModified.GetTime()
+		if md.Meta.LastModified.GetTime() != nil {
+			lastMod = *md.Meta.LastModified.GetTime()
 		}
 		bcd := uc.BookCountDetails{
-			UUID:         md.UUID,
-			Lpath:        md.Lpath,
+			UUID:         md.Meta.UUID,
+			Lpath:        md.Meta.Lpath,
 			LastModified: lastMod,
 		}
-		bcd.Extension = filepath.Ext(md.Lpath)
+		bcd.Extension = filepath.Ext(md.Meta.Lpath)
 		bc = append(bc, bcd)
 	}
 	return bc, nil
@@ -124,8 +129,10 @@ func (ku *koboUncaged) UpdateMetadata(mdList []uc.CalibreBookMeta) error {
 	for _, md := range mdList {
 		md.Thumbnail = nil
 		cid := util.LpathToContentID(md.Lpath, string(ku.k.ContentIDprefix))
-		ku.k.MetadataMap[cid] = md
-		ku.k.UpdatedMetadata[cid] = struct{}{}
+		meta := ku.k.MetadataMap[cid]
+		meta.UpdatedBook = true
+		meta.Meta = &md
+		ku.k.MetadataMap[cid] = meta
 	}
 	ku.k.WriteMDfile()
 	return nil
@@ -181,28 +188,39 @@ func (ku *koboUncaged) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, 
 		return fmt.Errorf("SaveBook: error opening ebook file: %w", err)
 	}
 	defer destBook.Close()
-	ku.k.UpdatedMetadata[cID] = struct{}{}
 	ku.k.WebSend(device.WebMsg{ShowMessage: fmt.Sprintf("Transferring: %s - %s", strings.Join(md.Authors, " "), md.Title),
 		Progress: device.IgnoreProgress})
 	// We don't need to save the calibre cover path in metadata.calibre
 	if md.Cover != nil {
 		md.Cover = nil
 	}
+	var done chan struct{}
 	// Note, the JSON format for covers should be in the form 'thumbnail: [w, h, "base64string"]'
-	if md.Thumbnail.Exists() {
+	if md.Thumbnail.Exists() && ku.k.KuConfig.Thumbnail.GenerateLevel != device.GenerateNone {
 		w, h := md.Thumbnail.Dimensions()
-		ku.k.Wg.Add(1)
-		go ku.k.SaveCoverImage(cID, image.Pt(w, h), md.Thumbnail.ImgBase64())
-		// Set the Thumbnail field to nil to avoid saving it to the metadata.calibre file
-		// Hopefully the garbage collector will delete the string once the
-		// above goroutine is finished with it
-		md.Thumbnail = nil
+		done = make(chan struct{})
+		go ku.k.SaveCoverImage(cID, image.Pt(w, h), md.Thumbnail.ImgBase64(), done)
 	}
+	// Set the Thumbnail field to nil to avoid saving it to the metadata.calibre file
+	// Hopefully the garbage collector will delete the string once the
+	// above goroutine is finished with it
+	md.Thumbnail = nil
 	if _, err = io.CopyN(destBook, book, int64(len)); err != nil {
 		return fmt.Errorf("SaveBook: error writing ebook to file: %w", err)
 	}
 	ku.k.UpdateIfExists(cID, len)
-	ku.k.MetadataMap[cID] = md
+	meta := ku.k.MetadataMap[cID]
+	if _, exists := ku.k.MetadataMap[cID]; exists {
+		meta.UpdatedBook = true
+	} else {
+		meta.NewBook = true
+	}
+	meta.Meta = &md
+	ku.k.MetadataMap[cID] = meta
+	// Wait for the thumbnail generation to finish
+	if done != nil {
+		<-done
+	}
 	if lastBook {
 		ku.k.WriteMDfile()
 	}
@@ -238,7 +256,7 @@ func (ku *koboUncaged) DeleteBook(book uc.BookID) error {
 	dir, _ := filepath.Split(bkPath)
 	dirPath := filepath.Clean(dir)
 	if ku.k.KuConfig.EnableDebug {
-		log.Printf("[DEBUG] CID: %s, bkPath: %s, dir: %s, dirPath: %s\n", cid, bkPath, dir, dirPath)
+		ku.k.DebugLogPrintf("CID: %s, bkPath: %s, dir: %s, dirPath: %s\n", cid, bkPath, dir, dirPath)
 	}
 	ku.k.WebSend(device.WebMsg{ShowMessage: fmt.Sprintf("Deleting: %s", bkPath), Progress: device.IgnoreProgress})
 	if err = os.Remove(bkPath); err != nil && !os.IsNotExist(err) {
@@ -256,8 +274,6 @@ func (ku *koboUncaged) DeleteBook(book uc.BookID) error {
 	}
 	// Now we remove the book from the metadata map
 	delete(ku.k.MetadataMap, cid)
-	// As well as the updated metadata list, if it was added to the list this session
-	delete(ku.k.UpdatedMetadata, cid)
 	// Finally, write the new metadata files
 	if err = ku.k.WriteMDfile(); err != nil {
 		return fmt.Errorf("DeleteBook: error writing metadata file: %w", err)

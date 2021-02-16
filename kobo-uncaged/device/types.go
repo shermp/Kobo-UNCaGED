@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 
 	"github.com/bamiaux/rez"
 	"github.com/godbus/dbus/v5"
@@ -106,14 +105,11 @@ type Kobo struct {
 	BKRootDir       string
 	ContentIDprefix cidPrefix
 	UseSDCard       bool
-	MetadataMap     map[string]uc.CalibreBookMeta
-	UpdatedMetadata map[string]struct{}
-	BooksInDB       map[string]struct{}
+	MetadataMap     map[string]BookMeta
 	SeriesIDMap     map[string]string
 	LibInfo         uc.CalibreLibraryInfo
 	PassCache       calPassCache
 	DriveInfo       uc.DeviceInfo
-	Wg              *sync.WaitGroup
 	mux             *httprouter.Router
 	rend            *render.Render
 	webInfo         *webUIinfo
@@ -132,6 +128,13 @@ type Kobo struct {
 	UCExitChan      chan<- bool
 	calInstChan     chan uc.CalInstance
 	viewSignal      chan *dbus.Signal
+}
+
+// BookMeta stores information about metadata for each book
+type BookMeta struct {
+	UpdatedBook bool
+	NewBook     bool
+	Meta        *uc.CalibreBookMeta
 }
 
 // MetaIterator Kobo UNCaGED to lazy load book metadata
@@ -169,8 +172,8 @@ func (m *MetaIterator) Count() int {
 // Get the metadata of the current iteration
 func (m *MetaIterator) Get() (uc.CalibreBookMeta, error) {
 	if m.Count() > 0 && m.cidIndex >= 0 {
-		if md, exists := m.k.MetadataMap[m.cidList[m.cidIndex]]; exists {
-			return md, nil
+		if md, exists := m.k.MetadataMap[m.cidList[m.cidIndex]]; exists && md.Meta != nil {
+			return *md.Meta, nil
 		}
 	}
 	return uc.CalibreBookMeta{}, fmt.Errorf("no metadata to get")
@@ -188,10 +191,11 @@ type thumbnailOption struct {
 	rezFilter       rez.Filter
 }
 
+// What thumbnails, if any, to save
 const (
-	generateAll     string = "all"
-	generatePartial string = "partial"
-	generateNone    string = "none"
+	GenerateAll     string = "all"
+	GeneratePartial string = "partial"
+	GenerateNone    string = "none"
 )
 
 const (
@@ -204,10 +208,10 @@ const (
 
 func (to *thumbnailOption) Validate() {
 	switch strings.ToLower(to.GenerateLevel) {
-	case generateAll, generatePartial, generateNone:
+	case GenerateAll, GeneratePartial, GenerateNone:
 		to.GenerateLevel = strings.ToLower(to.GenerateLevel)
 	default:
-		to.GenerateLevel = generateAll
+		to.GenerateLevel = GenerateAll
 	}
 
 	switch strings.ToLower(to.ResizeAlgorithm) {

@@ -123,18 +123,24 @@ func mainWithErrCode() returnCode {
 		// Annoying, but not fatal
 		log.Print(err)
 	}
-	if len(k.UpdatedMetadata) > 0 {
-		if err := k.WriteUpdatedMetadataSQL(); err != nil {
-			k.FinishedMsg = "Updating metadata failed"
-			log.Print(err)
-			return returncodeFromError(err, k)
-		}
-		k.FinishedMsg = "Calibre disconnected<br>Metadata will be updated"
+	updateReq, err := k.WriteUpdatedMetadataSQL()
+	if err != nil {
+		k.FinishedMsg = "Updating metadata failed"
+		log.Print(err)
+		return returncodeFromError(err, k)
 	}
 	if k.BrowserOpen {
-		k.FinishedMsg = "Calibre disconnected<br><br>Please wait"
+		if updateReq {
+			k.FinishedMsg = "Calibre disconnected<br>Metadata will be updated<br><br>Please wait"
+		} else {
+			k.FinishedMsg = "Calibre disconnected<br><br>Please wait"
+		}
 	} else {
-		k.FinishedMsg = "Calibre disconnected"
+		if updateReq {
+			k.FinishedMsg = "Calibre disconnected\nMetadata will be updated\n\nPlease wait"
+		} else {
+			k.FinishedMsg = "Calibre disconnected\n\nPlease wait"
+		}
 	}
 	return succsess
 }
