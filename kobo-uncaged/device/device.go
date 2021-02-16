@@ -356,7 +356,7 @@ func (k *Kobo) GetDirectConnection() *uc.CalInstance {
 }
 
 // readEpubMeta opens an epub (or kepub), and attempts to read the
-// metadata it contains. Only metadata not avaialable from the DB
+// metadata it contains. Only metadata not available from the DB
 // is obtained
 func (k *Kobo) readEpubMeta(contentID string, md *uc.CalibreBookMeta) error {
 	epubPath := util.ContentIDtoBkPath(k.BKRootDir, contentID, string(k.ContentIDprefix))
@@ -521,7 +521,7 @@ func (k *Kobo) readMDfile() error {
 		m.Meta = &bkMD
 		k.MetadataMap[cid] = m
 	}
-	k.DebugLogPrintf("Skipped parsing epub/keypub for %d of %d books", dbMetaNotReqCount, len(k.MetadataMap))
+	k.DebugLogPrintf("Skipped parsing epub/kepub for %d of %d books", dbMetaNotReqCount, len(k.MetadataMap))
 	return err
 }
 
