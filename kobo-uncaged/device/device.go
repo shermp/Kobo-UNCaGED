@@ -437,8 +437,9 @@ func (k *Kobo) readMDfile() error {
 	if err = nickelDB.QueryRow(`SELECT COUNT(1)`+queryFrom, cidLike).Scan(&bkCount); err != nil {
 		return fmt.Errorf("readMDfile: unable to get book count from DB: %w", err)
 	}
-	// There will be at most bkCount metadata records
-	k.MetadataMap = make(map[string]BookMeta, bkCount)
+	// There will be at most bkCount metadata records, but let's allocate an extra 10% to give
+	// a buffer when adding books later.
+	k.MetadataMap = make(map[string]BookMeta, int(float64(bkCount)*1.1))
 	// Get a list of valid contentID's from DB
 	k.DebugLogPrintf("Getting list of ContentID's from DB")
 	cidRows, err := nickelDB.Query(`SELECT ContentID`+queryFrom, cidLike)
