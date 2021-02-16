@@ -182,6 +182,7 @@ func New(dbRootDir, sdRootDir string, bindAddress string, disableNDB bool, vers 
 	if err = k.loadDeviceInfo(); err != nil {
 		return nil, fmt.Errorf("New: failed to load device info: %w", err)
 	}
+	k.WebSend(WebMsg{ShowMessage: "Reading Metadata", Progress: -1})
 	log.Println("Reading Metadata")
 	if err = k.readMDfile(); err != nil {
 		return nil, fmt.Errorf("New: failed to read metadata file: %w", err)
