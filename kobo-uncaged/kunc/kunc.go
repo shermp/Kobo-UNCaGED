@@ -224,7 +224,6 @@ func (ku *koboUncaged) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, 
 	if lastBook {
 		ku.k.WriteMDfile()
 	}
-	//runtime.GC()
 	return err
 }
 

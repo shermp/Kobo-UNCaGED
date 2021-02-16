@@ -575,7 +575,6 @@ func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string,
 	sz := img.Bounds().Size()
 
 	imgID := kobo.ContentIDToImageID(contentID)
-	//fmt.Printf("Image ID is: %s\n", imgID)
 	jpegOpts := jpeg.Options{Quality: k.KuConfig.Thumbnail.JpegQuality}
 
 	var coverEndings []kobo.CoverType
