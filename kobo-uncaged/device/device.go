@@ -200,6 +200,13 @@ func New(dbRootDir, sdRootDir string, bindAddress string, disableNDB bool, vers 
 	}
 }
 
+// DebugLogPrintf prints logs when debugging enabled
+func (k *Kobo) DebugLogPrintf(format string, args ...interface{}) {
+	if k.KuConfig.EnableDebug {
+		log.Printf("[debug] %s\n", fmt.Sprintf(format, args...))
+	}
+}
+
 func (k *Kobo) readPassCache() error {
 	if _, err := util.ReadJSON(filepath.Join(k.DBRootDir, kuPassCache), &k.PassCache); err != nil {
 		return fmt.Errorf("readPassCache: failed to read password cache: %w", err)
@@ -368,6 +375,9 @@ func (k *Kobo) readEpubMeta(contentID string, md *uc.CalibreBookMeta) error {
 				md.UUID = ident.Data
 			}
 		default:
+			if md.Identifiers == nil {
+				md.Identifiers = make(map[string]string)
+			}
 			md.Identifiers[ident.Scheme] = ident.Data
 		}
 	}
@@ -420,12 +430,14 @@ func (k *Kobo) readMDfile() error {
 		AND ContentID LIKE ?;`
 	cidLike := fmt.Sprintf("%s%%", k.ContentIDprefix)
 	var bkCount int
+	k.DebugLogPrintf("Getting book count from DB")
 	if err = nickelDB.QueryRow(`SELECT COUNT(1)`+queryFrom, cidLike).Scan(&bkCount); err != nil {
 		return fmt.Errorf("readMDfile: unable to get book count from DB: %w", err)
 	}
 	// There will be at most bkCount metadata records
 	k.MetadataMap = make(map[string]BookMeta, bkCount)
 	// Get a list of valid contentID's from DB
+	k.DebugLogPrintf("Getting list of ContentID's from DB")
 	cidRows, err := nickelDB.Query(`SELECT ContentID`+queryFrom, cidLike)
 	if err != nil {
 		return fmt.Errorf("readMDfile: error getting book rows: %w", err)
@@ -441,6 +453,7 @@ func (k *Kobo) readMDfile() error {
 		return fmt.Errorf("readMDfile: cidRows error: %w", err)
 	}
 	// Now stream decode the metadata.calibre JSON file
+	k.DebugLogPrintf("Reading metadata.calibre")
 	f, err := util.GetFileRead(filepath.Join(k.BKRootDir, calibreMDfile))
 	if err != nil {
 		return fmt.Errorf("readMDfile: error reading calibre.metadata: %w", err)
@@ -467,9 +480,12 @@ func (k *Kobo) readMDfile() error {
 		}
 		// Not bothering to finish reading tokens, we don't care about what's left
 	}
+	dbMetaNotReqCount := 0
+	k.DebugLogPrintf("Reading metadata from DB and ebook file where required")
 	// Get metadata from DB for books that have no entries in the cache
 	for cid, m := range k.MetadataMap {
 		if m.Meta != nil {
+			dbMetaNotReqCount++
 			continue
 		}
 		var bkMD uc.CalibreBookMeta
@@ -502,6 +518,7 @@ func (k *Kobo) readMDfile() error {
 		m.Meta = &bkMD
 		k.MetadataMap[cid] = m
 	}
+	k.DebugLogPrintf("Skipped parsing epub/keypub for %d of %d books", dbMetaNotReqCount, len(k.MetadataMap))
 	return err
 }
 
@@ -569,16 +586,16 @@ func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string,
 		nsz := k.Device.CoverSized(cover, sz)
 		nfn := filepath.Join(k.BKRootDir, cover.GeneratePath(k.UseSDCard, imgID))
 		//fmt.Printf("Cover file path is: %s\n", nfn)
-		log.Printf("Resizing %s cover to %s (target %s) for %s\n", sz, nsz, k.Device.CoverSize(cover), cover)
+		k.DebugLogPrintf("Resizing %s cover to %s (target %s) for %s", sz, nsz, k.Device.CoverSize(cover), cover)
 
 		var nimg image.Image
 		if !sz.Eq(nsz) {
 			nimg = image.NewYCbCr(image.Rect(0, 0, nsz.X, nsz.Y), img.(*image.YCbCr).SubsampleRatio)
 			rez.Convert(nimg, img, k.KuConfig.Thumbnail.rezFilter)
-			log.Printf(" -- Resized to %s\n", nimg.Bounds().Size())
+			k.DebugLogPrintf(" -- Resized to %s", nimg.Bounds().Size())
 		} else {
 			nimg = img
-			log.Println(" -- Skipped resize: already correct size")
+			k.DebugLogPrintf(" -- Skipped resize: already correct size")
 		}
 		// Optimization. No need to resize libGrid from the full cover size...
 		if cover == kobo.CoverTypeLibFull {

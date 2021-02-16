@@ -257,7 +257,7 @@ func (ku *koboUncaged) DeleteBook(book uc.BookID) error {
 	dir, _ := filepath.Split(bkPath)
 	dirPath := filepath.Clean(dir)
 	if ku.k.KuConfig.EnableDebug {
-		log.Printf("[DEBUG] CID: %s, bkPath: %s, dir: %s, dirPath: %s\n", cid, bkPath, dir, dirPath)
+		ku.k.DebugLogPrintf("CID: %s, bkPath: %s, dir: %s, dirPath: %s\n", cid, bkPath, dir, dirPath)
 	}
 	ku.k.WebSend(device.WebMsg{ShowMessage: fmt.Sprintf("Deleting: %s", bkPath), Progress: device.IgnoreProgress})
 	if err = os.Remove(bkPath); err != nil && !os.IsNotExist(err) {
