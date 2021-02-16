@@ -94,6 +94,7 @@ cleanall: clean
 	rm -df build
 
 $(KU_ARCHIVE): $(ARCHIVE_SRCS) | $(BUILD_DIR)
+	rm -f $@ && \
 	zip $@ $^ && \
 	$(call zip_rename_files,$@,$(ARCHIVE_FILES))
 
