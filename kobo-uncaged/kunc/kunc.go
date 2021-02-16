@@ -175,7 +175,7 @@ func (ku *koboUncaged) CheckLpath(lpath string) (newLpath string) {
 // lastBook informs the client that this is the last book for this transfer
 // newLpath informs UNCaGED of an Lpath change. Use this if the lpath field in md is
 // not valid (eg filesystem limitations.). Return an empty string if original lpath is valid
-func (ku *koboUncaged) SaveBook(md *uc.CalibreBookMeta, book io.Reader, len int, lastBook bool) (err error) {
+func (ku *koboUncaged) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, lastBook bool) (err error) {
 	cID := util.LpathToContentID(md.Lpath, string(ku.k.ContentIDprefix))
 	bkPath := util.ContentIDtoBkPath(ku.k.BKRootDir, cID, string(ku.k.ContentIDprefix))
 	bkDir, _ := filepath.Split(bkPath)
