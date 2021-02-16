@@ -357,7 +357,7 @@ func (k *Kobo) GetDirectConnection() *uc.CalInstance {
 
 // readEpubMeta opens an epub (or kepub), and attempts to read the
 // metadata it contains. Only metadata not available from the DB
-// is obtained
+// is obtained.
 func (k *Kobo) readEpubMeta(contentID string, md *uc.CalibreBookMeta) error {
 	epubPath := util.ContentIDtoBkPath(k.BKRootDir, contentID, string(k.ContentIDprefix))
 	bk, err := epub.Open(epubPath)
@@ -566,10 +566,12 @@ func (k *Kobo) SaveDeviceInfo() error {
 
 // SaveCoverImage generates cover image and thumbnails, and save to appropriate locations
 func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string, done chan<- struct{}) {
+	defer func() {
+		done <- struct{}{}
+	}()
 	img, _, err := image.Decode(base64.NewDecoder(base64.StdEncoding, strings.NewReader(imgB64)))
 	if err != nil {
 		log.Println(err)
-		done <- struct{}{}
 		return
 	}
 	sz := img.Bounds().Size()
@@ -621,7 +623,6 @@ func (k *Kobo) SaveCoverImage(contentID string, size image.Point, imgB64 string,
 		}
 		lf.Close()
 	}
-	done <- struct{}{}
 }
 
 // WriteUpdatedMetadataSQL writes SQL to write updated metadata to
