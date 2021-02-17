@@ -223,7 +223,7 @@ func (ku *koboUncaged) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, 
 	}
 	if lastBook {
 		ku.k.WriteMDfile()
-		ku.k.WebSend(device.WebMsg{ShowMessage: "Transfer Finished", Progress: -1})
+		ku.k.WebSend(device.WebMsg{ShowMessage: "Transfer Complete", Progress: -1})
 	}
 	return err
 }
