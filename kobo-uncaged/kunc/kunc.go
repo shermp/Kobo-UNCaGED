@@ -188,7 +188,7 @@ func (ku *koboUncaged) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, 
 		return fmt.Errorf("SaveBook: error opening ebook file: %w", err)
 	}
 	defer destBook.Close()
-	ku.k.WebSend(device.WebMsg{ShowMessage: fmt.Sprintf("Transferring: %s - %s", strings.Join(md.Authors, " "), md.Title),
+	ku.k.WebSend(device.WebMsg{ShowMessage: fmt.Sprintf("Transferring<br/><i>%s - %s</i>", strings.Join(md.Authors, " "), md.Title),
 		Progress: device.IgnoreProgress})
 	// We don't need to save the calibre cover path in metadata.calibre
 	if md.Cover != nil {
@@ -223,6 +223,7 @@ func (ku *koboUncaged) SaveBook(md uc.CalibreBookMeta, book io.Reader, len int, 
 	}
 	if lastBook {
 		ku.k.WriteMDfile()
+		ku.k.WebSend(device.WebMsg{ShowMessage: "Transfer Finished", Progress: -1})
 	}
 	return err
 }
