@@ -72,7 +72,7 @@ override KU_SRC := $(wildcard kobo-uncaged/*.go kobo-uncaged/device/*.go kobo-un
 override KU_VERS := $(shell git describe --tags)
 
 # This is the name of the sqlite archive and subdirectory.
-override SQLITE_VER := sqlite-amalgamation-3340000
+override SQLITE_VER := sqlite-amalgamation-3380000
 override SQLITE_SRC := $(DL_DIR)/$(SQLITE_VER)/shell.c $(DL_DIR)/$(SQLITE_VER)/sqlite3.c
 
 # Rename multiple files in a zip file using zipnote. First arg is the zip file to update, the second arg
@@ -111,7 +111,7 @@ $(SQLITE_SRC): $(DL_DIR)/$(SQLITE_VER).zip
 	[ -f $@ ] || (cd $(dir $<) && unzip $(notdir $<))
 
 $(DL_DIR)/$(SQLITE_VER).zip: | $(DL_DIR)
-	wget -O $@ https://www.sqlite.org/2020/$(SQLITE_VER).zip
+	wget -O $@ https://www.sqlite.org/2022/$(SQLITE_VER).zip
 
 $(BUILD_DIR) $(DL_DIR):
 	mkdir -p $@
