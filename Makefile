@@ -58,10 +58,6 @@ override ARCHIVE_FILES := \
 	scripts/ku-lib.sh:$(ARC_KU_ROOT)/scripts/ku-lib.sh \
 	scripts/ku-prereq-check.sh:$(ARC_KU_ROOT)/scripts/ku-prereq-check.sh \
 	scripts/nm-start-ku.sh:$(ARC_KU_ROOT)/nm-start-ku.sh \
-	kobo-uncaged/static/html_input.css:$(ARC_KU_ROOT)/static/html_input.css \
-	kobo-uncaged/static/ku.css:$(ARC_KU_ROOT)/static/ku.css \
-	kobo-uncaged/static/ku.js:$(ARC_KU_ROOT)/static/ku.js \
-	kobo-uncaged/templates/kuPage.tmpl:$(ARC_KU_ROOT)/templates/kuPage.tmpl \
 	config/nm-ku:$(ARC_ADDS_ROOT)/nm/kobo_uncaged
 
 # Get a list of source files only from the above list

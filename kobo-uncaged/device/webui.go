@@ -1,8 +1,10 @@
 package device
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
+	"io/fs"
 	"net/http"
 	"sort"
 	"strings"
@@ -11,6 +13,9 @@ import (
 	"github.com/shermp/UNCaGED/uc"
 	"github.com/unrolled/render"
 )
+
+//go:embed web
+var web_files embed.FS
 
 // IgnoreProgress tells HandleMessage not to send progress value to web UI
 const IgnoreProgress int = -127
@@ -41,12 +46,16 @@ func (k *Kobo) initRouter() {
 	k.mux.HandlerFunc("POST", k.webInfo.LibInfoPath, k.HandleLibraryInfo)
 	k.webInfo.DisconnectPath = "/ucexit"
 	k.mux.HandlerFunc("GET", k.webInfo.DisconnectPath, k.HandleUCExit)
-	k.mux.ServeFiles("/static/*filepath", http.Dir("./static"))
+	fsys, _ := fs.Sub(web_files, "web/static")
+	k.mux.ServeFiles("/static/*filepath", http.FS(fsys))
 }
 
 func (k *Kobo) initRender() {
 	k.rend = render.New(render.Options{
-		Directory:     "templates",
+		Directory: "web/templates",
+		FileSystem: &render.EmbedFileSystem{
+			FS: web_files,
+		},
 		Extensions:    []string{".tmpl"},
 		IsDevelopment: true,
 	})
