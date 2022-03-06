@@ -2,9 +2,6 @@ name: Build Kobo UNCaGED
 
 on: [push, pull_request]
 
-env:
-
-
 jobs:
   build_ku:
     runs-on: ubuntu-20.04
