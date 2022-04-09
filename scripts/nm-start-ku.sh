@@ -14,6 +14,24 @@ KU_UPDATE_MD=${KU_DIR}/updated-md.sql
 # Inport logmsg function
 . ${KU_DIR}/scripts/ku-lib.sh
 
+delete_dir() {
+    del_dir="$1"
+    # Protect against deleting anything outside of the ku directory
+    case "$del_dir" in
+        "/mnt/onboard/.adds/kobo-uncaged/"*)
+            if [ -d "$del_dir" ] ; then
+                logmsg "I" "Directory ${del_dir} exists. Deleting..."
+                rm -rf "$del_dir"
+            fi
+            ;;
+        *) logmsg "W" "${del_dir} not in ${KU_DIR}. Not deleting" ;;
+    esac
+}
+
+# Cleanup 'static' and 'template' directories from older versions
+delete_dir "${KU_DIR}/static"
+delete_dir "${KU_DIR}/templates"
+
 call_sqlite() {
     sql_file="$1"
     sqlite_err=$($SQLITE_BIN $NICKEL_DB 2>&1 >/dev/null <<EOF
