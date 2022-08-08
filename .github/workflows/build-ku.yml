@@ -6,37 +6,24 @@ jobs:
   build_ku:
     runs-on: ubuntu-20.04
     steps:
-      - name: Setup Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: '1.17'
-
-      - name: Setup koxtoolchain
-        run: |
-          curl -sSL -o kobo-tc.zip https://github.com/koreader/koxtoolchain/releases/download/2021.12/kobo.zip
-          unzip kobo-tc.zip
-          tar -xzvf kobo.tar.gz -C ${HOME}/
-          echo ${HOME}/x-tools/arm-kobo-linux-gnueabihf/bin >> $GITHUB_PATH
-          echo "CROSS_COMPILE=arm-kobo-linux-gnueabihf-" >> $GITHUB_ENV
-
       - name: Checkout repository
         uses: actions/checkout@v2
-      
+
       - name: Build
-        run: make
-      
+        run: ./build.sh
+
       - name: Prepare directory for upload
         run: |
           mkdir -p build/Kobo-UNCaGED
           cd build/Kobo-UNCaGED
           unzip ../Kobo-UNCaGED.zip
-      
+
       - name: Upload
         uses: actions/upload-artifact@v2
         with:
           name: Kobo-UNCaGED
           path: build/Kobo-UNCaGED
-      
+
       - name: Create draft release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/v')
