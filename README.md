@@ -1,4 +1,6 @@
 # Kobo-UNCaGED
+**WARNING: This might not work on the new Kobo Clara Colour/BW or Libra Colour!**
+
 Kobo-UNCaGED is a program for Kobo eink readers for connecting wirelessly to Calibre. It makes use of my [UNCaGED](https://github.com/shermp/UNCaGED) library. It is licenced under the AGPL-3.0 licence.
 
 **While I don't have any major issues with Kobo-UNCaGED, testing has been relatively limited, and I can't guarantee a problem-free experience. If your ebook library is important to you, backup your Kobo user partition before use!**
