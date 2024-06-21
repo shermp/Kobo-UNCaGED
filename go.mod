@@ -20,5 +20,3 @@ require (
 )
 
 go 1.17
-
-toolchain go1.22.3
