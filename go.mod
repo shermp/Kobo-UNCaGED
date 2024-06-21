@@ -8,7 +8,7 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/kapmahc/epub v0.1.1
 	github.com/mattn/go-sqlite3 v1.14.12
-	github.com/pgaskin/koboutils/v2 v2.2.0
+	github.com/pgaskin/koboutils/v2 v2.1.2
 	github.com/shermp/UNCaGED v0.7.3
 	github.com/unrolled/render v1.4.1
 )
@@ -19,6 +19,6 @@ require (
 	golang.org/x/sys v0.20.0 // indirect
 )
 
-go 1.21.0
+go 1.17
 
 toolchain go1.22.3
