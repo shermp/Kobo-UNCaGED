@@ -8,7 +8,7 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/kapmahc/epub v0.1.1
 	github.com/mattn/go-sqlite3 v1.14.12
-	github.com/pgaskin/koboutils/v2 v2.1.2
+	github.com/pgaskin/koboutils/v2 v2.2.1-0.20240526061659-3392decd542a
 	github.com/shermp/UNCaGED v0.7.3
 	github.com/unrolled/render v1.4.1
 )
