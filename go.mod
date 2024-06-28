@@ -19,4 +19,6 @@ require (
 	golang.org/x/sys v0.20.0 // indirect
 )
 
-go 1.17
+go 1.21.0
+
+toolchain go1.22.3
