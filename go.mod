@@ -8,7 +8,7 @@ require (
 	github.com/julienschmidt/httprouter v1.3.0
 	github.com/kapmahc/epub v0.1.1
 	github.com/mattn/go-sqlite3 v1.14.12
-	github.com/pgaskin/koboutils/v2 v2.1.2-0.20220306004009-a07e72ebae42
+	github.com/pgaskin/koboutils/v2 v2.2.1-0.20240526061659-3392decd542a
 	github.com/shermp/UNCaGED v0.7.3
 	github.com/unrolled/render v1.4.1
 )
@@ -16,7 +16,7 @@ require (
 require (
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/slongfield/pyfmt v0.0.0-20220222012616-ea85ff4c361f // indirect
-	golang.org/x/sys v0.0.0-20210525143221-35b2ab0089ea // indirect
+	golang.org/x/sys v0.20.0 // indirect
 )
 
 go 1.17
