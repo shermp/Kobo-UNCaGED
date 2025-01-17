@@ -168,9 +168,11 @@ func (k *Kobo) HandleLibraryInfo(w http.ResponseWriter, r *http.Request) {
 		stdFields := make([]string, 0)
 		userFields := make([]string, 0)
 		allFields := []string{""}
-		selField := ""
+		selSubtitleField := ""
+		selCollectionField := ""
 		if libOpt, exists := k.KuConfig.LibOptions[k.LibInfo.LibraryUUID]; exists {
-			selField = libOpt.SubtitleColumn
+			selSubtitleField = libOpt.SubtitleColumn
+			selCollectionField = libOpt.CollectionColumn
 		}
 		for name, field := range k.LibInfo.FieldMetadata {
 			switch name {
@@ -186,10 +188,13 @@ func (k *Kobo) HandleLibraryInfo(w http.ResponseWriter, r *http.Request) {
 		sort.Strings(userFields)
 		allFields = append(allFields, stdFields...)
 		allFields = append(allFields, userFields...)
-		wlo := webLibOpts{CurrSel: 0, SubtitleFields: allFields}
+		wlo := webLibOpts{CurrSubtitleSel: 0, CurrCollectionSel: 0, SubtitleFields: allFields}
 		for i, field := range allFields {
-			if field == selField {
-				wlo.CurrSel = i
+			if field == selSubtitleField {
+				wlo.CurrSubtitleSel = i
+			}
+			if field == selCollectionField {
+				wlo.CurrCollectionSel = i
 			}
 		}
 		k.rend.JSON(w, http.StatusOK, wlo)
@@ -201,7 +206,9 @@ func (k *Kobo) HandleLibraryInfo(w http.ResponseWriter, r *http.Request) {
 		if k.KuConfig.LibOptions == nil {
 			k.KuConfig.LibOptions = make(map[string]KuLibOptions)
 		}
-		k.KuConfig.LibOptions[k.LibInfo.LibraryUUID] = KuLibOptions{SubtitleColumn: wlo.SubtitleFields[wlo.CurrSel]}
+		k.KuConfig.LibOptions[k.LibInfo.LibraryUUID] = KuLibOptions{
+			CollectionColumn: wlo.SubtitleFields[wlo.CurrCollectionSel],
+			SubtitleColumn:   wlo.SubtitleFields[wlo.CurrSubtitleSel]}
 		w.WriteHeader(http.StatusNoContent)
 	}
 }

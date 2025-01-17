@@ -49,7 +49,8 @@ type KuOptions struct {
 
 // KuLibOptions contains per-library options
 type KuLibOptions struct {
-	SubtitleColumn string `json:"subtitleColumn"`
+	CollectionColumn string `json:"collectionColumn"`
+	SubtitleColumn   string `json:"subtitleColumn"`
 }
 
 type webUIinfo struct {
@@ -72,8 +73,9 @@ type webConfig struct {
 }
 
 type webLibOpts struct {
-	CurrSel        int      `json:"currSel"`
-	SubtitleFields []string `json:"subtitleFields"`
+	CurrSubtitleSel   int      `json:"currSel"`
+	CurrCollectionSel int      `json:"currColSel"`
+	SubtitleFields    []string `json:"subtitleFields"`
 }
 
 // WebMsg is used to send messages to the web client

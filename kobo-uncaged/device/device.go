@@ -645,51 +645,37 @@ func (k *Kobo) WriteUpdatedMetadataSQL() (bool, error) {
 	}
 	defer updateSQL.close()
 	dialect := goqu.Dialect("sqlite3")
-	var desc, series, seriesNum, subtitle *string
-	var seriesNumFloat *float64
 	for cid, m := range k.MetadataMap {
-		desc, series, seriesNum, seriesNumFloat, subtitle = nil, nil, nil, nil, nil
-		if m.Meta.Comments != nil && *m.Meta.Comments != "" {
-			desc = m.Meta.Comments
-		}
-		if m.Meta.Series != nil && *m.Meta.Series != "" {
-			// TODO: Fuzzy series matching to deal with 'The' prefixes and 'Series' postfixes?
-			series = m.Meta.Series
-		}
-		if m.Meta.SeriesIndex != nil && *m.Meta.SeriesIndex != 0.0 {
-			sn := strconv.FormatFloat(*m.Meta.SeriesIndex, 'f', -1, 64)
-			seriesNum = &sn
-			seriesNumFloat = m.Meta.SeriesIndex
-		}
-		if field, exists := k.KuConfig.LibOptions[k.LibInfo.LibraryUUID]; exists && field.SubtitleColumn != "" {
-			col := field.SubtitleColumn
-			md := m.Meta
-			st := ""
-			if col == "languages" {
-				st = md.LangString()
-			} else if col == "tags" {
-				st = md.TagString()
-			} else if col == "publisher" {
-				st = md.PubString()
-			} else if col == "rating" {
-				st = md.RatingString()
-			} else if strings.HasPrefix(col, "#") {
-				if cc, exists := md.UserMetadata[col]; exists {
-					st = cc.ContextualString()
-				}
-			}
-			if st != "" {
-				subtitle = &st
-			}
-		}
-		ds := dialect.Update("content").Set(goqu.Record{
-			"Description": desc, "Series": series, "SeriesNumber": seriesNum, "SeriesNumberFloat": seriesNumFloat, "Subtitle": subtitle,
-		}).Where(goqu.Ex{"ContentID": cid})
+		ds := getContentSQL(m, k, dialect, cid)
 		sqlStr, _, err := ds.ToSQL()
 		if err != nil {
 			return false, fmt.Errorf("WriteUpdatedMetadataSQL: failed ")
 		}
 		updateSQL.writeQuery(sqlStr)
+
+		if field, exists := k.KuConfig.LibOptions[k.LibInfo.LibraryUUID]; exists {
+			insertCollectionSQL := getInsertCollectionSQL(field, m, cid, dialect)
+			colSqlStr, _, err := insertCollectionSQL.ToSQL()
+			if err != nil {
+				return false, fmt.Errorf("WriteUpdatedCollectionSQL: failed ")
+			} else {
+				log.Println(colSqlStr)
+			}
+			updateSQL.writeQuery(colSqlStr)
+
+			// cleanColSqlStr, _, err := dialect.Delete("ShelfContent").Where(
+			// 	goqu.And(
+			// 		goqu.C("ShelfName").NotIn(collections),
+			// 		goqu.C("ContentId").Eq(cid),
+			// 	),
+			// ).ToSQL()
+			// if err != nil {
+			// 	return false, fmt.Errorf("WriteUpdatedCollectionSQL: failed ")
+			// } else {
+			// 	log.Println(cleanColSqlStr)
+			// }
+			// updateSQL.writeQuery(cleanColSqlStr)
+		}
 	}
 	// Note, the SeriesID stuff was implemented in FW 4.20.14601
 	if kobo.VersionCompare(string(k.fw), "4.20.14601") >= 0 {
@@ -705,7 +691,120 @@ FROM (
 WHERE content.Series = c.Series;`)
 		updateSQL.writeQuery(`UPDATE content SET SeriesID=Series WHERE ContentType = 6 AND (Series IS NOT NULL OR Series <> '') AND (SeriesID IS NULL OR SeriesID <> '');`)
 	}
+
+	// cleanColSqlStr, _, err := dialect.Delete("ShelfContent").Where(
+	// 	goqu.C("ShelfName").NotIn(goqu.From("Shelf").Select("Name")),
+	// ).ToSQL()
+	// if err != nil {
+	// 	return false, fmt.Errorf("WriteUpdatedCollectionSQL: failed ")
+	// } else {
+	// 	log.Println(cleanColSqlStr)
+	// }
+	// updateSQL.writeQuery(cleanColSqlStr)
+
 	return true, nil
+}
+
+func getInsertCollectionSQL(field KuLibOptions, m BookMeta, cid string, dialect goqu.DialectWrapper) *goqu.InsertDataset {
+	collections := getCollectionsValue(field.CollectionColumn, m.Meta)
+	collectionRecords := make([]ShelfContentRecord, 0)
+
+	if len(collections) > 0 {
+		for _, shelf := range collections {
+			collectionRecords = append(
+				collectionRecords,
+				ShelfContentRecord{
+					ShelfName:    shelf,
+					ContentId:    cid,
+					DateModified: time.Now().UTC().Format(time.RFC3339),
+					IsDeleted:    "false",
+					IsSynced:     "false",
+				},
+			)
+		}
+	}
+
+	insertCollectionSQL := dialect.Insert("ShelfContent").Rows(collectionRecords).OnConflict(goqu.DoNothing())
+	return insertCollectionSQL
+}
+
+func getContentSQL(m BookMeta, k *Kobo, dialect goqu.DialectWrapper, cid string) *goqu.UpdateDataset {
+	var desc, series, seriesNum, subtitle *string
+	var seriesNumFloat *float64
+	desc, series, seriesNum, seriesNumFloat, subtitle = nil, nil, nil, nil, nil
+	if m.Meta.Comments != nil && *m.Meta.Comments != "" {
+		desc = m.Meta.Comments
+	}
+	if m.Meta.Series != nil && *m.Meta.Series != "" {
+		// TODO: Fuzzy series matching to deal with 'The' prefixes and 'Series' postfixes?
+		series = m.Meta.Series
+	}
+	if m.Meta.SeriesIndex != nil && *m.Meta.SeriesIndex != 0.0 {
+		sn := strconv.FormatFloat(*m.Meta.SeriesIndex, 'f', -1, 64)
+		seriesNum = &sn
+		seriesNumFloat = m.Meta.SeriesIndex
+	}
+	if field, exists := k.KuConfig.LibOptions[k.LibInfo.LibraryUUID]; exists {
+		subtitle = getSubtitleValue(field.SubtitleColumn, m.Meta)
+	}
+	ds := dialect.Update("content").Set(ContentRecord{
+		Description:       desc,
+		Series:            series,
+		SeriesNumber:      seriesNum,
+		SeriesNumberFloat: seriesNumFloat,
+		Subtitle:          subtitle,
+	}).Where(goqu.Ex{"ContentID": cid})
+	return ds
+}
+
+func getCollectionsValue(col string, md *uc.CalibreBookMeta) []string {
+	var collections []string = make([]string, 0, 1000)
+	if col != "" {
+		if col == "languages" {
+			collections = md.Languages
+		} else if col == "tags" {
+			collections = md.Tags
+		} else if col == "publisher" {
+			collections = []string{*md.Publisher}
+		} else if col == "rating" {
+			collections = []string{md.RatingString()}
+		} else if cc, exists := md.UserCategories[col]; exists {
+			log.Println("User Categories")
+			log.Println(cc)
+		} else if cc, exists := md.UserMetadata[col]; exists {
+			if t, ok := cc.Value.([]string); ok {
+				collections = t
+			} else if t, ok := cc.Value.(*[]string); ok {
+				collections = *t
+			} else {
+				collections = strings.Split(cc.ContextualString(), ", ")
+			}
+		}
+	}
+	return collections
+}
+
+func getSubtitleValue(col string, md *uc.CalibreBookMeta) *string {
+	if col != "" {
+		st := ""
+		if col == "languages" {
+			st = md.LangString()
+		} else if col == "tags" {
+			st = md.TagString()
+		} else if col == "publisher" {
+			st = md.PubString()
+		} else if col == "rating" {
+			st = md.RatingString()
+		} else if strings.HasPrefix(col, "#") {
+			if cc, exists := md.UserMetadata[col]; exists {
+				st = cc.ContextualString()
+			}
+		}
+		if st != "" {
+			return &st
+		}
+	}
+	return nil
 }
 
 // Close the kobo object when we're finished with it

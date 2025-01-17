@@ -268,7 +268,8 @@ function selectCalInstance(ev) {
 function showLibraryInfo(resp) {
     if (resp.status === 200) {
         libInfo = JSON.parse(resp.responseText);
-        var fieldSel = document.getElementById('kuSubtitleColumn');
+        var fieldSubSel = document.getElementById('kuSubtitleColumn');
+        var fieldColSel = document.getElementById('kuCollectionColumn');
         for (var i = 0; i < libInfo.subtitleFields.length; i++) {
             var fieldOpt = document.createElement('option');
             fieldOpt.value = libInfo.subtitleFields[i];
@@ -276,15 +277,32 @@ function showLibraryInfo(resp) {
             if (libInfo.currSel === i) {
                 fieldOpt.selected = true;
             }
-            fieldSel.appendChild(fieldOpt);
+            fieldSubSel.appendChild(fieldOpt);
+
+            var fieldColOpt = document.createElement('option');
+            fieldColOpt.value = libInfo.subtitleFields[i];
+            fieldColOpt.innerHTML = libInfo.subtitleFields[i];
+            if (libInfo.currColSel === i) {
+                fieldOpt.selected = true;
+            }
+            fieldColSel.appendChild(fieldOpt);
         }
-        fieldSel.addEventListener('change', sendLibraryInfo);
-        fieldSel.disabled = false;
+        fieldSubSel.addEventListener('change', sendLibraryInfo);
+        fieldSubSel.disabled = false;
+
+        fieldColSel.addEventListener('change', sendLibraryInfo);
+        fieldColSel.disabled = false;
     }
 }
 
 function sendLibraryInfo(ev) {
     var el = ev.target;
+    if (el.id === 'kuCollectionColumn') {
+        libInfo.currColSel = 0;
+        if (el.selectedIndex > 0) {
+            libInfo.currColSel = el.selectedIndex;
+        }
+    }
     if (el.id === 'kuSubtitleColumn') {
         libInfo.currSel = 0;
         if (el.selectedIndex > 0) {
